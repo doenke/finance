@@ -26,8 +26,8 @@ besser läuft als der MSCI World.
   Jahre.
 - **Rendite, die stimmt** – zeitgewichtet (TTWROR) und geldgewichtet (IZF),
   damit Sparpläne und Entnahmen das Ergebnis nicht verfälschen.
-- **Direkt von der Bank** – Sparkasse, DKB und OLB per FinTS; Trade Republic
-  und die Advanzia-Kreditkarte per Import.
+- **Direkt von der Bank** – Sparkasse, DKB und OLB per FinTS; Trade Republic,
+  die Bitcoins bei BSDEX und die Advanzia-Kreditkarte per Import.
 - **Kurse von selbst** – täglich über Yahoo Finance, weitere Anbieter lassen
   sich später zuschalten.
 - **Für den ganzen Haushalt** – jede Person meldet sich selbst an, Konten

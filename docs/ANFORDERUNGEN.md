@@ -30,7 +30,7 @@ Anfang an ermöglichen (Umsätze vollständig speichern, nicht nur Salden).
 | Betrieb | Docker-Container auf garageband, hinter Nginx Proxy Manager (HTTPS) |
 | Oberfläche | Deutsch, responsiv, als PWA installierbar, Hell-/Dunkelmodus |
 | Basiswährung | EUR |
-| Banken/Broker | Sparkasse, DKB, OLB (FinTS); Trade Republic (Import); Advanzia Kreditkarte (Import/manuell) |
+| Banken/Broker | Sparkasse, DKB, OLB (FinTS); Trade Republic (Import); BSDEX – Bitcoin (Import); Advanzia Kreditkarte (Import/manuell) |
 
 ## 3. Begriffe
 
@@ -86,6 +86,7 @@ Priorität: **M** = Muss (MVP), **S** = Soll (Phase 2), **K** = Kann (später).
 | F-IM-01 | CSV-Import für Kontoumsätze mit Spaltenzuordnung; Zuordnungen als Profil speichern (je Bank). | M |
 | F-IM-02 | Import von Depot- und Kontotransaktionen für **Trade Republic** (CSV-Export bzw. PDF-Abrechnungen: Kauf, Verkauf, Sparplan, Saveback/Roundup, Dividende, Zinsen, Steuern, Gebühren). Das Verrechnungskonto wird als Konto mitgeführt. | M |
 | F-IM-02a | **Advanzia-Kreditkarte:** Import der Monatsabrechnung (PDF bzw. CSV, falls im Kundenportal verfügbar) mit Umsätzen und Saldo; alternativ manuelle Saldo-Erfassung. Der offene Saldo fließt als Verbindlichkeit ins Nettovermögen. | M |
+| F-IM-02b | **BSDEX (Börse Stuttgart Digital Exchange):** Import der Transaktionshistorie (CSV-Export) mit Kauf, Verkauf, EUR-Ein- und -Auszahlung, Krypto-Ein- und -Auslieferung und Gebühren. Der Bitcoin-Bestand wird als Krypto-Depot geführt, das EUR-Guthaben bei BSDEX als Verrechnungskonto. Bestand nach Import mit dem tatsächlichen Bestand abgleichbar (Korrekturbuchung bei Abweichung). | M |
 | F-IM-03 | Import historischer Depottransaktionen aus **Portfolio Performance** (CSV-Export), um Renditen ab dem echten Kaufdatum zu berechnen. | M |
 | F-IM-04 | Import historischer Kontoumsätze (CSV) der übrigen Banken für den Zeitraum vor dem ersten FinTS-Abruf. | M |
 | F-IM-05 | Jeder Import zeigt eine Vorschau (neu / Dublette / Fehler) und lässt sich als Ganzes rückgängig machen. | M |
@@ -120,7 +121,8 @@ typabhängige Zusatzfelder.
 | F-AN-03a | **Sondertilgungen** | Erfassung ausgeführter Sondertilgungen (Datum, Betrag) und geplanter Sondertilgungen (einmalig oder wiederkehrend, z. B. jährlich 5.000 € im Dezember). Vertragliches Sondertilgungsrecht hinterlegbar (z. B. 5 % des Darlehensbetrags pro Kalenderjahr); die App zeigt, wie viel im laufenden Jahr noch möglich ist, und warnt bei Überschreitung. Sondertilgungen senken die Restschuld sofort und fließen in den Tilgungsplan ein. | M |
 | F-AN-03b | **Tilgungsplan** | Berechnung des vollständigen Tilgungsplans je Rate: Datum, Rate, Zinsanteil, Tilgungsanteil, Sondertilgung, Restschuld. Annuitätendarlehen und Darlehen mit fester Tilgung; tilgungsfreie Anlaufzeit möglich. Zusammenfassung: Restschuld am Ende der Zinsbindung, voraussichtliches Laufzeitende, Summe gezahlter und noch zu zahlender Zinsen. Ansicht als Tabelle (nach Jahren gruppiert, aufklappbar) und Chart (Restschuld, Zins-/Tilgungsanteil). Export als CSV. | M |
 | F-AN-03c | **Szenarien** | Vergleich des Tilgungsplans mit und ohne geplante Sondertilgungen sowie mit geänderter Rate (Ratenwechsel) bzw. angenommenem Anschlusszins nach der Zinsbindung: Zinsersparnis, Laufzeitverkürzung, Restschuld zum Zinsbindungsende. | S |
-| F-AN-04 | **Krypto** | Bestand je Coin (manuell oder per Transaktionsimport), automatischer Kursabruf in EUR. | M |
+| F-AN-04 | **Krypto** | Wird wie ein Depot geführt (z. B. „BSDEX“ oder „Hardware-Wallet“): Transaktionen je Coin (manuell oder per Import), Einstand nach FIFO, automatischer Kursabruf in EUR (Yahoo, z. B. `BTC-EUR`), Rendite wie bei Wertpapieren. Bruchteile mit bis zu 8 Nachkommastellen (Satoshi). Transfers zwischen Börse und eigener Wallet sind Umbuchungen, keine Käufe/Verkäufe. | M |
+| F-AN-04a | **Haltefrist Krypto** | Anzeige je Kaufposten, ab wann die einjährige Haltefrist (§ 23 EStG) abgelaufen ist, und wie viel des Bestands bereits steuerfrei verkauft werden könnte. | K |
 | F-AN-05 | **Edelmetalle** | Gold/Silber in Gramm oder Unzen mit Feingehalt, Wert per Spotkurs in EUR. | M |
 | F-AN-06 | **Altersvorsorge & Versicherungen** | Riester, Rürup, bAV, Renten-/Lebensversicherung, Bausparvertrag: Beiträge als Cashflow, Wert zu Stichtagen aus der jährlichen Standmitteilung (manuell). Optional prognostizierte Rente als Info-Feld. | M |
 | F-AN-07 | **Festgeld** | Betrag, Zinssatz, Laufzeit; Wert wird bis Fälligkeit aufgezinst. Benachrichtigung vor Fälligkeit. | M |
@@ -261,7 +263,7 @@ die App ist auch ohne FinTS schon nützlich.
 
 | Thema | Entscheidung |
 | --- | --- |
-| Banken | Sparkasse, DKB, OLB per FinTS; Trade Republic und Advanzia per Import |
+| Banken | Sparkasse, DKB, OLB per FinTS; Trade Republic, BSDEX und Advanzia per Import |
 | Kursquelle | Start mit Yahoo Finance, Architektur für mehrere Anbieter |
 | STAK | Fester Wert je Periode, Dividenden als Transaktion |
 | Steuern | Werden als Transaktion erfasst; keine Auswertung von Verlusttöpfen, Freistellungsaufträgen oder Vorabpauschale |
@@ -279,4 +281,4 @@ die App ist auch ohne FinTS schon nützlich.
    -umsätze geliefert werden; sonst greift der CSV-Import.
 3. **Advanzia-Exportformat:** Welche Exporte bietet das Kundenportal (nur
    PDF-Abrechnung oder auch CSV)? Ein Beispiel-Export (anonymisiert) hilft
-   beim Bau des Importers. Dasselbe gilt für Trade Republic.
+   beim Bau des Importers. Dasselbe gilt für Trade Republic und BSDEX.
