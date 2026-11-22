@@ -30,7 +30,7 @@ Anfang an ermöglichen (Umsätze vollständig speichern, nicht nur Salden).
 | Betrieb | Docker-Container auf garageband, hinter Nginx Proxy Manager (HTTPS) |
 | Oberfläche | Deutsch, responsiv, als PWA installierbar, Hell-/Dunkelmodus |
 | Basiswährung | EUR |
-| Banken/Broker | Sparkasse/Volksbank, Comdirect, Consorsbank, DKB, ING (FinTS); Trade Republic, Scalable Capital (Import) |
+| Banken/Broker | Sparkasse, DKB, OLB (FinTS); Trade Republic (Import); Advanzia Kreditkarte (Import/manuell) |
 
 ## 3. Begriffe
 
@@ -70,7 +70,7 @@ Priorität: **M** = Muss (MVP), **S** = Soll (Phase 2), **K** = Kann (später).
 | F-FT-01 | Bankzugänge per FinTS/HBCI anlegen: Bank suchen (BLZ, FinTS-URL aus Bankverzeichnis), Benutzerkennung eintragen, TAN-Verfahren wählen. | M |
 | F-FT-02 | Nach dem Anlegen werden die verfügbaren Konten/Depots abgefragt; der Nutzer wählt aus, welche übernommen werden. | M |
 | F-FT-03 | **PIN-Speicherung je Bankzugang wählbar:** (a) PIN wird bei jedem Abruf abgefragt und nicht gespeichert, oder (b) PIN wird verschlüsselt gespeichert und automatischer Abruf ist möglich. | M |
-| F-FT-04 | Unterstützte TAN-Verfahren: mindestens Decoupled/App-Freigabe (pushTAN, comdirect photoTAN-Push, SecureGo plus, ING Banking to go) sowie chipTAN/photoTAN mit Anzeige der Challenge (Text bzw. Grafik) im Browser. | M |
+| F-FT-04 | Unterstützte TAN-Verfahren: mindestens Decoupled/App-Freigabe (z. B. S-pushTAN der Sparkasse, Freigabe in der DKB-App, App-Freigabe der OLB) sowie chipTAN/photoTAN mit Anzeige der Challenge (Text bzw. Grafik) im Browser. | M |
 | F-FT-05 | Abruf von Kontosalden und Umsätzen (CAMT bzw. MT940), inkrementell ab dem letzten Abruf, mit Dublettenerkennung. | M |
 | F-FT-06 | Abruf von Depotbeständen (HKWPD): Stückzahl, ISIN, Kurs, Wert, Einstand soweit von der Bank geliefert. | M |
 | F-FT-07 | Abruf von Depotumsätzen, sofern die Bank es unterstützt; sonst werden Käufe/Verkäufe aus Bestandsänderungen und Verrechnungskonto-Umsätzen vorgeschlagen und vom Nutzer bestätigt. | S |
@@ -84,7 +84,8 @@ Priorität: **M** = Muss (MVP), **S** = Soll (Phase 2), **K** = Kann (später).
 | ID | Anforderung | Prio |
 | --- | --- | --- |
 | F-IM-01 | CSV-Import für Kontoumsätze mit Spaltenzuordnung; Zuordnungen als Profil speichern (je Bank). | M |
-| F-IM-02 | Import von Depottransaktionen für **Trade Republic** und **Scalable Capital** (CSV-Export bzw. PDF-Abrechnungen: Kauf, Verkauf, Sparplan, Dividende, Zinsen, Steuern, Gebühren). | M |
+| F-IM-02 | Import von Depot- und Kontotransaktionen für **Trade Republic** (CSV-Export bzw. PDF-Abrechnungen: Kauf, Verkauf, Sparplan, Saveback/Roundup, Dividende, Zinsen, Steuern, Gebühren). Das Verrechnungskonto wird als Konto mitgeführt. | M |
+| F-IM-02a | **Advanzia-Kreditkarte:** Import der Monatsabrechnung (PDF bzw. CSV, falls im Kundenportal verfügbar) mit Umsätzen und Saldo; alternativ manuelle Saldo-Erfassung. Der offene Saldo fließt als Verbindlichkeit ins Nettovermögen. | M |
 | F-IM-03 | Import historischer Depottransaktionen aus **Portfolio Performance** (CSV-Export), um Renditen ab dem echten Kaufdatum zu berechnen. | M |
 | F-IM-04 | Import historischer Kontoumsätze (CSV) der übrigen Banken für den Zeitraum vor dem ersten FinTS-Abruf. | M |
 | F-IM-05 | Jeder Import zeigt eine Vorschau (neu / Dublette / Fehler) und lässt sich als Ganzes rückgängig machen. | M |
@@ -96,7 +97,10 @@ Priorität: **M** = Muss (MVP), **S** = Soll (Phase 2), **K** = Kann (später).
 | ID | Anforderung | Prio |
 | --- | --- | --- |
 | F-WP-01 | Wertpapierstamm mit ISIN, WKN, Name, Typ (Aktie, ETF, Fonds, Anleihe, Zertifikat), Währung, Kursquelle. | M |
-| F-WP-02 | Täglicher automatischer Kursabruf (Schlusskurs) für alle gehaltenen Wertpapiere; Kursquelle austauschbar (Adapter-Prinzip). | M |
+| F-WP-02 | Täglicher automatischer Kursabruf (Schlusskurs) für alle gehaltenen Wertpapiere. Erste Kursquelle ist **Yahoo Finance**. Kursquellen sind als Adapter umgesetzt, damit später weitere Anbieter hinzukommen. | M |
+| F-WP-02a | Zuordnung ISIN → Symbol der Kursquelle (z. B. Yahoo-Ticker `EUNL.DE`): Vorschlag per Suche, manuell korrigierbar, je Wertpapier gespeichert. | M |
+| F-WP-02b | **Mehrere Kursquellen verwalten:** Anbieter in den Einstellungen anlegen (ggf. mit API-Key), je Wertpapier eine bevorzugte Quelle plus Ausweichreihenfolge; schlägt eine Quelle fehl, wird die nächste versucht. Herkunft jedes Kurses wird gespeichert. | S |
+| F-WP-02c | Fehlende oder veraltete Kurse (älter als X Handelstage) werden in der Oberfläche markiert. | M |
 | F-WP-03 | Historische Kurse werden beim Anlegen eines Wertpapiers bzw. nach einem Import rückwirkend geladen, damit Verlaufscharts und Renditen ab Kauf stimmen. | M |
 | F-WP-04 | Manuelle Kurseingabe als Fallback und für Werte ohne Kursquelle. | M |
 | F-WP-05 | Kapitalmaßnahmen: Splits und Ausschüttungen in Stücken lassen sich erfassen. | S |
@@ -110,7 +114,7 @@ typabhängige Zusatzfelder.
 
 | ID | Anlagetyp | Anforderung | Prio |
 | --- | --- | --- | --- |
-| F-AN-01 | **STAK-Anteile** | Anzahl Zertifikate, Wert je Zertifikat pro Periode (manuell, z. B. jährlich/halbjährlich festgelegt). Käufe/Verkäufe mit Datum, Stückzahl und Preis; Dividenden als Ertrag. Wert zwischen zwei Festsetzungen = letzter festgesetzter Wert. Renditeberechnung wie bei einem Depot. | M |
+| F-AN-01 | **STAK-Anteile** | Anzahl Zertifikate, Wert je Zertifikat pro Periode (manuell, z. B. jährlich/halbjährlich festgelegt). Käufe/Verkäufe mit Datum, Stückzahl und Preis. **Dividenden** als Transaktion (Betrag je Zertifikat oder gesamt, Datum), einbehaltene Steuern (z. B. niederländische Dividendensteuer) als separate Steuer-Transaktion. Wert zwischen zwei Festsetzungen = letzter festgesetzter Wert. Renditeberechnung wie bei einem Depot. | M |
 | F-AN-02 | **Immobilie** | Kaufpreis, Kaufnebenkosten, Kaufdatum, Schätzwerte zu Stichtagen (manuell). Optional Mieteinnahmen als Cashflow. Selbstgenutzt/vermietet. | M |
 | F-AN-03 | **Kredit/Darlehen** | Darlehensbetrag, Zinssatz, Zinsbindung bis, Rate, Sondertilgungen. Restschuld wird nach Tilgungsplan berechnet und kann mit Stand aus Kontoauszug/FinTS überschrieben werden. Verknüpfbar mit einer Immobilie. Fließt negativ ins Nettovermögen. | M |
 | F-AN-04 | **Krypto** | Bestand je Coin (manuell oder per Transaktionsimport), automatischer Kursabruf in EUR. | M |
@@ -223,7 +227,7 @@ Geplant sind später:
 | Datenbank | PostgreSQL 17 | robust für Zeitreihen und Transaktionen, einfache Backups mit `pg_dump` |
 | Jobs | APScheduler im selben Prozess | kein zusätzlicher Dienst nötig |
 | Frontend | SvelteKit (statisch gebaut, vom Backend ausgeliefert) + Charts (z. B. Apache ECharts, lokal gebündelt) | leicht, schnell auf dem Handy, bereits in anderen Apps genutzt |
-| Kursdaten | Adapter-Schnittstelle; Startkandidaten: ein Börsendaten-Anbieter für Aktien/ETFs (Auswahl siehe offene Fragen), CoinGecko für Krypto, EZB für Wechselkurse | Kursquellen ändern sich häufig, darum austauschbar |
+| Kursdaten | Adapter-Schnittstelle; Start mit Yahoo Finance (Aktien, ETFs, Fonds, Indizes, Edelmetalle, Krypto), EZB für Wechselkurse; weitere Anbieter (z. B. CoinGecko, EODHD) später als Adapter | Yahoo ist kostenlos, aber eine inoffizielle Schnittstelle, die sich ohne Ankündigung ändern kann; darum austauschbar und mit Fallback |
 | Benachrichtigung | Web-Push (VAPID) und SMTP | keine Drittdienste |
 
 Grobes Datenmodell:
@@ -241,35 +245,34 @@ ImportBatch (Herkunft und Rückgängig-Funktion für Importe)
 
 | Phase | Inhalt |
 | --- | --- |
-| **1 – MVP** | Login/Haushalt, manuelle Konten & Anlagen aller Typen, CSV- und Portfolio-Performance-Import, Trade-Republic-/Scalable-Import, Kursabruf, Rendite (G/V, TTWROR, IZF), Dashboard, Depotdetail, Benchmark, Export/Backup, PWA |
+| **1 – MVP** | Login/Haushalt, manuelle Konten & Anlagen aller Typen, CSV- und Portfolio-Performance-Import, Trade-Republic- und Advanzia-Import, Kursabruf (Yahoo), Rendite (G/V, TTWROR, IZF), Dashboard, Depotdetail, Benchmark, Export/Backup, PWA |
 | **1b – FinTS** | Bankzugänge, manueller Abruf mit TAN-Dialog, Salden, Umsätze, Depotbestände |
-| **2** | Automatischer Abruf mit gespeicherter PIN, Depotumsätze/Abgleich, Benachrichtigungen, Monatsbericht, Fremdwährungen, Privatmodus |
+| **2** | Automatischer Abruf mit gespeicherter PIN, mehrere Kursquellen mit Fallback, Depotumsätze/Abgleich, Benachrichtigungen, Monatsbericht, Fremdwährungen, Privatmodus |
 | **3** | Budget-Planer (siehe 4.10) |
 
 FinTS ist bewusst als eigene Stufe 1b geführt: Es ist der riskanteste Teil
 (bankspezifische Eigenheiten, TAN-Verfahren, Produktregistrierung), und
 die App ist auch ohne FinTS schon nützlich.
 
-## 8. Offene Fragen
+## 8. Entscheidungen
+
+| Thema | Entscheidung |
+| --- | --- |
+| Banken | Sparkasse, DKB, OLB per FinTS; Trade Republic und Advanzia per Import |
+| Kursquelle | Start mit Yahoo Finance, Architektur für mehrere Anbieter |
+| STAK | Fester Wert je Periode, Dividenden als Transaktion |
+| Steuern | Werden als Transaktion erfasst; keine Auswertung von Verlusttöpfen, Freistellungsaufträgen oder Vorabpauschale |
+| Dividenden/Kosten | Werden als Transaktion erfasst; keine eigene Auswertungsansicht im MVP |
+| Name | `finance`, Subdomain `finance.kanonenwiese.de` |
+
+## 9. Offene Fragen
 
 1. **FinTS-Produktregistrierung:** Für FinTS braucht die App eine kostenlose
    Produkt-ID der Deutschen Kreditwirtschaft. Die Registrierung dauert
-   einige Wochen. Beantragen wir sie gleich zu Beginn?
-2. **Depot-Abdeckung per FinTS:** Bei Sparkasse, Volksbank, Comdirect und
-   Consorsbank ist der Depotabruf per FinTS üblich, bei DKB und ING ist er
-   zu prüfen. Welche Depots habt ihr bei welcher Bank?
-3. **Kursquelle Aktien/ETFs:** Kostenlose, inoffizielle Quellen (z. B.
-   Yahoo, Onvista) oder ein Anbieter mit API-Key (z. B. EODHD,
-   Twelve Data, ein paar Euro im Monat)? Davon hängt die Zuverlässigkeit
-   ab.
-4. **STAK:** Gibt es neben dem Kurs je Periode noch Besonderheiten
-   (Dividenden, Handelsfenster, steuerliche Behandlung), die angezeigt
-   werden sollen?
-5. **Steuern:** Sollen Freistellungsaufträge, Verlusttöpfe oder die
-   Vorabpauschale ausgewertet werden, oder reicht es, Steuern als
-   Transaktion zu erfassen?
-6. **Dividenden/Kosten-Auswertung:** In Runde 2 nicht ausgewählt. Reicht
-   die Erfassung als Transaktion, oder soll es später eine eigene Ansicht
-   (Dividendenkalender, Kostenquote) geben?
-7. **Name und Subdomain:** Bleibt es bei `finance` und
-   `finance.kanonenwiese.de`?
+   einige Wochen und sollte gleich zu Beginn beantragt werden.
+2. **Depot-Abdeckung per FinTS:** Bei der Sparkasse ist der Depotabruf per
+   FinTS üblich. Bei DKB und OLB ist zu prüfen, ob Depotbestände und
+   -umsätze geliefert werden; sonst greift der CSV-Import.
+3. **Advanzia-Exportformat:** Welche Exporte bietet das Kundenportal (nur
+   PDF-Abrechnung oder auch CSV)? Ein Beispiel-Export (anonymisiert) hilft
+   beim Bau des Importers. Dasselbe gilt für Trade Republic.
