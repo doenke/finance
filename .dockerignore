@@ -1,0 +1,9 @@
+.git
+.github
+.env
+compose*.yml
+docs
+scripts
+**/__pycache__
+**/.pytest_cache
+backend/tests

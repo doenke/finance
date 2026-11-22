@@ -1,0 +1,65 @@
+# finance – Compose-Vorlage
+#
+#   cp compose.example.yml compose.yml
+#   cp .env.example .env          # Pflichtwerte ausfüllen
+#   sudo mkdir -p /data/container/finance/data /data/container/finance/db
+#   sudo chown 10001:10001 /data/container/finance/data
+#   docker compose up -d
+#   docker compose ps             # app und db zeigen "healthy"
+#
+# Port 43651 ist frei gewählt (30000–49151). Vorher auf garageband prüfen:
+#   sudo ss -tlnp | grep 43651
+# Er gilt innen und außen gleich – Ziel für NPM, Firewall und Healthcheck.
+
+services:
+  app:
+    # Feste Version statt latest möglich, z. B. ghcr.io/doenke/finance:1.1.12
+    image: ghcr.io/doenke/finance:latest
+    # Alternativ direkt aus dem Repo bauen (Version zeigt dann "dev"):
+    # build: https://github.com/doenke/finance.git#main
+    # image: finance-local:latest
+    # labels:
+    #   - com.centurylinklabs.watchtower.enable=false
+    container_name: finance
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: Europe/Berlin
+      PORT: 43651
+      DATA_DIR: /data
+      DATABASE_URL: postgresql://finance:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}@db:5432/finance
+    ports:
+      - "43651:43651"     # Ziel für NPM: http://garageband:43651
+    volumes:
+      # Anwendungsdaten (Avatare, Importe, später die täglichen Backups).
+      # Der Ordner muss UID 10001 gehören (siehe chown oben).
+      - /data/container/finance/data:/data
+    healthcheck:
+      # /healthz antwortet nur mit 200, wenn Datenbank und Datenverzeichnis passen.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:43651/healthz', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    container_name: finance-db
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
+    volumes:
+      - /data/container/finance/db:/var/lib/postgresql/data
+    # Keine ports: – die Datenbank ist nur im Compose-Netz erreichbar.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

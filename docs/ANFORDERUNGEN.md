@@ -263,7 +263,7 @@ die App ist auch ohne FinTS schon nützlich.
 | STAK | Fester Wert je Periode, Dividenden als Transaktion |
 | Steuern | Werden als Transaktion erfasst; keine Auswertung von Verlusttöpfen, Freistellungsaufträgen oder Vorabpauschale |
 | Dividenden/Kosten | Werden als Transaktion erfasst; keine eigene Auswertungsansicht im MVP |
-| Name | `finance`, Subdomain `finance.kanonenwiese.de` |
+| Name | `finance`, Subdomain `finance.kanonenwiese.de`, Port 43651 |
 
 ## 9. Offene Fragen
 
