@@ -1,0 +1,275 @@
+# Anforderungen: Haushalts-Finanzstatus
+
+Stand: 22.11.2026 · Status: Entwurf zur Abstimmung
+
+## 1. Ziel
+
+Eine selbst gehostete Web-App (PWA), die das gesamte Vermögen unseres
+Haushalts an einem Ort zeigt: Girokonten, Tagesgeld, Depots, Krypto,
+Edelmetalle, Immobilien, Altersvorsorge, STAK-Anteile und sonstige Anlagen.
+Kredite werden dagegengerechnet. Die App verfolgt, wie sich die Werte
+entwickeln, und berechnet die Rendite korrekt, also auch dann, wenn
+zwischendurch Geld ein- oder ausgezahlt wird.
+
+Kontostände und Depotbestände sollen möglichst automatisch per FinTS von den
+Banken kommen. Wo das nicht geht, per CSV/PDF-Import oder manueller Eingabe.
+
+**Ausbaustufen:** Die erste Version konzentriert sich auf Vermögen und
+Rendite. Später soll die App zu einem vollständigen Budget-Planer wachsen
+(Kategorien, Cashflow, Budgets, Verträge). Das Datenmodell muss das von
+Anfang an ermöglichen (Umsätze vollständig speichern, nicht nur Salden).
+
+## 2. Rahmenbedingungen
+
+| Thema | Festlegung |
+| --- | --- |
+| Nutzer | Haushalt mit mehreren Personen, Anmeldung je Person |
+| Sichtbarkeit | Alle Haushaltsmitglieder sehen alles; Personen dienen der Zuordnung und als Filter |
+| Rechte | Admin-Funktionen (Systemeinstellungen, Backup) für Mitglieder der OIDC-Gruppe `admins` |
+| Anmeldung | OIDC über Pocket ID („Kanonenwiese SSO“), keine eigenen Passwörter |
+| Betrieb | Docker-Container auf garageband, hinter Nginx Proxy Manager (HTTPS) |
+| Oberfläche | Deutsch, responsiv, als PWA installierbar, Hell-/Dunkelmodus |
+| Basiswährung | EUR |
+| Banken/Broker | Sparkasse/Volksbank, Comdirect, Consorsbank, DKB, ING (FinTS); Trade Republic, Scalable Capital (Import) |
+
+## 3. Begriffe
+
+- **Bankzugang:** Login bei einer Bank (BLZ/URL, Benutzerkennung, ggf. PIN).
+  Ein Bankzugang liefert ein oder mehrere Konten/Depots.
+- **Konto:** Geldkonto mit Saldo und Umsätzen (Giro, Tagesgeld, Festgeld,
+  Kreditkarte, Verrechnungskonto).
+- **Depot:** Sammlung von Wertpapierpositionen mit Transaktionen.
+- **Anlage:** jeder andere Vermögenswert (Immobilie, Krypto-Wallet, Gold,
+  Versicherung, STAK, P2P …) oder jede Verbindlichkeit (Kredit).
+- **Bewertung:** Wert einer Anlage zu einem Stichtag (manuell, per Kurs
+  oder per Berechnung).
+- **Cashflow (extern):** Geld, das in eine Anlage hinein- oder aus ihr
+  herausfließt (Einzahlung, Entnahme). Grundlage der Renditeberechnung.
+- **TTWROR:** True Time-Weighted Rate of Return, zeitgewichtete Rendite.
+  Ignoriert den Zeitpunkt von Cashflows und misst die Güte der Anlage.
+- **IRR/IZF:** Internal Rate of Return, interner Zinsfuß,
+  geldgewichtete Rendite. Die persönliche Rendite inklusive Timing.
+
+## 4. Funktionale Anforderungen
+
+Priorität: **M** = Muss (MVP), **S** = Soll (Phase 2), **K** = Kann (später).
+
+### 4.1 Haushalt und Personen
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-HH-01 | Benutzer entstehen beim ersten OIDC-Login (Schlüssel `sub`); Name, E-Mail und Avatar werden bei jedem Login aktualisiert. | M |
+| F-HH-02 | Jedes Konto, jedes Depot und jede Anlage gehört einer oder mehreren Personen („gemeinsam“) mit Anteilen (Standard 50/50 bei zwei Personen). | M |
+| F-HH-03 | Alle Ansichten lassen sich nach Person filtern („alle“, „Person A“, „Person B“, „gemeinsam“). Bei gemeinsamen Anlagen wird der Anteil angerechnet. | M |
+| F-HH-04 | Personen ohne eigenen Login (z. B. Kinder) können angelegt werden, um ihnen Anlagen zuzuordnen. | K |
+
+### 4.2 Bankzugänge und FinTS
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-FT-01 | Bankzugänge per FinTS/HBCI anlegen: Bank suchen (BLZ, FinTS-URL aus Bankverzeichnis), Benutzerkennung eintragen, TAN-Verfahren wählen. | M |
+| F-FT-02 | Nach dem Anlegen werden die verfügbaren Konten/Depots abgefragt; der Nutzer wählt aus, welche übernommen werden. | M |
+| F-FT-03 | **PIN-Speicherung je Bankzugang wählbar:** (a) PIN wird bei jedem Abruf abgefragt und nicht gespeichert, oder (b) PIN wird verschlüsselt gespeichert und automatischer Abruf ist möglich. | M |
+| F-FT-04 | Unterstützte TAN-Verfahren: mindestens Decoupled/App-Freigabe (pushTAN, comdirect photoTAN-Push, SecureGo plus, ING Banking to go) sowie chipTAN/photoTAN mit Anzeige der Challenge (Text bzw. Grafik) im Browser. | M |
+| F-FT-05 | Abruf von Kontosalden und Umsätzen (CAMT bzw. MT940), inkrementell ab dem letzten Abruf, mit Dublettenerkennung. | M |
+| F-FT-06 | Abruf von Depotbeständen (HKWPD): Stückzahl, ISIN, Kurs, Wert, Einstand soweit von der Bank geliefert. | M |
+| F-FT-07 | Abruf von Depotumsätzen, sofern die Bank es unterstützt; sonst werden Käufe/Verkäufe aus Bestandsänderungen und Verrechnungskonto-Umsätzen vorgeschlagen und vom Nutzer bestätigt. | S |
+| F-FT-08 | Manueller Abruf per Knopf „Jetzt aktualisieren“ (einzeln oder alle Zugänge nacheinander, TAN-Dialog je Bank). | M |
+| F-FT-09 | Automatischer Abruf (z. B. täglich nachts) für Zugänge mit gespeicherter PIN. Fordert die Bank eine TAN (z. B. 90-Tage-SCA), wird der Abruf ausgesetzt und der Nutzer benachrichtigt. | S |
+| F-FT-10 | Status je Bankzugang sichtbar: letzter erfolgreicher Abruf, letzte Fehlermeldung, nächste fällige SCA-Freigabe soweit bekannt. | M |
+| F-FT-11 | Die App nutzt eine eigene, bei der Deutschen Kreditwirtschaft registrierte FinTS-Produkt-ID (konfigurierbar per Env). | M |
+
+### 4.3 Import und manuelle Erfassung
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-IM-01 | CSV-Import für Kontoumsätze mit Spaltenzuordnung; Zuordnungen als Profil speichern (je Bank). | M |
+| F-IM-02 | Import von Depottransaktionen für **Trade Republic** und **Scalable Capital** (CSV-Export bzw. PDF-Abrechnungen: Kauf, Verkauf, Sparplan, Dividende, Zinsen, Steuern, Gebühren). | M |
+| F-IM-03 | Import historischer Depottransaktionen aus **Portfolio Performance** (CSV-Export), um Renditen ab dem echten Kaufdatum zu berechnen. | M |
+| F-IM-04 | Import historischer Kontoumsätze (CSV) der übrigen Banken für den Zeitraum vor dem ersten FinTS-Abruf. | M |
+| F-IM-05 | Jeder Import zeigt eine Vorschau (neu / Dublette / Fehler) und lässt sich als Ganzes rückgängig machen. | M |
+| F-IM-06 | Manuelle Erfassung und Bearbeitung von Konten, Salden, Umsätzen und Depottransaktionen für alles ohne Schnittstelle. | M |
+| F-IM-07 | PDF-Import weiterer Abrechnungen (z. B. Sparkasse/Comdirect), falls FinTS-Depotumsätze fehlen. | K |
+
+### 4.4 Wertpapiere und Kurse
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-WP-01 | Wertpapierstamm mit ISIN, WKN, Name, Typ (Aktie, ETF, Fonds, Anleihe, Zertifikat), Währung, Kursquelle. | M |
+| F-WP-02 | Täglicher automatischer Kursabruf (Schlusskurs) für alle gehaltenen Wertpapiere; Kursquelle austauschbar (Adapter-Prinzip). | M |
+| F-WP-03 | Historische Kurse werden beim Anlegen eines Wertpapiers bzw. nach einem Import rückwirkend geladen, damit Verlaufscharts und Renditen ab Kauf stimmen. | M |
+| F-WP-04 | Manuelle Kurseingabe als Fallback und für Werte ohne Kursquelle. | M |
+| F-WP-05 | Kapitalmaßnahmen: Splits und Ausschüttungen in Stücken lassen sich erfassen. | S |
+| F-WP-06 | Depottransaktionstypen: Kauf, Verkauf, Einlieferung, Auslieferung, Dividende/Ausschüttung, Zinsen, Steuer, Steuererstattung, Gebühr, Vorabpauschale. | M |
+
+### 4.5 Weitere Anlageformen
+
+Alle Anlagen haben einen gemeinsamen Kern (Name, Personen-Zuordnung,
+Anlageklasse, Währung, Notizen, Bewertungshistorie, Cashflows) und
+typabhängige Zusatzfelder.
+
+| ID | Anlagetyp | Anforderung | Prio |
+| --- | --- | --- | --- |
+| F-AN-01 | **STAK-Anteile** | Anzahl Zertifikate, Wert je Zertifikat pro Periode (manuell, z. B. jährlich/halbjährlich festgelegt). Käufe/Verkäufe mit Datum, Stückzahl und Preis; Dividenden als Ertrag. Wert zwischen zwei Festsetzungen = letzter festgesetzter Wert. Renditeberechnung wie bei einem Depot. | M |
+| F-AN-02 | **Immobilie** | Kaufpreis, Kaufnebenkosten, Kaufdatum, Schätzwerte zu Stichtagen (manuell). Optional Mieteinnahmen als Cashflow. Selbstgenutzt/vermietet. | M |
+| F-AN-03 | **Kredit/Darlehen** | Darlehensbetrag, Zinssatz, Zinsbindung bis, Rate, Sondertilgungen. Restschuld wird nach Tilgungsplan berechnet und kann mit Stand aus Kontoauszug/FinTS überschrieben werden. Verknüpfbar mit einer Immobilie. Fließt negativ ins Nettovermögen. | M |
+| F-AN-04 | **Krypto** | Bestand je Coin (manuell oder per Transaktionsimport), automatischer Kursabruf in EUR. | M |
+| F-AN-05 | **Edelmetalle** | Gold/Silber in Gramm oder Unzen mit Feingehalt, Wert per Spotkurs in EUR. | M |
+| F-AN-06 | **Altersvorsorge & Versicherungen** | Riester, Rürup, bAV, Renten-/Lebensversicherung, Bausparvertrag: Beiträge als Cashflow, Wert zu Stichtagen aus der jährlichen Standmitteilung (manuell). Optional prognostizierte Rente als Info-Feld. | M |
+| F-AN-07 | **Festgeld** | Betrag, Zinssatz, Laufzeit; Wert wird bis Fälligkeit aufgezinst. Benachrichtigung vor Fälligkeit. | M |
+| F-AN-08 | **Sonstige Anlage** | Frei definierbar (P2P, Privatdarlehen, Sammlerstücke, Firmenbeteiligung …) mit manuellen Bewertungen und Cashflows. | M |
+
+### 4.6 Bewertung und Rendite
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-RE-01 | Für jedes Konto, jedes Depot, jede Position und jede Anlage gibt es eine tägliche Wertzeitreihe (aus Salden, Bestand × Kurs, Bewertungen, Zinsformel). Zwischen manuellen Bewertungen wird der letzte Wert fortgeschrieben. | M |
+| F-RE-02 | **Einfache Kennzahlen:** Einstand, aktueller Wert, Gewinn/Verlust absolut und in Prozent (realisiert und unrealisiert). Einstand nach FIFO. | M |
+| F-RE-03 | **TTWROR** für frei wählbare Zeiträume, gesamt und annualisiert. | M |
+| F-RE-04 | **IRR/IZF** für frei wählbare Zeiträume, annualisiert. | M |
+| F-RE-05 | Standardzeiträume: Heute, 1 M, YTD, 1 J, 3 J, 5 J, seit Beginn, frei. | M |
+| F-RE-06 | Kennzahlen lassen sich aggregieren: je Position, Depot, Anlageklasse, Person, Gesamthaushalt. Umbuchungen innerhalb des Haushalts (z. B. Girokonto → Depot-Verrechnungskonto) zählen auf Gesamtebene nicht als Cashflow. | M |
+| F-RE-07 | Fremdwährungsbestände werden mit dem Tageskurs (EZB-Referenzkurse) in EUR umgerechnet; die Rendite wird in EUR berechnet. | S |
+| F-RE-08 | Die Rechenmethoden werden in der App kurz erklärt (Info-Symbol), damit klar ist, warum sich TTWROR und IZF unterscheiden. | M |
+
+### 4.7 Ansichten
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-UI-01 | **Dashboard Nettovermögen:** Gesamtvermögen, Schulden, Nettovermögen; Veränderung zum Vormonat/Vorjahr; Verlaufschart mit wählbarem Zeitraum; Aufteilung nach Anlageklasse und nach Person. | M |
+| F-UI-02 | **Kontenübersicht:** alle Konten, Depots und Anlagen gruppiert nach Typ, mit aktuellem Wert, Veränderung und Datum der letzten Aktualisierung. | M |
+| F-UI-03 | **Kontodetail:** Saldoverlauf, Umsatzliste mit Suche und Filter. | M |
+| F-UI-04 | **Depotdetail:** Positionen mit Stück, Einstand, Kurs, Wert, G/V, Anteil am Depot; Kennzahlen je Zeitraum (F-RE-05); Wertchart; Transaktionsliste. | M |
+| F-UI-05 | **Positionsdetail:** Kurschart mit markierten Käufen/Verkäufen, Kennzahlen, Transaktionen. | M |
+| F-UI-06 | **Benchmark-Vergleich:** Performance (TTWROR) eines Depots oder des Gesamtvermögens gegen einen oder mehrere Benchmarks (z. B. MSCI World über einen ETF wie IE00B4L5Y983), indexiert auf 100 zum Beginn des Zeitraums. Benchmark frei wählbar aus allen Wertpapieren mit Kursquelle. | M |
+| F-UI-07 | **Anlagedetail** für alle übrigen Anlagetypen mit Bewertungshistorie, Cashflows und Kennzahlen. | M |
+| F-UI-08 | Status der Bankzugänge und Aktualisierungs-Knopf von überall erreichbar. | M |
+| F-UI-09 | Beträge lassen sich per Knopf verbergen (Privatmodus, z. B. beim Zeigen am Handy). | S |
+| F-UI-10 | Asset Allocation mit Soll-Aufteilung und Rebalancing-Hinweis. | K |
+
+### 4.8 Benachrichtigungen
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-NO-01 | Kanäle: **Web-Push** (installierte PWA) und **E-Mail** (SMTP); je Person und Ereignis einstellbar. | S |
+| F-NO-02 | Ereignisse: Bankabruf fehlgeschlagen; TAN-/SCA-Freigabe nötig; Festgeld/Zinsbindung läuft in X Tagen aus; Wertveränderung über Schwelle (Tag/Woche, in % oder EUR); Erinnerung an fällige manuelle Bewertung (z. B. STAK-Kurs, Standmitteilung, Immobilienwert jährlich). | S |
+| F-NO-03 | **Monatsbericht** per E-Mail: Nettovermögen, Veränderung, Rendite im Monat und YTD, größte Bewegungen. | S |
+
+### 4.9 Export und Backup
+
+| ID | Anforderung | Prio |
+| --- | --- | --- |
+| F-EX-01 | Export aller Daten als JSON (vollständig, wieder importierbar) sowie Umsätze/Transaktionen/Bewertungen als CSV. | M |
+| F-EX-02 | Automatisches tägliches Datenbank-Backup ins Datenverzeichnis mit konfigurierbarer Aufbewahrung; Wiederherstellung dokumentiert. | M |
+| F-EX-03 | Gespeicherte PINs sind im Backup nur verschlüsselt enthalten; ohne den Schlüssel aus der Env sind sie wertlos. | M |
+
+### 4.10 Ausblick Budget-Planer (Phase 3, nicht Teil des MVP)
+
+Damit diese Stufe ohne Umbau möglich ist, gilt schon für das MVP:
+Umsätze werden vollständig gespeichert (Verwendungszweck, Gegenkonto,
+Buchungs-/Valutadatum, Rohdaten) und haben ein (zunächst leeres)
+Kategoriefeld.
+
+Geplant sind später:
+
+- Kategorien (hierarchisch) und Regeln zur automatischen Kategorisierung
+- Erkennung interner Umbuchungen
+- Auswertung Einnahmen/Ausgaben, Sparquote, Cashflow je Monat
+- Budgets je Kategorie mit Soll/Ist
+- Erkennung von Verträgen und Abos (wiederkehrende Zahlungen)
+
+## 5. Nicht-funktionale Anforderungen
+
+### 5.1 Sicherheit und Datenschutz
+
+| ID | Anforderung |
+| --- | --- |
+| N-SI-01 | Anmeldung ausschließlich per OIDC (Authorization Code + PKCE, `state`, `nonce`); Session als signiertes Cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). |
+| N-SI-02 | Gespeicherte Bank-PINs werden mit einem Schlüssel aus der Env verschlüsselt (authentifizierte Verschlüsselung, z. B. AES-256-GCM). Klartext-PINs erscheinen nie in Logs, Fehlermeldungen, Exporten oder API-Antworten. |
+| N-SI-03 | Nicht gespeicherte PINs leben nur für die Dauer eines FinTS-Dialogs im Speicher. |
+| N-SI-04 | Kein Datenverkehr zu Dritten außer zu den Banken und den konfigurierten Kursquellen; Kursabfragen enthalten nur ISIN/Symbol, keine Bestände. Keine CDNs, keine externen Webfonts. |
+| N-SI-05 | Alle schreibenden Aktionen werden mit Benutzer und Zeitpunkt protokolliert (Änderungshistorie). |
+| N-SI-06 | Seite nicht indexierbar (`noindex`, `robots.txt`). |
+
+### 5.2 Betrieb (Konventionen Kanonenwiese)
+
+| ID | Anforderung |
+| --- | --- |
+| N-BT-01 | Ein Docker-Image (Server + Frontend) unter `ghcr.io/doenke/finance`, Multi-Arch (amd64/arm64), nicht als root. |
+| N-BT-02 | PostgreSQL als eigener Dienst im Compose-Stack, ohne Port-Freigabe. Mounts unter `/data/container/finance/...`. |
+| N-BT-03 | Healthcheck `GET /healthz` (prüft DB und Datenverzeichnis, liefert Version), im Dockerfile und im Compose-Beispiel. |
+| N-BT-04 | Konfiguration nur über Env (`.env.example` mit Kommentaren): `PUBLIC_URL`, `PORT`, `TZ`, OIDC-Werte, `SESSION_KEY`, `SECRETS_KEY` (PIN-Verschlüsselung), `FINTS_PRODUCT_ID`, SMTP, VAPID-Schlüssel, Kursquellen-API-Keys. |
+| N-BT-05 | Unkonventioneller Port aus 30000–49151, innen und außen gleich. |
+| N-BT-06 | Versionierung x.yy.zzz (`versions.json`, `scripts/version.mjs`), sichtbar in der App und im Healthcheck. CI baut, testet, macht einen Smoke-Test und pusht das Image. |
+| N-BT-07 | Hintergrundjobs (Kursabruf, automatischer Bankabruf, Backup, Benachrichtigungen) laufen im Container mit eingebautem Scheduler; Zeiten konfigurierbar. |
+
+### 5.3 Oberfläche und Qualität
+
+| ID | Anforderung |
+| --- | --- |
+| N-UI-01 | Voll nutzbar auf dem Smartphone (ab 360 px Breite) und am Desktop; PWA mit Manifest und Service Worker (Netz zuerst, API nie cachen). |
+| N-UI-02 | Hell-/Dunkelmodus nach Systemeinstellung, manuell umschaltbar. |
+| N-UI-03 | Deutsche Zahlen- und Datumsformate (1.234,56 €, 22.11.2026). |
+| N-UI-04 | Dashboard lädt bei 10 Jahren Historie und ca. 100 Positionen in unter 2 Sekunden (Wertzeitreihen werden vorberechnet und bei Änderungen neu berechnet). |
+| N-QA-01 | Renditeberechnungen (TTWROR, IZF, FIFO) sind mit Unit-Tests gegen Referenzwerte abgesichert (z. B. Vergleich mit Portfolio Performance). |
+| N-QA-02 | Beträge werden als Dezimalzahlen gespeichert und berechnet, nie als Gleitkommazahlen. |
+| N-QA-03 | UI-Texte Deutsch; Code, Bezeichner und Kommentare Englisch. README im bekannten Stil. |
+
+## 6. Vorgeschlagene Architektur
+
+| Baustein | Vorschlag | Begründung |
+| --- | --- | --- |
+| Backend | Python 3.13, FastAPI, SQLAlchemy, Alembic | `python-fints` ist die ausgereifteste freie FinTS-Bibliothek (Depot, Decoupled-TAN, CAMT). Python bringt außerdem gute Werkzeuge für Zahlen (Decimal, pandas für Zeitreihen, `scipy` für IZF). |
+| Datenbank | PostgreSQL 17 | robust für Zeitreihen und Transaktionen, einfache Backups mit `pg_dump` |
+| Jobs | APScheduler im selben Prozess | kein zusätzlicher Dienst nötig |
+| Frontend | SvelteKit (statisch gebaut, vom Backend ausgeliefert) + Charts (z. B. Apache ECharts, lokal gebündelt) | leicht, schnell auf dem Handy, bereits in anderen Apps genutzt |
+| Kursdaten | Adapter-Schnittstelle; Startkandidaten: ein Börsendaten-Anbieter für Aktien/ETFs (Auswahl siehe offene Fragen), CoinGecko für Krypto, EZB für Wechselkurse | Kursquellen ändern sich häufig, darum austauschbar |
+| Benachrichtigung | Web-Push (VAPID) und SMTP | keine Drittdienste |
+
+Grobes Datenmodell:
+
+```
+Person ─┬─< Ownership >─┬─ Account (Konto)        ─< Transaction (Umsatz)
+        │               ├─ Portfolio (Depot)      ─< PortfolioTransaction >─ Security ─< Price
+        │               └─ Asset (Anlage, typisiert) ─< Valuation, ─< Cashflow
+BankLogin ─< Account / Portfolio            (FinTS-Zugang, PIN optional verschlüsselt)
+DailyValue (vorberechnete Wertzeitreihe je Account/Portfolio/Position/Asset)
+ImportBatch (Herkunft und Rückgängig-Funktion für Importe)
+```
+
+## 7. Ausbaustufen
+
+| Phase | Inhalt |
+| --- | --- |
+| **1 – MVP** | Login/Haushalt, manuelle Konten & Anlagen aller Typen, CSV- und Portfolio-Performance-Import, Trade-Republic-/Scalable-Import, Kursabruf, Rendite (G/V, TTWROR, IZF), Dashboard, Depotdetail, Benchmark, Export/Backup, PWA |
+| **1b – FinTS** | Bankzugänge, manueller Abruf mit TAN-Dialog, Salden, Umsätze, Depotbestände |
+| **2** | Automatischer Abruf mit gespeicherter PIN, Depotumsätze/Abgleich, Benachrichtigungen, Monatsbericht, Fremdwährungen, Privatmodus |
+| **3** | Budget-Planer (siehe 4.10) |
+
+FinTS ist bewusst als eigene Stufe 1b geführt: Es ist der riskanteste Teil
+(bankspezifische Eigenheiten, TAN-Verfahren, Produktregistrierung), und
+die App ist auch ohne FinTS schon nützlich.
+
+## 8. Offene Fragen
+
+1. **FinTS-Produktregistrierung:** Für FinTS braucht die App eine kostenlose
+   Produkt-ID der Deutschen Kreditwirtschaft. Die Registrierung dauert
+   einige Wochen. Beantragen wir sie gleich zu Beginn?
+2. **Depot-Abdeckung per FinTS:** Bei Sparkasse, Volksbank, Comdirect und
+   Consorsbank ist der Depotabruf per FinTS üblich, bei DKB und ING ist er
+   zu prüfen. Welche Depots habt ihr bei welcher Bank?
+3. **Kursquelle Aktien/ETFs:** Kostenlose, inoffizielle Quellen (z. B.
+   Yahoo, Onvista) oder ein Anbieter mit API-Key (z. B. EODHD,
+   Twelve Data, ein paar Euro im Monat)? Davon hängt die Zuverlässigkeit
+   ab.
+4. **STAK:** Gibt es neben dem Kurs je Periode noch Besonderheiten
+   (Dividenden, Handelsfenster, steuerliche Behandlung), die angezeigt
+   werden sollen?
+5. **Steuern:** Sollen Freistellungsaufträge, Verlusttöpfe oder die
+   Vorabpauschale ausgewertet werden, oder reicht es, Steuern als
+   Transaktion zu erfassen?
+6. **Dividenden/Kosten-Auswertung:** In Runde 2 nicht ausgewählt. Reicht
+   die Erfassung als Transaktion, oder soll es später eine eigene Ansicht
+   (Dividendenkalender, Kostenquote) geben?
+7. **Name und Subdomain:** Bleibt es bei `finance` und
+   `finance.kanonenwiese.de`?
