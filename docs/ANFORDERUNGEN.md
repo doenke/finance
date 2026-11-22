@@ -267,9 +267,10 @@ die App ist auch ohne FinTS schon nützlich.
 
 ## 9. Offene Fragen
 
-1. **FinTS-Produktregistrierung:** Für FinTS braucht die App eine kostenlose
-   Produkt-ID der Deutschen Kreditwirtschaft. Die Registrierung dauert
-   einige Wochen und sollte gleich zu Beginn beantragt werden.
+1. **FinTS-Produktregistrierung:** Am 22.11.2026 beantragt (Kategorie
+   „Web-Server“, Produktbezeichnung „finance“). Die Registrierungsnummer
+   kommt laut DK meist innerhalb von 10–15 Werktagen und wird dann als
+   `FINTS_PRODUCT_ID` eingetragen.
 2. **Depot-Abdeckung per FinTS:** Bei der Sparkasse ist der Depotabruf per
    FinTS üblich. Bei DKB und OLB ist zu prüfen, ob Depotbestände und
    -umsätze geliefert werden; sonst greift der CSV-Import.
