@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 from .. import kinds
 from ..auth.session import admin_user, current_user
 from ..db import get_db
-from ..models import Account, ImportBatch, Instrument, Trade, Transaction, User
+from ..models import Account, AccountOwner, ImportBatch, Instrument, Trade, Transaction, User
 from ..services.backup import export_data, list_backups, write_backup
+from ..services.bsdex import COINS, parse_bsdex
 from ..services.csvimport import ImportError_, guess_mapping, header_index, parse_bookings, parse_portfolio_performance, sniff
 from ..services.sync import get_state, set_state
 
@@ -209,6 +210,142 @@ def pp_commit(data: TradeImportIn, db: Session = Depends(get_db), user: User = D
         created += 1
     db.commit()
     return {"batch_id": batch.id, "imported": created, "instruments": len(cache), "skipped": result["summary"]["duplicate"] + result["summary"]["skipped"]}
+
+
+class BsdexImportIn(BaseModel):
+    account_id: int
+    text: str = Field(max_length=MAX_TEXT)
+    filename: str = ""
+    create_settlement: bool = True
+
+
+def _bsdex(db: Session, data: BsdexImportIn) -> dict[str, Any]:
+    account = _account(db, data.account_id, kinds.HOLDINGS)
+    try:
+        parsed = parse_bsdex(data.text, data.account_id)
+    except ImportError_ as exc:
+        raise HTTPException(422, str(exc)) from None
+    existing_trades = _existing_ids(db, Trade, data.account_id, [p.external_id for p in parsed if p.kind in ("buy", "sell")])
+    settlement = db.get(Account, account.settlement_account_id) if account.settlement_account_id else None
+    existing_cash = _existing_ids(db, Transaction, settlement.id, [p.external_id + ":cash" for p in parsed]) if settlement else set()
+    rows, summary = [], {"new": 0, "duplicate": 0, "error": 0, "skipped": 0}
+    for p in parsed:
+        if p.error:
+            status = "error"
+        elif p.skipped:
+            status = "skipped"
+        elif p.kind in ("buy", "sell"):
+            status = "duplicate" if p.external_id in existing_trades else "new"
+        else:
+            status = "duplicate" if (p.external_id + ":cash") in existing_cash else "new"
+        summary[status] += 1
+        rows.append({**p.__dict__, "status": status, "message": p.error or p.skipped})
+    return {
+        "rows": rows,
+        "summary": summary,
+        "settlement": {"id": settlement.id, "name": settlement.name} if settlement else None,
+    }
+
+
+@router.post("/import/bsdex/preview")
+def bsdex_preview(data: BsdexImportIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    return _bsdex(db, data)
+
+
+def _crypto_instrument(db: Session, coin: str, symbol: str) -> Instrument:
+    yahoo = COINS.get(coin.lower(), (symbol, None))[1]
+    instrument = None
+    if yahoo:
+        instrument = db.scalar(select(Instrument).where(Instrument.price_symbol == yahoo))
+    if instrument is None:
+        instrument = db.scalar(select(Instrument).where(Instrument.kind == "crypto", Instrument.symbol == symbol))
+    if instrument is None:
+        instrument = Instrument(
+            kind="crypto",
+            name=coin,
+            symbol=symbol,
+            currency="EUR",
+            price_source="yahoo" if yahoo else "manual",
+            price_symbol=yahoo,
+            details={},
+        )
+        db.add(instrument)
+        db.flush()
+    return instrument
+
+
+@router.post("/import/bsdex/commit")
+def bsdex_commit(data: BsdexImportIn, request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict[str, Any]:
+    result = _bsdex(db, data)
+    new = [r for r in result["rows"] if r["status"] == "new"]
+    if not new:
+        raise HTTPException(422, "Keine neuen Buchungen gefunden.")
+    account = db.get(Account, data.account_id)
+    settlement = db.get(Account, account.settlement_account_id) if account.settlement_account_id else None
+    if settlement is None and data.create_settlement:
+        settlement = Account(name=f"{account.name} – Euro", kind="verrechnung", asset_class="cash", institution=account.institution or "BSDEX", details={})
+        settlement.owners = [AccountOwner(person_id=o.person_id, share=o.share) for o in account.owners]
+        db.add(settlement)
+        db.flush()
+        account.settlement_account_id = settlement.id
+    batch = ImportBatch(kind="bsdex", account_id=data.account_id, filename=data.filename[:255], count=len(new), created_by=user.id)
+    db.add(batch)
+    db.flush()
+    trades = cash = 0
+    new_instruments: list[Instrument] = []
+    for r in new:
+        if r["kind"] in ("buy", "sell"):
+            before = db.scalar(select(Instrument.id).where(Instrument.kind == "crypto", Instrument.symbol == r["symbol"]))
+            instrument = _crypto_instrument(db, r["coin"], r["symbol"])
+            if before is None and instrument not in new_instruments:
+                new_instruments.append(instrument)
+            db.add(
+                Trade(
+                    account_id=account.id,
+                    instrument_id=instrument.id,
+                    date=r["date"],
+                    type=r["kind"],
+                    quantity=r["quantity"],
+                    price=r["price"],
+                    amount=r["amount"],
+                    fees=r["fee"],
+                    note="BSDEX",
+                    external_id=r["external_id"],
+                    import_batch_id=batch.id,
+                )
+            )
+            trades += 1
+        if settlement is None:
+            continue
+        if r["kind"] == "buy":
+            amount, text = -(r["amount"] + r["fee"]), f"Kauf {r['coin']}"
+        elif r["kind"] == "sell":
+            amount, text = r["amount"] - r["fee"], f"Verkauf {r['coin']}"
+        elif r["kind"] == "deposit":
+            amount, text = r["amount"], "Einzahlung"
+        else:
+            amount, text = -r["amount"], "Auszahlung"
+        db.add(
+            Transaction(
+                account_id=settlement.id,
+                booking_date=r["date"],
+                amount=amount,
+                kind="transfer",
+                counterparty="BSDEX",
+                purpose=text,
+                external_id=r["external_id"] + ":cash",
+                import_batch_id=batch.id,
+            )
+        )
+        cash += 1
+    db.commit()
+    if request.app.state.settings.scheduler:
+        from ..services.sync import sync_instrument_in_background
+
+        for instrument in new_instruments:
+            if instrument.price_symbol:
+                sync_instrument_in_background(request.app.state.sessionmaker, instrument.id)
+    return {"batch_id": batch.id, "imported": trades + cash, "trades": trades, "cash": cash, "settlement_id": settlement.id if settlement else None, "skipped": result["summary"]["skipped"] + result["summary"]["duplicate"]}
 
 
 @router.get("/import/batches")

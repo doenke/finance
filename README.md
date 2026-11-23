@@ -13,7 +13,7 @@ besser läuft als der MSCI World.
 > **Stand:** Konten, Depots, alle Anlageformen, Tilgungsplan, tägliche Kurse,
 > Rendite, Dashboard mit Benchmark, Bankanbindung per FinTS, CSV-Import (Bank
 > und Portfolio Performance), Export und tägliche Sicherung sind fertig. Als
-> Nächstes: Importer für Trade Republic, BSDEX und Advanzia sowie
+> Nächstes: Importer für Trade Republic und Advanzia sowie
 > Benachrichtigungen – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Übersicht | Depot | Kredit | Konten |
@@ -193,8 +193,11 @@ weglassen.
 ### 6. Umsätze und Depots importieren
 
 Unter **Konten → Import** liest Finanzen den CSV-Export deiner Bank
-(Sparkasse „CSV-CAMT“, DKB, OLB, …) und Exporte aus **Portfolio
-Performance**. Du siehst vorher, was neu ist, was schon da ist und was nicht
+(Sparkasse „CSV-CAMT“, DKB, OLB, …), Exporte aus **Portfolio
+Performance** und die Transaktionsliste von **BSDEX**. Bei BSDEX landen
+ausgeführte Käufe und Verkäufe im Krypto-Depot, Einzahlungen und der
+Euro-Anteil jeder Order auf dessen Verrechnungskonto – so stimmen Bitcoin-Bestand,
+Einstand inklusive Gebühren und das Euro-Guthaben bei der Börse. Du siehst vorher, was neu ist, was schon da ist und was nicht
 passt. Spaltenzuordnungen speicherst du als Vorlage, doppelte Buchungen
 werden übersprungen, und jeder Import lässt sich mit einem Klick komplett
 rückgängig machen. Beim Portfolio-Performance-Import werden fehlende

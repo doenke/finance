@@ -273,6 +273,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Rendite | TTWROR mit Zahlungsströmen am Tagesende (Käufe zum Schlusskurs), IZF per XIRR; Kredite zählen nur zum Nettovermögen, nicht zur Rendite |
 | Wechselkurse | EZB-Referenzkurse bereits im MVP (F-RE-07 vorgezogen) |
 | Kredit-Szenarien | F-AN-03c umgesetzt: bis zu vier Szenarien je Kredit (geplante/zusätzliche Sondertilgungen, Ratenwechsel ab Stichtag, Anschlusszins), Vergleich gegen den Plan ohne Sondertilgungen; Szenarien werden am Kredit gespeichert |
+| BSDEX-Import | F-IM-02b umgesetzt anhand eines echten Exports: Werte werden an der Einheit erkannt (Spaltennamen im Export sind verschoben), nur ausgeführte Orders, Gebühr auf den Einstand, Euro-Seite aufs Verrechnungskonto (wird bei Bedarf angelegt). Krypto-Ein-/Auszahlungen sind im Beispiel nicht enthalten und werden als „übersprungen“ gemeldet |
 | FinTS | Abruf als Hintergrund-Job mit TAN-Dialog im Browser (Text-TAN, photoTAN-Grafik, Decoupled/App-Freigabe); chipTAN-Flickercode wird nicht dargestellt. Erstabruf 90 Tage Umsätze. Depot: Anfangsbestand laut Bank, später Abweichungen mit Ein-/Auslieferung abgleichen |
 
 ## 9. Offene Fragen
@@ -288,4 +289,4 @@ die App ist auch ohne FinTS schon nützlich.
    -umsätze geliefert werden; sonst greift der CSV-Import.
 3. **Advanzia-Exportformat:** Welche Exporte bietet das Kundenportal (nur
    PDF-Abrechnung oder auch CSV)? Ein Beispiel-Export (anonymisiert) hilft
-   beim Bau des Importers. Dasselbe gilt für Trade Republic und BSDEX.
+   beim Bau des Importers. Dasselbe gilt für Trade Republic (BSDEX ist erledigt).

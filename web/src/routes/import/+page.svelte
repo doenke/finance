@@ -6,7 +6,7 @@
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
 
-  type Kind = 'bookings' | 'pp';
+  type Kind = 'bookings' | 'pp' | 'bsdex';
   interface Batch {
     id: number;
     kind: string;
@@ -32,7 +32,10 @@
   let info = $state('');
   let busy = $state(false);
 
-  const targets = $derived(accounts.filter((a) => !a.closed && (kind === 'pp' ? a.mode === 'holdings' : a.mode !== 'holdings')));
+  const targets = $derived(
+    accounts.filter((a) => !a.closed && (kind === 'bsdex' ? a.kind === 'krypto' : kind === 'pp' ? a.mode === 'holdings' : a.mode !== 'holdings'))
+  );
+  const endpoint = $derived(kind === 'pp' ? 'portfolio-performance' : kind);
   const fields = [
     { key: 'booking_date', label: 'Buchungstag', required: true },
     { key: 'amount', label: 'Betrag', required: true },
@@ -67,6 +70,7 @@
 
   function body() {
     if (kind === 'pp') return { account_id: accountId, text, filename };
+    if (kind === 'bsdex') return { account_id: accountId, text, filename, create_settlement: true };
     return {
       account_id: accountId,
       text,
@@ -85,7 +89,7 @@
     if (!accountId || !text) return;
     busy = true;
     try {
-      const url = kind === 'pp' ? '/api/import/portfolio-performance/preview' : '/api/import/bookings/preview';
+      const url = `/api/import/${endpoint}/preview`;
       preview = await api.post<any>(url, body());
       if (kind === 'bookings') mapping = { ...preview.mapping };
     } catch (e) {
@@ -109,9 +113,12 @@
     busy = true;
     error = '';
     try {
-      const url = kind === 'pp' ? '/api/import/portfolio-performance/commit' : '/api/import/bookings/commit';
+      const url = `/api/import/${endpoint}/commit`;
       const res = await api.post<any>(url, body());
-      info = `${res.imported} ${kind === 'pp' ? 'Transaktionen' : 'Buchungen'} übernommen${res.skipped ? `, ${res.skipped} übersprungen` : ''}.`;
+      info =
+        kind === 'bsdex'
+          ? `${res.trades} Orders und ${res.cash} Euro-Buchungen übernommen${res.skipped ? `, ${res.skipped} übersprungen` : ''}.`
+          : `${res.imported} ${kind === 'pp' ? 'Transaktionen' : 'Buchungen'} übernommen${res.skipped ? `, ${res.skipped} übersprungen` : ''}.`;
       preview = null;
       text = '';
       filename = '';
@@ -129,6 +136,7 @@
     await load();
   }
 
+  const bsdexKind: Record<string, string> = { buy: 'Kauf', sell: 'Verkauf', deposit: 'Einzahlung', withdrawal: 'Auszahlung' };
   const statusLabel: Record<string, string> = { new: 'neu', duplicate: 'schon da', error: 'Fehler', skipped: 'übersprungen' };
 </script>
 
@@ -142,10 +150,15 @@
     <div class="seg" role="radiogroup" aria-label="Art des Imports">
       <button role="radio" aria-checked={kind === 'bookings'} class:active={kind === 'bookings'} onclick={() => { kind = 'bookings'; accountId = null; preview = null; }}>Kontoumsätze (CSV)</button>
       <button role="radio" aria-checked={kind === 'pp'} class:active={kind === 'pp'} onclick={() => { kind = 'pp'; accountId = null; preview = null; }}>Portfolio Performance</button>
+      <button role="radio" aria-checked={kind === 'bsdex'} class:active={kind === 'bsdex'} onclick={() => { kind = 'bsdex'; accountId = null; preview = null; }}>BSDEX</button>
     </div>
     <p class="muted small">
       {#if kind === 'bookings'}
         CSV-Export deiner Bank, z. B. Sparkasse („CSV-CAMT“), DKB oder OLB. Die Spalten werden erkannt; du kannst sie unten anpassen und als Vorlage speichern. Doppelte Buchungen werden übersprungen.
+      {:else if kind === 'bsdex'}
+        Den CSV-Export deiner Transaktionen aus BSDEX. Ausgeführte Käufe und Verkäufe landen im Krypto-Depot, Einzahlungen und der
+        Euro-Anteil jeder Order auf dessen Verrechnungskonto – fehlt eins, legt Finanzen „… – Euro“ an. Abgelehnte Orders werden übersprungen. Wähle
+        als Ziel ein Konto der Art „Krypto“.
       {:else}
         In Portfolio Performance: Depot auswählen → Rechtsklick „Export“ → „Umsätze (CSV)“. Käufe, Verkäufe, Ein- und Auslieferungen, Dividenden, Zinsen, Steuern und Gebühren werden übernommen, Wertpapiere bei Bedarf angelegt.
       {/if}
@@ -216,6 +229,8 @@
           <thead>
             {#if kind === 'bookings'}
               <tr><th>Status</th><th>Datum</th><th>Empfänger / Auftraggeber</th><th>Verwendungszweck</th><th class="r">Betrag</th></tr>
+            {:else if kind === 'bsdex'}
+              <tr><th>Status</th><th>Datum</th><th>Art</th><th class="r">Menge</th><th class="r">Kurs</th><th class="r">Betrag</th><th class="r">Gebühr</th></tr>
             {:else}
               <tr><th>Status</th><th>Datum</th><th>Art</th><th>Wertpapier</th><th class="r">Stück</th><th class="r">Betrag</th></tr>
             {/if}
@@ -225,7 +240,13 @@
               <tr class={r.status}>
                 <td><span class="badge {r.status}">{statusLabel[r.status]}</span>{#if r.error || r.message}<div class="small muted">{r.error || r.message}</div>{/if}</td>
                 <td>{formatDate(r.booking_date ?? r.date)}</td>
-                {#if kind === 'bookings'}
+                {#if kind === 'bsdex'}
+                  <td>{r.kind ? bsdexKind[r.kind] : '–'}{r.coin ? ` ${r.coin}` : ''}</td>
+                  <td class="r">{Number(r.quantity) ? `${formatNumber(r.quantity, 8)} ${r.symbol}` : ''}</td>
+                  <td class="r">{#if r.price}<Money value={r.price} />{/if}</td>
+                  <td class="r">{#if Number(r.amount)}<Money value={r.amount} />{/if}</td>
+                  <td class="r">{#if Number(r.fee)}<Money value={r.fee} />{/if}</td>
+                {:else if kind === 'bookings'}
                   <td>{r.counterparty}</td>
                   <td class="purpose">{r.purpose}</td>
                   <td class="r">{#if r.amount !== null}<Money value={r.amount} colored />{/if}</td>
@@ -240,6 +261,11 @@
           </tbody>
         </table>
       </div>
+      {#if kind === 'bsdex'}
+        <p class="muted small">
+          Euro-Buchungen gehen auf {preview.settlement ? `„${preview.settlement.name}“` : 'ein neues Verrechnungskonto'}.
+        </p>
+      {/if}
       <div class="row">
         <button class="btn primary" onclick={commit} disabled={busy || !preview.summary.new}>{preview.summary.new} übernehmen</button>
         <button class="btn" onclick={() => (preview = null)}>Abbrechen</button>
@@ -256,7 +282,7 @@
         {#each batches as b (b.id)}
           <li>
             <div class="grow">
-              <strong>{b.filename || (b.kind === 'bookings' ? 'Kontoumsätze' : 'Portfolio Performance')}</strong>
+              <strong>{b.filename || (b.kind === 'bookings' ? 'Kontoumsätze' : b.kind === 'bsdex' ? 'BSDEX' : 'Portfolio Performance')}</strong>
               <div class="muted small">{b.account_name} · {b.count} Einträge · {formatDate(b.created_at.slice(0, 10))}</div>
             </div>
             <button class="btn danger" onclick={() => undo(b)}><Icon name="trash" size={16} /> Rückgängig</button>

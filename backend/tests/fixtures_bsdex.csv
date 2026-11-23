@@ -1,0 +1,8 @@
+Transaktionstyp,Kryptowährung,Betrag,Seite,Limitpreis,Ausführungspreis,Gefüllt,Ausgeführter Gesamtbetrag,Ausgeführte Menge,Status,Transaktionsentgelt,Bestellstatus,Erstellt,Finalisiert am,Stop-Preis,Ausgelöst am,Ausgelöster Preis,Transaktionstyp,Storniert,Sendeadresse,Zieladresse,Zieladressen-Tag,Sendeadressen-Tag,IBAN,IBAN,Operation Type,Status,Completed At
+Market,Bitcoin,"0,00 BTC",Kaufen,,"99.424,88 €","9.965,12 €","0,10022757 BTC","9.965,12 €",Ausgeführt,"34,88 €",Geschlossen,"04.08.2025, 16:54","04.08.2025, 16:54",,,,,,,,,,,,,,
+Market,Bitcoin,"0,00 BTC",Kaufen,,,"0,00 €","0,00 BTC","10.000,00 €",Nicht ausgeführt,"0,00 €",Abgelehnt,"04.08.2025, 16:52",,,,,,,,,,,,,,,
+Einzahlungen,,"10.000,00 €",,,,,,,,,,"04.08.2025, 02:00",,,,,,,,,,,,DE00000000000000000000,,,
+Market,Bitcoin,"0,00 BTC",Kaufen,,"77.359,16 €","14.947,68 €","0,19322444 BTC","14.947,68 €",Ausgeführt,"52,32 €",Geschlossen,"31.03.2025, 17:43","31.03.2025, 17:43",,,,,,,,,,,,,,
+Einzahlungen,,"15.000,00 €",,,,,,,,,,"31.03.2025, 02:00",,,,,,,,,,,,DE00000000000000000000,,,
+Market,Bitcoin,"0,00 BTC",Kaufen,,"79.751,19 €","9.965,11 €","0,12495246 BTC","9.965,11 €",Ausgeführt,"34,88 €",Geschlossen,"28.03.2025, 05:56","28.03.2025, 05:56",,,,,,,,,,,,,,
+Einzahlungen,,"10.000,00 €",,,,,,,,,,"28.03.2025, 01:00",,,,,,,,,,,,DE00000000000000000000,,,
