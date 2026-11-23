@@ -222,11 +222,24 @@ export interface NetWorthData {
   } | null;
 }
 
-export interface BankLogin {
+export interface Bank {
   id: number;
   name: string;
   blz: string;
   server_url: string;
+  logins: BankLogin[];
+}
+
+export interface BankLogin {
+  id: number;
+  bank_id: number;
+  name: string;
+  blz: string;
+  server_url: string;
+  /** Name of the user this login belongs to. */
+  owner: string;
+  mine: boolean;
+  /** Only filled for your own login. */
   username: string;
   customer_id: string;
   tan_mechanism_name: string;

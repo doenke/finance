@@ -27,7 +27,7 @@
       await Promise.all([loadMeta(), loadPersons()]);
       const loaded = await api.get<Account>(`/api/accounts/${page.params.id}`);
       account = loaded;
-      bank = loaded.bank_login_id ? ((await api.get<BankLogin[]>('/api/banks')).find((b) => b.id === loaded.bank_login_id) ?? null) : null;
+      bank = loaded.bank_login_id ? ((await api.get<BankLogin[]>('/api/bank-logins')).find((b) => b.id === loaded.bank_login_id) ?? null) : null;
       refresh++;
     } catch (e) {
       error = (e as Error).message;
@@ -89,10 +89,10 @@
     {#if bank}
       <section class="card bankbar">
         <div class="grow">
-          <strong>Verbunden mit {bank.name}</strong>
+          <strong>Verbunden mit {bank.name}{bank.mine ? '' : ` · Zugang von ${bank.owner || 'jemand anderem'}`}</strong>
           <div class="muted small">{bank.last_sync_at ? `Zuletzt abgerufen ${formatDate(bank.last_sync_at.slice(0, 10))}` : 'Noch nicht abgerufen'}{bank.needs_tan ? ' · TAN-Freigabe nötig' : ''}</div>
         </div>
-        <button class="btn primary" onclick={() => (syncing = true)}>Jetzt abrufen</button>
+        {#if bank.mine}<button class="btn primary" onclick={() => (syncing = true)}>Jetzt abrufen</button>{/if}
         <button class="btn" onclick={unlink}>Verknüpfung lösen</button>
       </section>
     {/if}

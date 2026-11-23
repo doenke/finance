@@ -223,15 +223,28 @@ class ImportBatch(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class BankLogin(Base):
-    """FinTS access of one person at one bank. The PIN is only stored (encrypted) if the user wants that."""
+class Bank(Base):
+    """A bank reachable via FinTS. Shared by the household; personal access data lives in BankLogin."""
 
-    __tablename__ = "bank_logins"
+    __tablename__ = "banks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     blz: Mapped[str] = mapped_column(String(8))
     server_url: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    logins: Mapped[list["BankLogin"]] = relationship(back_populates="bank")
+
+
+class BankLogin(Base):
+    """FinTS access of one user at one bank. The PIN is only stored (encrypted) if the user wants that."""
+
+    __tablename__ = "bank_logins"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bank_id: Mapped[int] = mapped_column(ForeignKey("banks.id", ondelete="RESTRICT"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     username: Mapped[str] = mapped_column(String(120))
     customer_id: Mapped[str] = mapped_column(String(120), default="")
     tan_mechanism: Mapped[str | None] = mapped_column(String(10), nullable=True)
@@ -245,6 +258,22 @@ class BankLogin(Base):
     last_error: Mapped[str] = mapped_column(Text, default="")
     needs_tan: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    bank: Mapped[Bank] = relationship(back_populates="logins", lazy="joined")
+    user: Mapped["User | None"] = relationship(lazy="joined")
+
+    # Bank data, read through for the FinTS client.
+    @property
+    def name(self) -> str:
+        return self.bank.name
+
+    @property
+    def blz(self) -> str:
+        return self.bank.blz
+
+    @property
+    def server_url(self) -> str:
+        return self.bank.server_url
 
 
 class OAuthClient(Base):

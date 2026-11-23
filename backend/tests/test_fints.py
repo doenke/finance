@@ -106,6 +106,17 @@ class FakeClient:
         return b"state"
 
 
+BANK_FIELDS = ("name", "blz", "server_url")
+
+
+def new_login(client, fields: dict):
+    """Creates a shared bank and the current user's login there (the old one-step form)."""
+    bank = client.post("/api/banks", json={k: fields[k] for k in BANK_FIELDS}, headers=ORIGIN)
+    if bank.status_code != 201:
+        return bank
+    return client.post(f"/api/banks/{bank.json()['id']}/logins", json={k: v for k, v in fields.items() if k not in BANK_FIELDS}, headers=ORIGIN)
+
+
 @pytest.fixture
 def fints_client(client, monkeypatch):
     from finanzen.config import Settings
@@ -144,11 +155,11 @@ def test_secrets_roundtrip():
 def test_full_flow_with_tan_choice_init_tan_and_holdings(fints_client):
     client, scenario = fints_client
     login(client)
-    bank = client.post("/api/banks", json={"name": "Sparkasse", "blz": "12345678", "server_url": "https://fints.example.org/fints", "username": "max"}, headers=ORIGIN).json()
+    bank = new_login(client, {"name": "Sparkasse", "blz": "12345678", "server_url": "https://fints.example.org/fints", "username": "max"}).json()
     assert bank["has_pin"] is False
 
     scenario["init_tan"] = True
-    job = client.post(f"/api/banks/{bank['id']}/discover", json={"pin": "1234"}, headers=ORIGIN).json()
+    job = client.post(f"/api/bank-logins/{bank['id']}/discover", json={"pin": "1234"}, headers=ORIGIN).json()
     job = wait_for(client, job["id"], {"need_choice"})
     assert {c["label"] for c in job["choices"]} == {"pushTAN 2.0", "chipTAN optisch"}
     client.post(f"/api/fints/jobs/{job['id']}/answer", json={"value": "912"}, headers=ORIGIN)
@@ -161,11 +172,11 @@ def test_full_flow_with_tan_choice_init_tan_and_holdings(fints_client):
     assert [a["suggested_kind"] for a in accounts] == ["giro", "depot"]
     assert FakeClient.instances[-1].product_id == "TESTPRODUCT"
 
-    banks = client.get("/api/banks").json()
+    banks = client.get("/api/bank-logins").json()
     assert banks[0]["tan_mechanism_name"] == "chipTAN optisch"
 
     linked = client.post(
-        f"/api/banks/{bank['id']}/link",
+        f"/api/bank-logins/{bank['id']}/link",
         json={"items": [
             {"iban": "DE11", "accountnumber": "111", "create_kind": "giro", "create_name": "Giro Sparkasse"},
             {"accountnumber": "999", "create_kind": "depot", "create_name": "Depot Sparkasse"},
@@ -176,7 +187,7 @@ def test_full_flow_with_tan_choice_init_tan_and_holdings(fints_client):
 
     scenario["init_tan"] = False
     scenario["tan"] = True
-    job = client.post(f"/api/banks/{bank['id']}/sync", json={"pin": "1234"}, headers=ORIGIN).json()
+    job = client.post(f"/api/bank-logins/{bank['id']}/sync", json={"pin": "1234"}, headers=ORIGIN).json()
     job = wait_for(client, job["id"], {"need_tan"})
     client.post(f"/api/fints/jobs/{job['id']}/answer", json={"value": "123456"}, headers=ORIGIN)
     job = wait_for(client, job["id"], {"done", "error"})
@@ -196,7 +207,7 @@ def test_full_flow_with_tan_choice_init_tan_and_holdings(fints_client):
     # Second sync: no duplicates, bank now has 15 pieces -> difference, then reconcile
     scenario["tan"] = False
     scenario["holdings"] = [SimpleNamespace(ISIN="IE00B4L5Y983", name="iShares", market_value=101, value_symbol="EUR", valuation_date=date.today(), pieces=15.0, total_value=0, acquisitionprice=80)]
-    job = client.post(f"/api/banks/{bank['id']}/sync", json={"pin": "1234"}, headers=ORIGIN).json()
+    job = client.post(f"/api/bank-logins/{bank['id']}/sync", json={"pin": "1234"}, headers=ORIGIN).json()
     job = wait_for(client, job["id"], {"done", "error"})
     assert job["status"] == "done", job
     assert len(client.get(f"/api/accounts/{giro_id}/transactions").json()) == 2
@@ -209,18 +220,14 @@ def test_full_flow_with_tan_choice_init_tan_and_holdings(fints_client):
 def test_decoupled_wrong_pin_and_stored_pin(fints_client):
     client, scenario = fints_client
     login(client)
-    bank = client.post(
-        "/api/banks",
-        json={"name": "DKB", "blz": "12030000", "server_url": "https://fints.example.org/", "username": "max", "store_pin": True, "pin": "1234", "auto_sync": True},
-        headers=ORIGIN,
-    ).json()
+    bank = new_login(client, {"name": "DKB", "blz": "12030000", "server_url": "https://fints.example.org/", "username": "max", "store_pin": True, "pin": "1234", "auto_sync": True}).json()
     assert bank["has_pin"] and bank["auto_sync"]
-    assert "1234" not in str(client.get("/api/banks").json())
-    client.post(f"/api/banks/{bank['id']}/link", json={"items": [{"iban": "DE11", "accountnumber": "111", "create_kind": "giro"}]}, headers=ORIGIN)
+    assert "1234" not in str(client.get("/api/bank-logins").json())
+    client.post(f"/api/bank-logins/{bank['id']}/link", json={"items": [{"iban": "DE11", "accountnumber": "111", "create_kind": "giro"}]}, headers=ORIGIN)
 
     # decoupled: the job polls until the app approval arrives, no TAN input needed
     scenario["decoupled"] = True
-    job = client.post(f"/api/banks/{bank['id']}/sync", json={}, headers=ORIGIN).json()
+    job = client.post(f"/api/bank-logins/{bank['id']}/sync", json={}, headers=ORIGIN).json()
     job = wait_for(client, job["id"], {"need_choice"})
     client.post(f"/api/fints/jobs/{job['id']}/answer", json={"value": "921"}, headers=ORIGIN)
     job = wait_for(client, job["id"], {"need_tan"})
@@ -234,11 +241,11 @@ def test_decoupled_wrong_pin_and_stored_pin(fints_client):
     settings = client.app.state.settings
     j = jobs.start("sync", bank["id"], None, settings, client.app.state.sessionmaker, interactive=False, background=False, factory=client.app.state.fints_factory)
     assert j.status == "error" and "TAN" in j.error
-    assert client.get("/api/banks").json()[0]["needs_tan"] is True
+    assert client.get("/api/bank-logins").json()[0]["needs_tan"] is True
 
     # wrong PIN
     scenario["decoupled"] = False
-    job = client.post(f"/api/banks/{bank['id']}/sync", json={"pin": "0000"}, headers=ORIGIN).json()
+    job = client.post(f"/api/bank-logins/{bank['id']}/sync", json={"pin": "0000"}, headers=ORIGIN).json()
     job = wait_for(client, job["id"], {"done", "error"})
     assert job["status"] == "error" and "PIN" in job["error"]
 
@@ -246,10 +253,10 @@ def test_decoupled_wrong_pin_and_stored_pin(fints_client):
 def test_validation(fints_client):
     client, _ = fints_client
     login(client)
-    bad = client.post("/api/banks", json={"name": "X", "blz": "123", "server_url": "http://x", "username": "a"}, headers=ORIGIN)
+    bad = new_login(client, {"name": "X", "blz": "123", "server_url": "http://x", "username": "a"})
     assert bad.status_code == 422
-    bank = client.post("/api/banks", json={"name": "X", "blz": "12345678", "server_url": "https://x.example.org", "username": "a"}, headers=ORIGIN).json()
-    assert client.post(f"/api/banks/{bank['id']}/sync", json={}, headers=ORIGIN).status_code == 422  # no PIN
+    bank = new_login(client, {"name": "X", "blz": "12345678", "server_url": "https://x.example.org", "username": "a"}).json()
+    assert client.post(f"/api/bank-logins/{bank['id']}/sync", json={}, headers=ORIGIN).status_code == 422  # no PIN
 
 
 def test_friendly_errors_use_bank_codes():
@@ -284,12 +291,44 @@ def test_job_shows_bank_reason(fints_client):
 
     client.app.state.fints_factory = lambda login, pin, product: Rejecting(login, pin, product, scenario)
     login(client)
-    bank = client.post("/api/banks", json={"name": "DKB", "blz": "12030000", "server_url": "https://fints.example.org", "username": "x"}, headers=ORIGIN).json()
-    job = client.post(f"/api/banks/{bank['id']}/discover", json={"pin": "1234"}, headers=ORIGIN).json()
+    bank = new_login(client, {"name": "DKB", "blz": "12030000", "server_url": "https://fints.example.org", "username": "x"}).json()
+    job = client.post(f"/api/bank-logins/{bank['id']}/discover", json={"pin": "1234"}, headers=ORIGIN).json()
     job = wait_for(client, job["id"], {"need_choice", "error"})
     if job["status"] == "need_choice":
         client.post(f"/api/fints/jobs/{job['id']}/answer", json={"value": "921"}, headers=ORIGIN)
         job = wait_for(client, job["id"], {"error", "done"})
     assert job["status"] == "error"
     assert "Produkt-ID" in job["error"]
-    assert "Produkt-ID" in client.get("/api/banks").json()[0]["last_error"]
+    assert "Produkt-ID" in client.get("/api/bank-logins").json()[0]["last_error"]
+
+
+def test_banks_are_shared_logins_are_personal(fints_client):
+    client, _ = fints_client
+    login(client, "Anna Muster")
+    mine = new_login(client, {"name": "DKB", "blz": "12030000", "server_url": "https://fints.example.org", "username": "anna", "store_pin": True, "pin": "1234"}).json()
+    assert mine["mine"] and mine["owner"] == "Anna Muster"
+    client.post(f"/api/bank-logins/{mine['id']}/link", json={"items": [{"iban": "DE11", "accountnumber": "111", "create_kind": "giro"}]}, headers=ORIGIN)
+
+    # Ben sees the bank and Anna's login, but not her access data, and cannot use it.
+    client.cookies.clear()
+    login(client, "Ben Muster", admin=False)
+    banks = client.get("/api/banks").json()
+    assert len(banks) == 1 and banks[0]["blz"] == "12030000"
+    other = banks[0]["logins"][0]
+    assert other["owner"] == "Anna Muster" and not other["mine"] and other["username"] == "" and other["account_ids"]
+    assert "anna" not in str(banks).replace("Anna", "")
+    for path in ("sync", "discover"):
+        assert client.post(f"/api/bank-logins/{other['id']}/{path}", json={"pin": "1"}, headers=ORIGIN).status_code == 403
+    assert client.put(f"/api/bank-logins/{other['id']}", json={"username": "ben"}, headers=ORIGIN).status_code == 403
+    assert client.delete(f"/api/bank-logins/{other['id']}", headers=ORIGIN).status_code == 403
+
+    # Ben adds his own login at the same bank
+    own = client.post(f"/api/banks/{banks[0]['id']}/logins", json={"username": "ben"}, headers=ORIGIN).json()
+    assert own["mine"] and own["blz"] == "12030000"
+    banks = client.get("/api/banks").json()
+    assert [lg["mine"] for lg in banks[0]["logins"]] == [True, False]
+    # Changing the shared address resets the TAN setup of every login
+    assert client.put(f"/api/banks/{banks[0]['id']}", json={"name": "DKB AG", "blz": "12030000", "server_url": "https://fints2.example.org"}, headers=ORIGIN).status_code == 200
+    assert client.get("/api/bank-logins").json()[0]["name"] == "DKB AG"
+    assert client.delete(f"/api/banks/{banks[0]['id']}", headers=ORIGIN).status_code == 409
+    assert client.delete(f"/api/bank-logins/{own['id']}", headers=ORIGIN).status_code == 204

@@ -173,9 +173,12 @@ So rechnet Finanzen:
 
 ### 5. Bank verbinden (FinTS)
 
-Unter **Banken** legst du mit „+ Bankzugang“ den Zugang zu Sparkasse, DKB,
-OLB & Co. an: Bankleitzahl, FinTS-Adresse und Anmeldename wie im
-Online-Banking. Finanzen fragt dann nach der PIN, lässt dich das
+Unter **Banken** legst du mit „+ Bank“ Sparkasse, DKB, OLB & Co. an:
+Bankleitzahl und FinTS-Adresse gelten für den ganzen Haushalt, dazu kommt
+dein eigener Zugang mit dem Anmeldenamen wie im Online-Banking. Hat schon
+jemand die Bank angelegt, fügst du dort nur noch „Mein Zugang“ hinzu. Jede
+Person sieht nur ihre eigenen Zugangsdaten und ruft nur mit ihrem eigenen
+Zugang ab – die abgerufenen Konten sehen alle. Finanzen fragt dann nach der PIN, lässt dich das
 TAN-Verfahren wählen und zeigt die Konten, die die Bank kennt. Du
 entscheidest je Konto: neu anlegen, mit einem vorhandenen verknüpfen oder
 weglassen.

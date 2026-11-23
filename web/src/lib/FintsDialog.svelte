@@ -26,7 +26,7 @@
     error = '';
     starting = true;
     try {
-      job = await api.post<FintsJob>(`/api/banks/${login.id}/${kind}`, { pin: pin || null, account_ids: accountIds });
+      job = await api.post<FintsJob>(`/api/bank-logins/${login.id}/${kind}`, { pin: pin || null, account_ids: accountIds });
       pin = '';
       poll();
     } catch (e) {
