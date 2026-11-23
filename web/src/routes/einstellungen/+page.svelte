@@ -16,6 +16,29 @@
     schedule: string;
   }
 
+  interface BackupInfo {
+    files: { name: string; size: number; created_at: string }[];
+    schedule: string;
+    keep_days: number;
+    last: { ok?: boolean; error?: string };
+  }
+  let backups = $state<BackupInfo | null>(null);
+  let backingUp = $state(false);
+
+  async function loadBackups() {
+    if (session.me?.is_admin) backups = await api.get<BackupInfo>('/api/admin/backups');
+  }
+
+  async function backupNow() {
+    backingUp = true;
+    try {
+      await api.post('/api/admin/backups');
+      await loadBackups();
+    } finally {
+      backingUp = false;
+    }
+  }
+
   let theme = $state<Theme>('system');
   let sync = $state<SyncStatus | null>(null);
   let starting = $state(false);
@@ -36,6 +59,7 @@
   onMount(() => {
     theme = getTheme();
     loadSync();
+    loadBackups();
   });
 
   const finished = $derived(sync?.finished_at ? new Date(sync.finished_at) : null);
@@ -104,6 +128,36 @@
   </section>
 
   <section class="card stack">
+    <h2>Daten exportieren</h2>
+    <p class="muted small">Alles als JSON (vollständig, lässt sich wiederherstellen) oder Buchungen und Depot-Transaktionen als CSV für Excel.</p>
+    <div class="row">
+      <a class="btn" href="/api/export/json" download>Alles (JSON)</a>
+      <a class="btn" href="/api/export/transactions.csv" download>Buchungen (CSV)</a>
+      <a class="btn" href="/api/export/trades.csv" download>Transaktionen (CSV)</a>
+    </div>
+  </section>
+
+  {#if session.me?.is_admin && backups}
+    <section class="card stack">
+      <h2>Sicherungen</h2>
+      <p class="muted small">
+        Jeden Tag wird automatisch eine Sicherung ins Datenverzeichnis geschrieben (Zeitplan <code>{backups.schedule}</code>), {backups.keep_days} Tage aufbewahrt.
+        {#if backups.last?.ok === false}<span class="error">Letzte Sicherung fehlgeschlagen: {backups.last.error}</span>{/if}
+      </p>
+      {#if backups.files.length}
+        <ul class="files small">
+          {#each backups.files.slice(0, 7) as f (f.name)}
+            <li><a href="/api/admin/backups/{f.name}" download>{f.name}</a> <span class="muted">{Math.round(f.size / 1024)} KB</span></li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="muted small">Noch keine Sicherung vorhanden.</p>
+      {/if}
+      <div><button class="btn" onclick={backupNow} disabled={backingUp}>{backingUp ? 'Sichert …' : 'Jetzt sichern'}</button></div>
+    </section>
+  {/if}
+
+  <section class="card stack">
     <h2>Über</h2>
     <p class="muted">Finanzen · Version <span class="num">{session.config?.version}</span></p>
   </section>
@@ -117,6 +171,13 @@
   .small {
     font-size: 0.85rem;
     margin: 0;
+  }
+  .files {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
   }
   .errors {
     color: var(--warn);

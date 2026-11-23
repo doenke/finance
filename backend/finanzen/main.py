@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from . import cache
 from .api.accounts import router as accounts_router
+from .api.imports import admin as admin_router
+from .api.imports import router as imports_router
 from .api.performance import router as performance_router
 from .api.prices import router as prices_router
 from .api.routes import public as public_api
@@ -103,6 +105,8 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(accounts_router)
     app.include_router(prices_router)
     app.include_router(performance_router)
+    app.include_router(imports_router)
+    app.include_router(admin_router)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     def api_not_found(path: str) -> JSONResponse:

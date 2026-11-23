@@ -10,10 +10,11 @@ Schrank – alles an einem Ort, mit Verlauf und ehrlicher Rendite.
 Kurz gesagt: einmal reinschauen und wissen, wo ihr steht – und ob euer Depot
 besser läuft als der MSCI World.
 
-> **Stand:** Alles zum Selbsteintragen ist fertig – Konten, Depots, alle
-> Anlageformen, Tilgungsplan, tägliche Kurse, Rendite und Dashboard mit
-> Benchmark. Importe, Bankanbindung per FinTS und Benachrichtigungen folgen –
-> was geplant ist, steht in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> **Stand:** Konten, Depots, alle Anlageformen, Tilgungsplan, tägliche Kurse,
+> Rendite, Dashboard mit Benchmark, CSV-Import (Bank und Portfolio
+> Performance), Export und tägliche Sicherung sind fertig. Als Nächstes:
+> Bankanbindung per FinTS, Importer für Trade Republic, BSDEX und Advanzia
+> sowie Benachrichtigungen – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Übersicht | Depot | Kredit | Konten |
 | --- | --- | --- | --- |
@@ -161,7 +162,17 @@ So rechnet Finanzen:
   Wert plus die Beiträge seither.
 - Kredite stecken im Nettovermögen, aber nicht in der Rendite.
 
-### 5. Zum Startbildschirm hinzufügen
+### 5. Umsätze und Depots importieren
+
+Unter **Konten → Import** liest Finanzen den CSV-Export deiner Bank
+(Sparkasse „CSV-CAMT“, DKB, OLB, …) und Exporte aus **Portfolio
+Performance**. Du siehst vorher, was neu ist, was schon da ist und was nicht
+passt. Spaltenzuordnungen speicherst du als Vorlage, doppelte Buchungen
+werden übersprungen, und jeder Import lässt sich mit einem Klick komplett
+rückgängig machen. Beim Portfolio-Performance-Import werden fehlende
+Wertpapiere gleich mit angelegt – samt Kurshistorie ab dem ersten Kauf.
+
+### 6. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
@@ -225,11 +236,14 @@ Port `43651`).
   laufen beim Start von selbst, die App im Browser holt sich die neue Version still.
 - **`DEV_LOGIN=true`** erlaubt die Anmeldung nur mit einem Namen, ohne Pocket ID –
   **niemals in Produktion**.
-- **Backup:** Bis die App ihre eigene tägliche Sicherung hat, reicht ein
-  `pg_dump` der Datenbank:
+- **Backup:** Finanzen schreibt jede Nacht um 3:30 Uhr eine Sicherung aller
+  Daten nach `/data/container/finanzen/data/backup/` (`BACKUP_SCHEDULE`,
+  `BACKUP_KEEP_DAYS`). Admins sehen sie unter Einstellungen und können dort
+  auch sofort sichern. Diesen Ordner zusätzlich auf ein anderes Gerät
+  kopieren. Wiederherstellen in eine frische Datenbank (gleiche App-Version):
 
   ```bash
-  docker exec finanzen-db pg_dump -U finanzen finanzen | gzip > finanzen-$(date +%F).sql.gz
+  docker compose run --rm finanzen python -m finanzen restore /data/backup/finanzen-2026-11-23_0330.json.gz
   ```
 
 - **Image privat?** Ist das Paket auf ghcr.io privat, auf garageband einmal

@@ -36,6 +36,8 @@ class Settings:
     price_sync_schedule: str = "30 23 * * 1-5"
     price_stale_days: int = 3
     scheduler: bool = True
+    backup_schedule: str = "30 3 * * *"
+    backup_keep_days: int = 30
 
     @property
     def secure_cookies(self) -> bool:
@@ -79,4 +81,6 @@ def load_settings() -> Settings:
         price_sync_schedule=env.get("PRICE_SYNC_SCHEDULE", "30 23 * * 1-5"),
         price_stale_days=int(env.get("PRICE_STALE_DAYS", "3")),
         scheduler=_bool(env.get("SCHEDULER"), True),
+        backup_schedule=env.get("BACKUP_SCHEDULE", "30 3 * * *"),
+        backup_keep_days=int(env.get("BACKUP_KEEP_DAYS", "30")),
     )

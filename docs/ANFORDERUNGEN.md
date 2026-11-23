@@ -269,6 +269,9 @@ die App ist auch ohne FinTS schon nützlich.
 | Steuern | Werden als Transaktion erfasst; keine Auswertung von Verlusttöpfen, Freistellungsaufträgen oder Vorabpauschale |
 | Dividenden/Kosten | Werden als Transaktion erfasst; keine eigene Auswertungsansicht im MVP |
 | Name | `finanzen`, Subdomain `finanzen.kanonenwiese.de`, Port 43651 |
+| Backup | Tägliche JSON-Sicherung aller Tabellen durch die App selbst (statt `pg_dump`, dessen Version im Image nicht zur Datenbank passen würde); Wiederherstellung per `python -m finanzen restore` |
+| Rendite | TTWROR mit Zahlungsströmen am Tagesende (Käufe zum Schlusskurs), IZF per XIRR; Kredite zählen nur zum Nettovermögen, nicht zur Rendite |
+| Wechselkurse | EZB-Referenzkurse bereits im MVP (F-RE-07 vorgezogen) |
 
 ## 9. Offene Fragen
 

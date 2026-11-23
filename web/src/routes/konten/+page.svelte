@@ -44,7 +44,10 @@
 <div class="stack">
   <div class="row head">
     <h1>Konten &amp; Anlagen</h1>
-    <a class="btn primary" href="/konten/neu"><Icon name="plus" size={18} /> Konto</a>
+    <div class="row">
+      <a class="btn" href="/import">Import</a>
+      <a class="btn primary" href="/konten/neu"><Icon name="plus" size={18} /> Konto</a>
+    </div>
   </div>
   <PersonFilter />
   {#if error}<p class="error">{error}</p>{/if}

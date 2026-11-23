@@ -12,6 +12,13 @@ Entscheidungen dort mitpflegen.
   CSRF-Origin-Prüfung), `auth/` (OIDC mit PKCE, Session-Cookie, Avatare,
   `DEV_LOGIN`), `api/` (JSON-API unter `/api`), `models.py` + `migrations/`
   (Alembic, laufen beim Start). Neue Tabellen immer per neuer Migration.
+  `services/`: `valuation.py` (Wert zum Stichtag), `series.py` (tägliche
+  Wertreihen und Zahlungsströme je Kontoart), `returns.py` (TTWROR mit
+  Zahlungen am Tagesende, XIRR), `performance.py` (Aggregation, Cache über
+  `cache.py`, jede schreibende API-Anfrage verwirft ihn), `prices/`
+  (Kursquellen-Adapter, Yahoo), `fx.py` (EZB), `sync.py`, `loan.py`,
+  `csvimport.py`, `backup.py` (JSON-Sicherung/-Wiederherstellung, auch CLI
+  `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
 - `web/` – SvelteKit **3** (SPA, adapter-static, Svelte 5 Runes). Achtung,
   Kit 3 unterscheidet sich von Kit 2: Konfiguration in `vite.config.ts`
   (`sveltekit({...})`, kein `svelte.config.js`), Imports über `#lib/…` mit
