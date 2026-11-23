@@ -156,6 +156,7 @@ export interface Position {
   gain_pct: string | null;
   realized: string;
   income: string;
+  stale: boolean;
 }
 
 export interface PriceRow {

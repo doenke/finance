@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .. import kinds
 from ..models import Account, BalanceSnapshot, Instrument, Price, Trade, Transaction, Valuation
 from .deposit import deposit_value
+from .fx import FxConverter
 from .holdings import Position, TradeIn, build_positions
 from .loan import LoanTerms, Prepayment, balance_at, expand_planned, schedule
 
@@ -94,7 +95,22 @@ def unit_factor(instrument: Instrument | None) -> Decimal:
     return factor
 
 
-def holdings_value(db: Session, account_id: int, on: date) -> tuple[AccountValue, dict[int, Position]]:
+def position_value(db: Session, instrument: Instrument | None, quantity: Decimal, on: date, fx: FxConverter) -> tuple[Decimal, Decimal, date] | None:
+    """(value in EUR, price in instrument currency, price date) or None without a usable price."""
+    if instrument is None:
+        return None
+    price = latest_price(db, instrument.id, on)
+    if price is None:
+        return None
+    factor = fx.to_eur_factor(instrument.currency, on)
+    if factor is None:
+        return None
+    value = (quantity * unit_factor(instrument) * price[0] * factor).quantize(Decimal("0.01"))
+    return value, price[0], price[1]
+
+
+def holdings_value(db: Session, account_id: int, on: date, fx: FxConverter | None = None) -> tuple[AccountValue, dict[int, Position]]:
+    fx = fx or FxConverter(db)
     positions = build_positions(trades_for(db, account_id), until=on)
     total = ZERO
     missing = 0
@@ -102,14 +118,13 @@ def holdings_value(db: Session, account_id: int, on: date) -> tuple[AccountValue
     for pos in positions.values():
         if pos.quantity == ZERO:
             continue
-        price = latest_price(db, pos.instrument_id, on)
-        if price is None:
+        result = position_value(db, db.get(Instrument, pos.instrument_id), pos.quantity, on, fx)
+        if result is None:
             missing += 1
             total += pos.cost
             continue
-        instrument = db.get(Instrument, pos.instrument_id)
-        total += pos.quantity * unit_factor(instrument) * price[0]
-        as_of = max(as_of, price[1]) if as_of else price[1]
+        total += result[0]
+        as_of = max(as_of, result[2]) if as_of else result[2]
     return AccountValue(total.quantize(Decimal("0.01")), as_of, missing), positions
 
 

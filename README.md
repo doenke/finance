@@ -10,10 +10,11 @@ Schrank – alles an einem Ort, mit Verlauf und ehrlicher Rendite.
 Kurz gesagt: einmal reinschauen und wissen, wo ihr steht – und ob euer Depot
 besser läuft als der MSCI World.
 
-> **Stand:** Anmeldung, Haushalt sowie Konten, Depots und alle Anlageformen
-> zum Selbsteintragen sind fertig – inklusive Tilgungsplan für Kredite.
-> Automatische Kurse, Rendite und das Dashboard kommen als Nächstes – was
-> geplant ist, steht in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> **Stand:** Anmeldung, Haushalt, Konten, Depots und alle Anlageformen zum
+> Selbsteintragen sind fertig – inklusive Tilgungsplan für Kredite und
+> täglicher Kurse von Yahoo Finance samt EZB-Wechselkursen. Rendite und das
+> Dashboard kommen als Nächstes – was geplant ist, steht in
+> [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Dashboard | Depot | Benchmark |
 | --- | --- | --- |
@@ -124,6 +125,15 @@ Unter **Konten** legst du mit „+ Konto“ alles an, was Wert hat – oder kost
   Sondertilgungen (z. B. jedes Jahr im Dezember) fließen ein, das
   Sondertilgungsrecht wird überwacht. Trägst du die Restschuld aus dem
   Kontoauszug ein, rechnet der Plan ab dort weiter.
+
+**Kurse:** Beim Anlegen eines Wertpapiers suchst du per ISIN oder Name das
+passende Yahoo-Symbol – am besten das Xetra-Kürzel mit `.DE` (z. B.
+`EUNL.DE`), dann ist der Kurs schon in Euro. Bitcoin heißt `BTC-EUR`, Gold
+`GC=F` (Dollar je Feinunze – Finanzen rechnet mit dem EZB-Kurs in Euro um).
+Die Historie ab dem ersten Kauf wird sofort geladen, danach kommt jeden
+Werktag um 23:30 Uhr der Schlusskurs dazu. Kurse, die älter als drei
+Handelstage sind, werden als „veraltet“ markiert. Unter **Einstellungen**
+siehst du, wann zuletzt aktualisiert wurde und ob etwas schiefging.
 
 Jedes Konto gehört einer Person oder mehreren mit Anteilen. Oben in der
 Kontenliste filterst du nach Person – gemeinsame Konten zählen dann mit dem

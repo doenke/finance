@@ -33,6 +33,9 @@ class Settings:
     oidc_provider_name: str = "Kanonenwiese SSO"
     avatar_hosts: tuple[str, ...] = field(default_factory=tuple)
     log_level: str = "info"
+    price_sync_schedule: str = "30 23 * * 1-5"
+    price_stale_days: int = 3
+    scheduler: bool = True
 
     @property
     def secure_cookies(self) -> bool:
@@ -73,4 +76,7 @@ def load_settings() -> Settings:
         oidc_provider_name=env.get("OIDC_PROVIDER_NAME", "Kanonenwiese SSO"),
         avatar_hosts=hosts,
         log_level=env.get("LOG_LEVEL", "info"),
+        price_sync_schedule=env.get("PRICE_SYNC_SCHEDULE", "30 23 * * 1-5"),
+        price_stale_days=int(env.get("PRICE_STALE_DAYS", "3")),
+        scheduler=_bool(env.get("SCHEDULER"), True),
     )

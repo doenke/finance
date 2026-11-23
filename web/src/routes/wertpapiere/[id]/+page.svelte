@@ -6,6 +6,7 @@
   import Icon from '#lib/Icon.svelte';
   import { loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
+  import SymbolSearch from '#lib/SymbolSearch.svelte';
 
   let instrument = $state<Instrument | null>(null);
   let prices = $state<PriceRow[]>([]);
@@ -13,6 +14,24 @@
   let priceForm = $state<{ date: string; close: string } | null>(null);
   let error = $state('');
   let saved = $state(false);
+  let syncing = $state(false);
+  let syncInfo = $state('');
+
+  async function syncPrices(full = false) {
+    if (!instrument) return;
+    syncing = true;
+    syncInfo = '';
+    error = '';
+    try {
+      const res = await api.post<{ updated: number }>(`/api/prices/instruments/${instrument.id}?full=${full}`);
+      syncInfo = res.updated ? `${res.updated} Kurse geladen.` : 'Keine neuen Kurse.';
+      await load();
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      syncing = false;
+    }
+  }
 
   async function load() {
     await loadMeta();
@@ -37,8 +56,10 @@
     error = '';
     saved = false;
     try {
+      const symbolChanged = form.price_symbol !== instrument.price_symbol || form.price_source !== instrument.price_source;
       instrument = await api.put<Instrument>(`/api/instruments/${instrument.id}`, form);
       saved = true;
+      if (symbolChanged && instrument.price_source !== 'manual' && instrument.price_symbol) await syncPrices(true);
     } catch (e) {
       error = (e as Error).message;
     }
@@ -95,7 +116,12 @@
             <option value="manual">manuell</option>
           </select>
         </label>
-        {#if form.price_source === 'yahoo'}<label>Yahoo-Symbol <input bind:value={form.price_symbol} placeholder="z. B. EUNL.DE" /></label>{/if}
+        {#if form.price_source === 'yahoo'}
+          <div class="field wide">
+            <span class="field-label">Yahoo-Symbol</span>
+            <SymbolSearch bind:symbol={form.price_symbol} query={form.isin || form.name} />
+          </div>
+        {/if}
         {#if form.kind === 'metal'}
           <label>Feingehalt <DecimalInput bind:value={form.details.fineness} placeholder="0,9999" /></label>
           <label>
@@ -116,8 +142,14 @@
     <section class="card stack">
       <div class="row head">
         <h2>Kurse</h2>
-        <button class="btn" onclick={() => (priceForm = { date: today(), close: '' })}><Icon name="plus" size={18} /> Kurs</button>
+        <div class="row">
+          {#if instrument.price_source !== 'manual' && instrument.price_symbol}
+            <button class="btn" onclick={() => syncPrices(false)} disabled={syncing}>{syncing ? 'Lädt …' : 'Kurse jetzt laden'}</button>
+          {/if}
+          <button class="btn" onclick={() => (priceForm = { date: today(), close: '' })}><Icon name="plus" size={18} /> Kurs</button>
+        </div>
       </div>
+      {#if syncInfo}<p class="muted small">{syncInfo}</p>{/if}
       {#if instrument.price_source === 'manual'}
         <p class="muted small">Für dieses Wertpapier trägst du die Kurse selbst ein – zum Beispiel den festgesetzten Wert je STAK-Zertifikat. Er gilt bis zum nächsten Eintrag.</p>
       {/if}
@@ -169,6 +201,14 @@
   }
   .wide {
     grid-column: 1 / -1;
+  }
+  .field {
+    display: grid;
+    gap: 4px;
+  }
+  .field-label {
+    font-size: 0.9rem;
+    color: var(--muted);
   }
   .head {
     justify-content: space-between;

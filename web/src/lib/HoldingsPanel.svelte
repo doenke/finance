@@ -6,6 +6,7 @@
   import Icon from './Icon.svelte';
   import { label, meta } from './meta.svelte.ts';
   import Money from './Money.svelte';
+  import SymbolSearch from './SymbolSearch.svelte';
 
   let { accountId, accountKind, onchange = () => {} }: { accountId: number; accountKind: string; onchange?: () => void } = $props();
 
@@ -119,7 +120,7 @@
               </td>
               <td class="r num hide-sm">{formatNumber(p.quantity, 8)}</td>
               <td class="r hide-sm">
-                {#if p.price}<Money value={p.price} currency={p.instrument.currency} /><div class="muted small">{formatDate(p.price_date)}</div>{:else}<span class="warn">kein Kurs</span>{/if}
+                {#if p.price}<Money value={p.price} currency={p.instrument.currency} /><div class="small" class:muted={!p.stale} class:warn={p.stale}>{formatDate(p.price_date)}{p.stale ? ' · veraltet' : ''}</div>{:else}<span class="warn">kein Kurs</span>{/if}
               </td>
               <td class="r"><Money value={p.value} /><div class="muted small show-sm">{formatNumber(p.quantity, 8)} Stück</div></td>
               <td class="r hide-sm"><Money value={p.cost} /></td>
@@ -189,7 +190,16 @@
           </select>
         </label>
         {#if newInstrument.price_source === 'yahoo'}
-          <label>Yahoo-Symbol <input bind:value={newInstrument.price_symbol} placeholder="z. B. EUNL.DE, BTC-EUR" /></label>
+          <div class="wide2 field">
+            <span class="field-label">Yahoo-Symbol</span>
+            <SymbolSearch
+              bind:symbol={newInstrument.price_symbol}
+              query={newInstrument.isin || newInstrument.name}
+              onpick={(r) => {
+                if (newInstrument && !newInstrument.name) newInstrument.name = r.name;
+              }}
+            />
+          </div>
         {/if}
         <div class="row wide">
           <button type="button" class="btn primary" onclick={saveInstrument} disabled={!newInstrument.name}>Wertpapier anlegen</button>
@@ -302,6 +312,14 @@
   }
   .wide2 {
     grid-column: span 2;
+  }
+  .field {
+    display: grid;
+    gap: 4px;
+  }
+  .field-label {
+    font-size: 0.9rem;
+    color: var(--muted);
   }
   .nowrap {
     flex-wrap: nowrap;

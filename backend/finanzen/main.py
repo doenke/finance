@@ -1,6 +1,7 @@
 """Application factory: API, auth, avatars, health checks and the SPA."""
 
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
@@ -8,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from .api.accounts import router as accounts_router
+from .api.prices import router as prices_router
 from .api.routes import public as public_api
 from .api.routes import router as api_router
 from .auth.routes import router as auth_router
@@ -24,6 +26,7 @@ UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAPI:
     settings = settings or load_settings()
     logging.basicConfig(level=settings.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     if not settings.session_key:
         if not settings.dev_login:
             log.warning("SESSION_KEY is not set – logins will not survive a restart")
@@ -33,7 +36,18 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     if settings.dev_login:
         log.warning("DEV_LOGIN is active – never use this in production")
 
-    app = FastAPI(title="finanzen", version=settings.version, docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        scheduler = None
+        if settings.scheduler and settings.database_url:
+            from .scheduler import start_scheduler
+
+            scheduler = start_scheduler(settings, app.state.sessionmaker)
+        yield
+        if scheduler:
+            scheduler.shutdown(wait=False)
+
+    app = FastAPI(title="finanzen", version=settings.version, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
     if settings.database_url:
         if migrate:
@@ -83,6 +97,7 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(public_api)
     app.include_router(api_router)
     app.include_router(accounts_router)
+    app.include_router(prices_router)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     def api_not_found(path: str) -> JSONResponse:

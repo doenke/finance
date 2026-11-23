@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +15,9 @@ from ..auth.session import current_user
 from ..db import get_db
 from ..models import Account, AccountOwner, BalanceSnapshot, Instrument, Person, Price, Trade, Transaction, User, Valuation
 from ..services import valuation as val
+from ..services.fx import FxConverter
+from .prices import is_stale
+from ..services.sync import sync_instrument_in_background
 
 router = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
 ZERO = Decimal("0")
@@ -202,6 +205,7 @@ class PositionOut(BaseModel):
     gain_pct: Decimal | None
     realized: Decimal
     income: Decimal
+    stale: bool
 
 
 class ScheduleRowOut(BaseModel):
@@ -595,31 +599,33 @@ def delete_trade(account_id: int, trade_id: int, db: Session = Depends(get_db)) 
 
 
 @router.get("/accounts/{account_id}/positions", response_model=list[PositionOut])
-def list_positions(account_id: int, on: date | None = None, closed: bool = False, db: Session = Depends(get_db)) -> list[PositionOut]:
+def list_positions(request: Request, account_id: int, on: date | None = None, closed: bool = False, db: Session = Depends(get_db)) -> list[PositionOut]:
     account = get_account(db, account_id)
     require_mode(account, kinds.HOLDINGS)
     on = on or date.today()
-    _, positions = val.holdings_value(db, account_id, on)
+    fx = FxConverter(db)
+    _, positions = val.holdings_value(db, account_id, on, fx)
     result: list[PositionOut] = []
     for pos in positions.values():
         if pos.quantity == ZERO and not closed:
             continue
         instrument = db.get(Instrument, pos.instrument_id)
-        price = val.latest_price(db, pos.instrument_id, on)
-        value = (pos.quantity * val.unit_factor(instrument) * price[0]).quantize(Decimal("0.01")) if price else pos.cost
+        priced = val.position_value(db, instrument, pos.quantity, on, fx)
+        value = priced[0] if priced else pos.cost.quantize(Decimal("0.01"))
         gain = value - pos.cost
         result.append(
             PositionOut(
                 instrument=instrument_out(db, instrument),
                 quantity=pos.quantity,
                 cost=pos.cost.quantize(Decimal("0.01")),
-                price=price[0] if price else None,
-                price_date=price[1] if price else None,
+                price=priced[1] if priced else None,
+                price_date=priced[2] if priced else None,
                 value=value,
                 gain=gain.quantize(Decimal("0.01")),
                 gain_pct=(gain / pos.cost * 100).quantize(Decimal("0.01")) if pos.cost else None,
                 realized=pos.realized.quantize(Decimal("0.01")),
                 income=pos.income.quantize(Decimal("0.01")),
+                stale=instrument.price_source != "manual" and is_stale(priced[2] if priced else None, request.app.state.settings.price_stale_days),
             )
         )
     result.sort(key=lambda p: p.value, reverse=True)
@@ -673,7 +679,7 @@ def list_instruments(q: str = "", db: Session = Depends(get_db)) -> list[Instrum
 
 
 @router.post("/instruments", response_model=InstrumentOut, status_code=201)
-def create_instrument(data: InstrumentIn, db: Session = Depends(get_db)) -> InstrumentOut:
+def create_instrument(data: InstrumentIn, request: Request, db: Session = Depends(get_db)) -> InstrumentOut:
     instrument = Instrument(**data.model_dump())
     db.add(instrument)
     try:
@@ -681,6 +687,8 @@ def create_instrument(data: InstrumentIn, db: Session = Depends(get_db)) -> Inst
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "Ein Wertpapier mit dieser ISIN gibt es schon.") from None
+    if instrument.price_source != "manual" and instrument.price_symbol and request.app.state.settings.scheduler:
+        sync_instrument_in_background(request.app.state.sessionmaker, instrument.id)
     return instrument_out(db, instrument)
 
 

@@ -184,3 +184,25 @@ class Valuation(Base):
     date: Mapped[date] = mapped_column(Date)
     value: Mapped[Decimal] = mapped_column(MONEY)
     note: Mapped[str] = mapped_column(Text, default="")
+
+
+class FxRate(Base):
+    """ECB reference rate: 1 EUR = rate units of currency."""
+
+    __tablename__ = "fx_rates"
+    __table_args__ = (UniqueConstraint("currency", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    currency: Mapped[str] = mapped_column(String(3), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    rate: Mapped[Decimal] = mapped_column(Numeric(18, 8))
+
+
+class AppState(Base):
+    """Small key/value store for job status and similar."""
+
+    __tablename__ = "app_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

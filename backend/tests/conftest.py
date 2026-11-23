@@ -42,6 +42,7 @@ def make_settings(tmp_path: Path, web_dir: Path, **overrides) -> Settings:
         dev_login=True,
         oidc_issuer="https://id.example.org",
         oidc_client_id="finanzen",
+        scheduler=False,
     )
     base.update(overrides)
     return Settings(**base)
