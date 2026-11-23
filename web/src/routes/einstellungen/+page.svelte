@@ -39,6 +39,34 @@
     }
   }
 
+  interface McpInfo {
+    url: string;
+    clients: { id: string; name: string; users: string[]; connected_at: string; last_used_at: string | null }[];
+  }
+  let mcp = $state<McpInfo | null>(null);
+  let copied = $state(false);
+
+  async function loadMcp() {
+    mcp = await api.get<McpInfo>('/api/mcp/clients');
+  }
+
+  async function disconnect(id: string, name: string) {
+    if (!confirm(`„${name}“ trennen? Der Assistent verliert sofort den Zugriff.`)) return;
+    await api.del(`/api/mcp/clients/${encodeURIComponent(id)}`);
+    await loadMcp();
+  }
+
+  async function copyUrl() {
+    if (!mcp) return;
+    try {
+      await navigator.clipboard.writeText(mcp.url);
+      copied = true;
+      setTimeout(() => (copied = false), 2000);
+    } catch {
+      /* clipboard not available */
+    }
+  }
+
   let theme = $state<Theme>('system');
   let sync = $state<SyncStatus | null>(null);
   let starting = $state(false);
@@ -68,6 +96,7 @@
     theme = getTheme();
     loadSync();
     loadBackups();
+    loadMcp();
   });
 
   const finished = $derived(sync?.finished_at ? new Date(sync.finished_at) : null);
@@ -140,6 +169,35 @@
     {#if switchInfo}<p class="small">{switchInfo}</p>{/if}
   </section>
 
+  {#if mcp}
+    <section class="card stack">
+      <h2>KI-Assistenten (MCP)</h2>
+      <p class="muted small">
+        Claude und andere Assistenten können über MCP deine Konten lesen und Werte, Buchungen und Käufe eintragen – löschen können sie nichts. Trage diese Adresse als
+        Connector ein; beim Verbinden meldest du dich an und bestätigst den Zugriff.
+      </p>
+      <div class="row wrap">
+        <code class="url">{mcp.url}</code>
+        <button class="btn" onclick={copyUrl}>{copied ? 'Kopiert' : 'Kopieren'}</button>
+      </div>
+      {#if mcp.clients.length}
+        <ul class="files small">
+          {#each mcp.clients as c (c.id)}
+            <li class="row wrap">
+              <span class="grow">
+                <strong>{c.name}</strong>
+                <span class="muted">· {c.users.join(', ')} · verbunden {formatDate(c.connected_at)}{c.last_used_at ? ` · zuletzt ${formatDate(c.last_used_at)}` : ''}</span>
+              </span>
+              <button class="btn" onclick={() => disconnect(c.id, c.name)}>Trennen</button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="muted small">Noch kein Assistent verbunden.</p>
+      {/if}
+    </section>
+  {/if}
+
   <section class="card stack">
     <h2>Daten exportieren</h2>
     <p class="muted small">Alles als JSON (vollständig, lässt sich wiederherstellen) oder Buchungen und Depot-Transaktionen als CSV für Excel.</p>
@@ -184,6 +242,14 @@
   .small {
     font-size: 0.85rem;
     margin: 0;
+  }
+  .url {
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+  }
+  .wrap {
+    flex-wrap: wrap;
   }
   .files {
     list-style: none;

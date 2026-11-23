@@ -11,6 +11,9 @@ from sqlalchemy.orm import Session
 from . import cache
 from .api.accounts import router as accounts_router
 from .api.banks import router as banks_router
+from .mcp.oauth import api as mcp_api_router
+from .mcp.oauth import router as oauth_router
+from .mcp.server import router as mcp_router
 from .api.imports import admin as admin_router
 from .api.imports import router as imports_router
 from .api.performance import router as performance_router
@@ -115,6 +118,9 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(imports_router)
     app.include_router(admin_router)
     app.include_router(banks_router)
+    app.include_router(oauth_router)
+    app.include_router(mcp_router)
+    app.include_router(mcp_api_router)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     def api_not_found(path: str) -> JSONResponse:

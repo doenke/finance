@@ -221,6 +221,25 @@ Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren�
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
 „wie das System“ um.
 
+### 8. Mit Claude verbinden (MCP)
+
+Finanzen hat einen eingebauten MCP-Server. Damit kann Claude (oder ein
+anderer Assistent mit MCP) deine Konten lesen und für dich Dinge eintragen –
+zum Beispiel einen Rentenvertrag aus dem PDF-Kontoauszug anlegen, Stände
+nachtragen oder Käufe buchen. Löschen kann der Assistent nichts.
+
+1. In Claude unter **Einstellungen → Connectors → Eigenen Connector
+   hinzufügen** die Adresse `https://finanzen.kanonenwiese.de/mcp`
+   eintragen (steht auch unter **Einstellungen → KI-Assistenten** zum
+   Kopieren).
+2. Beim Verbinden meldest du dich wie gewohnt über Pocket ID an und
+   bestätigst den Zugriff.
+3. Fertig – Claude arbeitet mit deinem Namen. Unter **Einstellungen** siehst
+   du, welche Assistenten verbunden sind, und kannst sie jederzeit trennen.
+
+Es braucht keine weitere Konfiguration: Anmeldung, Registrierung des
+Assistenten und Tokens (OAuth 2.1 mit PKCE) erledigt Finanzen selbst.
+
 ## Login über OIDC
 
 Finanzen hat keine eigenen Passwörter – angemeldet wird über Pocket ID.

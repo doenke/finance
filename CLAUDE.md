@@ -19,6 +19,10 @@ Entscheidungen dort mitpflegen.
   (Kursquellen-Adapter: onvista als Standard, Yahoo; Fallback auf onvista per ISIN in `sync.py`), `fx.py` (EZB), `sync.py`, `loan.py`,
   `csvimport.py`, `backup.py` (JSON-Sicherung/-Wiederherstellung, auch CLI
   `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
+  MCP: `mcp/oauth.py` (OAuth-2.1-Autorisierung mit DCR, PKCE, Zustimmungsseite;
+  `/api/mcp/clients` für die Einstellungen) und `mcp/server.py` (JSON-RPC unter
+  `/mcp`, Werkzeuge nutzen die Funktionen aus `api/`; nur lesen und anlegen,
+  nichts löschen).
   FinTS: `services/fints_sync.py` – jeder Abruf ist ein Job in einem Thread,
   der den Dialog offen hält und auf TAN/Auswahl wartet (vorher immer
   `db.commit()`, nie eine Transaktion offen halten). Der Bank-Client kommt

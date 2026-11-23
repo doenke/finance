@@ -7,7 +7,7 @@ import { self as sw } from '$app/service-worker';
 const CACHE = `finanzen-${version}`;
 const abs = (p: string) => '/' + p.replace(/^\/+/, '');
 const PRECACHE = [...immutable.map((f) => abs(f.path)), ...assets.map((f) => abs(f.path)), '/'];
-const NEVER = ['/api/', '/auth/', '/healthz'];
+const NEVER = ['/api/', '/auth/', '/healthz', '/oauth/', '/mcp', '/.well-known/', '/avatar/'];
 
 sw.addEventListener('install', (event) => {
   event.waitUntil(

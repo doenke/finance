@@ -278,6 +278,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Teilen-Ziel | Die installierte PWA nimmt CSV-Dateien über das Teilen-Menü an (Web Share Target, Android/Chromium); die Importseite erkennt Bank-CSV, Portfolio Performance und BSDEX am Kopf der Datei. iOS unterstützt das nicht |
 | BSDEX-Import | F-IM-02b umgesetzt anhand eines echten Exports: Werte werden an der Einheit erkannt (Spaltennamen im Export sind verschoben), nur ausgeführte Orders, Gebühr auf den Einstand, Euro-Seite aufs Verrechnungskonto (wird bei Bedarf angelegt). Krypto-Ein-/Auszahlungen sind im Beispiel nicht enthalten und werden als „übersprungen“ gemeldet |
 | FinTS | Abruf als Hintergrund-Job mit TAN-Dialog im Browser (Text-TAN, photoTAN-Grafik, Decoupled/App-Freigabe); chipTAN-Flickercode wird nicht dargestellt. Erstabruf 90 Tage Umsätze. Depot: Anfangsbestand laut Bank, später Abweichungen mit Ein-/Auslieferung abgleichen |
+| MCP-Server | Eingebauter MCP-Server unter `/mcp` (Streamable HTTP, JSON-Antworten). Anmeldung per OAuth 2.1 mit eigener Autorisierung in der App (Discovery, dynamische Client-Registrierung, PKCE S256, Zustimmungsseite nach Pocket-ID-Login, rotierende Refresh-Tokens, nur Hashes gespeichert). Werkzeuge lesen Konten, Vermögen und Rendite und legen Konten, Stände, Salden, Buchungen und Wertpapier-Transaktionen an; Löschen ist bewusst nicht möglich. Verbundene Assistenten lassen sich in den Einstellungen trennen |
 
 ## 9. Offene Fragen
 
