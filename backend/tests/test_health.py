@@ -33,3 +33,9 @@ def test_healthz_ok(client):
     res = client.get("/healthz")
     assert res.status_code == 200
     assert res.json()["checks"] == {"db": "ok", "data": "ok"}
+
+
+def test_share_target_fallback(tmp_path, web_dir):
+    app = create_app(make_settings(tmp_path, web_dir, database_url=""))
+    res = TestClient(app).post("/import/teilen", data={"x": "1"}, follow_redirects=False)
+    assert res.status_code == 303 and res.headers["location"] == "/import?geteilt=fehler"

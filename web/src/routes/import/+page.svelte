@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { api, type Account } from '#lib/api.ts';
   import { formatDate, formatNumber } from '#lib/format.ts';
@@ -52,19 +53,72 @@
       api.get<Record<string, any>>('/api/import/profiles')
     ]);
   }
-  onMount(load);
+  onMount(async () => {
+    await load();
+    await pickUpShared();
+  });
+
+  function decode(buf: ArrayBuffer): string {
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    } catch {
+      return new TextDecoder('windows-1252').decode(buf); // older bank exports
+    }
+  }
+
+  /** Guesses the export type from the header line. */
+  function detectKind(content: string): Kind {
+    const head = content.replace(/^\ufeff/, '').split(/\r?\n/, 1)[0] ?? '';
+    if (head.includes('Kryptowährung') && head.includes('Transaktionsentgelt')) return 'bsdex';
+    if (/Wertpapiername|Security Name/i.test(head) || (/(^|[;,])"?(Datum|Date)"?[;,]/.test(head) && /Typ|Type/.test(head) && /Stück|Shares/.test(head))) return 'pp';
+    return 'bookings';
+  }
+
+  function useFile(name: string, content: string, autodetect: boolean) {
+    filename = name;
+    text = content;
+    mapping = {};
+    if (autodetect) {
+      const detected = detectKind(content);
+      if (detected !== kind) {
+        kind = detected;
+        accountId = null;
+      }
+      // Preselect the only fitting account, e.g. the one crypto depot for BSDEX.
+      if (accountId === null && targets.length === 1) accountId = targets[0].id;
+    }
+  }
+
+  async function pickUpShared() {
+    const flag = page.url.searchParams.get('geteilt');
+    if (!flag) return;
+    history.replaceState(history.state, '', '/import');
+    if (flag === 'fehler') {
+      error = 'Die geteilte Datei konnte nicht gelesen werden. Teile sie bitte noch einmal oder wähle sie unten aus.';
+      return;
+    }
+    try {
+      const cache = await caches.open('finanzen-share');
+      const res = await cache.match('/__shared/file');
+      if (!res) {
+        error = 'Die geteilte Datei ist nicht angekommen – bitte noch einmal teilen.';
+        return;
+      }
+      const name = decodeURIComponent(res.headers.get('X-Filename') ?? 'geteilt.csv');
+      useFile(name, decode(await res.arrayBuffer()), true);
+      await cache.delete('/__shared/file');
+      await runPreview();
+      info = `„${name}“ empfangen${accountId === null ? ' – wähle jetzt das Konto.' : '.'}`;
+    } catch {
+      error = 'Die geteilte Datei konnte nicht gelesen werden.';
+    }
+  }
 
   async function onFile(event: Event) {
     const file = (event.currentTarget as HTMLInputElement).files?.[0];
     if (!file) return;
-    filename = file.name;
-    const buf = await file.arrayBuffer();
-    try {
-      text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
-    } catch {
-      text = new TextDecoder('windows-1252').decode(buf); // older bank exports
-    }
-    mapping = {};
+    const content = decode(await file.arrayBuffer());
+    useFile(file.name, content, false);
     await runPreview();
   }
 
@@ -171,7 +225,11 @@
           {#each targets as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
         </select>
       </label>
-      <label>Datei <input type="file" accept=".csv,.txt,text/csv" onchange={onFile} disabled={!accountId} /></label>
+      <label>
+        Datei
+        <input type="file" accept=".csv,.txt,text/csv" onchange={onFile} disabled={!accountId} />
+        {#if filename && text}<span class="muted small">Geladen: {filename}</span>{/if}
+      </label>
       {#if kind === 'bookings' && Object.keys(profiles).length}
         <label>
           Vorlage

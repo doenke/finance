@@ -29,7 +29,7 @@ Entscheidungen dort mitpflegen.
   (`sveltekit({...})`, kein `svelte.config.js`), Imports über `#lib/…` mit
   Dateiendung für `.ts` (`#lib/api.ts`), Service Worker nutzt `$app/manifest`,
   `$app/env`, `$app/service-worker`. tsconfig erweitert `$app/tsconfig`.
-  Statische Dateien und Icons in `web/static/`. Prüfen: `npm run check`,
+  Statische Dateien und Icons in `web/static/`. Web Share Target: `manifest.webmanifest` → POST `/import/teilen`, der Service Worker legt die Datei im Cache `finanzen-share` ab, `/import?geteilt=1` holt sie (ohne SW leitet das Backend auf `?geteilt=fehler`). Prüfen: `npm run check`,
   bauen: `npm run build` (nach `web/build`, das Backend liefert es aus).
 - `Dockerfile` – mehrstufig, läuft als UID 10001, `HEALTHCHECK` gegen `/healthz`.
 - `compose.example.yml`, `.env.example` – Betriebsvorlagen (Port 43651,

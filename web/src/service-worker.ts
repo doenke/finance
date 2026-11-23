@@ -31,8 +31,39 @@ function timeout(ms: number): Promise<never> {
   return new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
 }
 
+const SHARE_CACHE = 'finanzen-share';
+const SHARE_PATH = '/import/teilen';
+
+// Web Share Target: a CSV shared to the app is parked in a cache and the import page picks it up.
+async function receiveShare(req: Request): Promise<Response> {
+  try {
+    const form = await req.formData();
+    const file = form.get('file');
+    const cache = await caches.open(SHARE_CACHE);
+    if (file instanceof File) {
+      await cache.put(
+        '/__shared/file',
+        new Response(file, { headers: { 'Content-Type': file.type || 'text/csv', 'X-Filename': encodeURIComponent(file.name || 'geteilt.csv') } })
+      );
+      return Response.redirect('/import?geteilt=1', 303);
+    }
+    const text = String(form.get('text') ?? '');
+    if (text.includes('\n')) {
+      await cache.put('/__shared/file', new Response(text, { headers: { 'Content-Type': 'text/csv', 'X-Filename': 'geteilt.csv' } }));
+      return Response.redirect('/import?geteilt=1', 303);
+    }
+  } catch {
+    // fall through
+  }
+  return Response.redirect('/import?geteilt=fehler', 303);
+}
+
 sw.addEventListener('fetch', (event) => {
   const req = event.request;
+  if (req.method === 'POST' && new URL(req.url).pathname === SHARE_PATH) {
+    event.respondWith(receiveShare(req));
+    return;
+  }
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== sw.location.origin) return;

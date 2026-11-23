@@ -120,6 +120,11 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     def api_not_found(path: str) -> JSONResponse:
         return JSONResponse({"detail": "Nicht gefunden"}, status_code=404)
 
+    @app.post("/import/teilen", include_in_schema=False)
+    def share_without_service_worker() -> Response:
+        # Normally the service worker receives shared files; without it, ask the user to share again.
+        return Response(status_code=303, headers={"Location": "/import?geteilt=fehler"})
+
     mount_spa(app, settings.web_dir)
     return app
 

@@ -207,6 +207,14 @@ werden übersprungen, und jeder Import lässt sich mit einem Klick komplett
 rückgängig machen. Beim Portfolio-Performance-Import werden fehlende
 Wertpapiere gleich mit angelegt – samt Kurshistorie ab dem ersten Kauf.
 
+**Direkt teilen:** Ist Finanzen auf dem Android-Handy installiert, taucht es
+im Teilen-Menü auf. Teile die CSV aus der Banking-App, von BSDEX oder aus
+der Dateien-App an Finanzen – die Importseite öffnet sich mit der Datei,
+erkennt, ob sie von der Bank, aus Portfolio Performance oder von BSDEX
+stammt, und wählt das passende Konto vor, wenn es nur eins gibt. (iPhone
+und iPad unterstützen das Teilen an Web-Apps leider nicht; dort wählst du
+die Datei auf der Importseite aus.)
+
 ### 7. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
