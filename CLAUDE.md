@@ -8,9 +8,17 @@ Entscheidungen dort mitpflegen.
 
 - `backend/` – Python 3.13, FastAPI (`finanzen/`), Tests unter `tests/` (pytest).
   Start: `python -m finanzen`. Konfiguration nur über Env (`finanzen/config.py`).
-- `web/` – Frontend. Derzeit eine statische Platzhalterseite mit Manifest und
-  Icons (aus `icon.svg`/`icon-maskable.svg` erzeugt). Wird später durch ein
-  SvelteKit-Build ersetzt, das das Backend ausliefert.
+- `backend/finanzen/` – `main.py` (App-Factory `create_app`, SPA-Auslieferung,
+  CSRF-Origin-Prüfung), `auth/` (OIDC mit PKCE, Session-Cookie, Avatare,
+  `DEV_LOGIN`), `api/` (JSON-API unter `/api`), `models.py` + `migrations/`
+  (Alembic, laufen beim Start). Neue Tabellen immer per neuer Migration.
+- `web/` – SvelteKit **3** (SPA, adapter-static, Svelte 5 Runes). Achtung,
+  Kit 3 unterscheidet sich von Kit 2: Konfiguration in `vite.config.ts`
+  (`sveltekit({...})`, kein `svelte.config.js`), Imports über `#lib/…` mit
+  Dateiendung für `.ts` (`#lib/api.ts`), Service Worker nutzt `$app/manifest`,
+  `$app/env`, `$app/service-worker`. tsconfig erweitert `$app/tsconfig`.
+  Statische Dateien und Icons in `web/static/`. Prüfen: `npm run check`,
+  bauen: `npm run build` (nach `web/build`, das Backend liefert es aus).
 - `Dockerfile` – mehrstufig, läuft als UID 10001, `HEALTHCHECK` gegen `/healthz`.
 - `compose.example.yml`, `.env.example` – Betriebsvorlagen (Port 43651,
   Mounts unter `/data/container/finanzen/...`, Postgres ohne Port-Freigabe).
@@ -42,7 +50,11 @@ aus der CI-Zusammenfassung nennen.
 
 ```bash
 cd backend && pip install -e ".[test]" && python -m pytest -q
+cd web && npm ci && npm run check && npm run build
 ```
+
+Lokal entwickeln: Backend mit `DEV_LOGIN=true DATABASE_URL=… python -m finanzen`,
+Frontend mit `npm run dev` (Vite leitet `/api`, `/auth`, `/avatar` an Port 43651).
 
 Mit Datenbank zusätzlich `TEST_DATABASE_URL=postgresql://…` setzen. Docker:
 `docker compose config -q`, Container wird `healthy`, `/healthz` liefert 200

@@ -1,4 +1,4 @@
-<img src="web/icon-192.png" alt="" width="96" height="96">
+<img src="web/static/icon-192.png" alt="" width="96" height="96">
 
 # Finanzen 📈
 
@@ -10,10 +10,9 @@ Schrank – alles an einem Ort, mit Verlauf und ehrlicher Rendite.
 Kurz gesagt: einmal reinschauen und wissen, wo ihr steht – und ob euer Depot
 besser läuft als der MSCI World.
 
-> **Stand:** Grundgerüst. Die App startet, zeigt eine Platzhalterseite und
-> meldet über `/healthz`, ob alles läuft. So lassen sich DNS, Proxy, Firewall
-> und Docker schon einrichten. Die eigentlichen Funktionen kommen Schritt für
-> Schritt – was geplant ist, steht in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> **Stand:** Anmeldung über Pocket ID und der Haushalt sind fertig. Konten,
+> Depots, Kurse und Rendite kommen Schritt für Schritt – was geplant ist, steht
+> in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Dashboard | Depot | Benchmark |
 | --- | --- | --- |
@@ -71,8 +70,9 @@ cp .env.example .env
 cp compose.example.yml compose.yml
 ```
 
-In `.env` für den Anfang nur `PUBLIC_URL` und `POSTGRES_PASSWORD` ausfüllen
-(`openssl rand -hex 32`), dann:
+In `.env` mindestens `PUBLIC_URL`, `POSTGRES_PASSWORD` (`openssl rand -hex 32`),
+`SESSION_KEY` (`openssl rand -base64 32`), `OIDC_ISSUER` und `OIDC_CLIENT_ID`
+ausfüllen (siehe „Login über OIDC“ unten), dann:
 
 ```bash
 docker compose up -d
@@ -88,16 +88,41 @@ lauscht auf Port **43651** (innen und außen gleich), das Image ist
 
 ## Ein erster Rundgang
 
-### 1. Seite öffnen
+### 1. Anmelden
 
-Unter `https://finanzen.kanonenwiese.de` erscheint die Platzhalterseite mit
-Version und dem Zustand von Datenbank und Datenverzeichnis. Steht dort alles
-auf „ok“, sind DNS, Proxy und Container richtig eingerichtet.
+`https://finanzen.kanonenwiese.de` öffnen und auf „Mit Kanonenwiese SSO
+anmelden“ tippen. Wer sich zum ersten Mal anmeldet, landet automatisch im
+Haushalt – mit Vornamen und Profilbild aus Pocket ID.
 
-### 2. Zum Startbildschirm hinzufügen
+### 2. Haushalt vervollständigen
+
+Unter **Haushalt** steht jede Person, die sich schon einmal angemeldet hat.
+Kinder oder andere Personen ohne eigenen Login legst du dort mit „+ Person“ an,
+damit du ihnen später Konten und Anlagen zuordnen kannst. Jede Person bekommt
+eine Farbe, die später in Diagrammen wieder auftaucht.
+
+### 3. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
-wählen – das Icon ist schon da.
+wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
+„wie das System“ um.
+
+## Login über OIDC
+
+Finanzen hat keine eigenen Passwörter – angemeldet wird über Pocket ID.
+
+1. In Pocket ID einen OIDC-Client **finanzen** anlegen.
+2. Callback-URL: `https://finanzen.kanonenwiese.de/auth/callback`
+3. **Public Client** mit PKCE (ohne Secret). Bei einem vertraulichen Client
+   das Secret in `OIDC_CLIENT_SECRET` eintragen.
+4. Unter „Allowed User Groups“ nur die Gruppe eures Haushalts zulassen – wer
+   nicht drin ist, kommt gar nicht erst bis zur App.
+5. Client-ID in `OIDC_CLIENT_ID`, `https://id.kanonenwiese.de` in
+   `OIDC_ISSUER`.
+
+Wer in der Gruppe `admins` ist (`OIDC_ADMIN_GROUP`), bekommt später die
+Admin-Funktionen wie Systemeinstellungen und Backup. Das Profilbild aus Pocket
+ID wird beim Login einmal geladen und von Finanzen selbst ausgeliefert.
 
 ## Kleine Konfiguration, große Wirkung
 
@@ -105,9 +130,9 @@ wählen – das Icon ist schon da.
 | --- | --- |
 | `PUBLIC_URL` | Öffentliche Adresse, z. B. `https://finanzen.kanonenwiese.de` |
 | `POSTGRES_PASSWORD` | Passwort der Datenbank (nur Buchstaben und Ziffern) |
-| `SESSION_KEY` | Signiert die Anmeldung – ab der Version mit Login |
+| `SESSION_KEY` | Signiert die Anmeldung; ändern meldet alle ab |
 | `SECRETS_KEY` | Verschlüsselt gespeicherte Bank-PINs – **nie ändern, gut aufheben** |
-| `OIDC_*` | Anmeldung über Pocket ID – ab der Version mit Login |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID` | Anmeldung über Pocket ID |
 | `FINTS_PRODUCT_ID` | Registrierungsnummer für FinTS – ab der Bankanbindung |
 
 Alle Werte mit Erklärung stehen in [.env.example](.env.example). Was dort
@@ -135,8 +160,11 @@ Port `43651`).
   Version, wenn Datenbank und Datenverzeichnis passen, sonst 503 mit dem
   betroffenen Teil. Gut für Uptime Kuma. `/healthz/live` meldet nur, dass der
   Prozess läuft.
-- **Version:** steht auf der Seite und in `/healthz`, Schema x.yy.zzz.
-- **Updates:** `docker compose pull && docker compose up -d`.
+- **Version:** steht unter Einstellungen und in `/healthz`, Schema x.yy.zzz.
+- **Updates:** `docker compose pull && docker compose up -d`. Datenbank-Migrationen
+  laufen beim Start von selbst, die App im Browser holt sich die neue Version still.
+- **`DEV_LOGIN=true`** erlaubt die Anmeldung nur mit einem Namen, ohne Pocket ID –
+  **niemals in Produktion**.
 - **Backup:** Bis die App ihre eigene tägliche Sicherung hat, reicht ein
   `pg_dump` der Datenbank:
 

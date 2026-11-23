@@ -47,8 +47,24 @@ jobs:
       - run: python -m pytest -q
         working-directory: backend
 
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm run build
+
   image:
-    needs: [version, test]
+    needs: [version, test, web]
     runs-on: ubuntu-latest
     permissions:
       contents: read

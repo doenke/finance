@@ -4,20 +4,30 @@ version = "0.0.0"
 description = "Household finance overview: accounts, portfolios, assets and returns"
 requires-python = ">=3.13"
 dependencies = [
-  "fastapi==0.121.1",
-  "uvicorn[standard]==0.38.0",
-  "psycopg[binary]==3.2.12",
+  "fastapi==0.165.0",
+  "uvicorn[standard]==0.54.0",
+  "psycopg[binary]==3.3.9",
+  "sqlalchemy==2.1.9",
+  "alembic==1.20.1",
+  "httpx==0.28.1",
+  "pyjwt[crypto]==2.15.1",
+  "itsdangerous==2.2.0",
+  "pillow==13.0.0",
 ]
 
 [project.optional-dependencies]
-test = ["pytest==8.4.2", "httpx==0.28.1"]
+test = ["pytest==9.2.0"]
 
 [build-system]
 requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["finanzen"]
+[tool.setuptools.packages.find]
+include = ["finanzen*"]
+
+[tool.setuptools.package-data]
+finanzen = ["migrations/*.py", "migrations/*.mako", "migrations/versions/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
