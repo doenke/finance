@@ -276,6 +276,45 @@ class BankLogin(Base):
         return self.bank.server_url
 
 
+class PushSubscription(Base):
+    """A browser/device that receives web push notifications for a user."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    endpoint: Mapped[str] = mapped_column(Text, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(200))
+    auth: Mapped[str] = mapped_column(String(100))
+    device: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class NotificationPref(Base):
+    """Per-user notification settings (events, channels, thresholds) as JSON."""
+
+    __tablename__ = "notification_prefs"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    prefs: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class NotificationLog(Base):
+    """Sent notifications; also used to avoid sending the same thing twice."""
+
+    __tablename__ = "notification_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    event: Mapped[str] = mapped_column(String(40))
+    key: Mapped[str] = mapped_column(String(200), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text, default="")
+    channels: Mapped[str] = mapped_column(String(40), default="")  # e.g. "push,email"
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class OAuthClient(Base):
     """A client registered via OAuth dynamic client registration (e.g. Claude as MCP connector)."""
 

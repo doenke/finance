@@ -16,6 +16,7 @@ from ..db import get_db
 from ..models import Account, AccountOwner, BalanceSnapshot, Instrument, Person, Price, Trade, Transaction, User, Valuation
 from ..services import valuation as val
 from ..services.fx import FxConverter
+from ..services.holdings import free_from
 from ..services.loan_scenarios import run_scenario, spec_from_dict
 from .prices import is_stale
 from ..services.sync import sync_instrument_in_background
@@ -633,6 +634,127 @@ def list_positions(request: Request, account_id: int, on: date | None = None, cl
         )
     result.sort(key=lambda p: p.value, reverse=True)
     return result
+
+
+# --- Holding period (§ 23 EStG) for crypto and precious metals ---------------------------------
+
+HOLDING_PERIOD_KINDS = ("krypto", "edelmetall")
+ZERO2 = Decimal("0.01")
+
+
+class LotOut(BaseModel):
+    date: date
+    free_from: date
+    free: bool
+    days_left: int
+    quantity: Decimal
+    cost: Decimal
+    value: Decimal | None
+    gain: Decimal | None
+
+
+class HoldingPeriodPosition(BaseModel):
+    instrument: InstrumentOut
+    quantity: Decimal
+    free_quantity: Decimal
+    free_value: Decimal | None
+    free_gain: Decimal | None
+    locked_quantity: Decimal
+    locked_value: Decimal | None
+    locked_gain: Decimal | None
+    next_free_date: date | None
+    next_free_quantity: Decimal | None
+    lots: list[LotOut]
+
+
+class HoldingPeriodYear(BaseModel):
+    year: int
+    short_gain: Decimal  # taxable: sold within a year
+    long_gain: Decimal  # tax-free
+    exemption: Decimal  # Freigrenze for all private sales of the year
+
+
+class HoldingPeriodOut(BaseModel):
+    on: date
+    positions: list[HoldingPeriodPosition]
+    years: list[HoldingPeriodYear]
+
+
+def exemption_limit(year: int) -> Decimal:
+    return Decimal("1000") if year >= 2024 else Decimal("600")
+
+
+@router.get("/accounts/{account_id}/holding-period", response_model=HoldingPeriodOut)
+def holding_period(account_id: int, on: date | None = None, db: Session = Depends(get_db)) -> HoldingPeriodOut:
+    account = get_account(db, account_id)
+    if account.kind not in HOLDING_PERIOD_KINDS:
+        raise HTTPException(422, "Die Haltefrist gibt es nur für Krypto und Edelmetalle.")
+    on = on or date.today()
+    fx = FxConverter(db)
+    _, positions = val.holdings_value(db, account_id, on, fx)
+    out: list[HoldingPeriodPosition] = []
+    years: dict[int, list[Decimal]] = {}
+    for pos in positions.values():
+        for sale in pos.sales:
+            y = years.setdefault(sale.date.year, [ZERO, ZERO])
+            y[0] += sale.short_gain
+            y[1] += sale.long_gain
+        if pos.quantity <= ZERO:
+            continue
+        instrument = db.get(Instrument, pos.instrument_id)
+        priced = val.position_value(db, instrument, pos.quantity, on, fx)
+        unit = priced[0] / pos.quantity if priced else None
+        lots: list[LotOut] = []
+        sums = {True: [ZERO, ZERO, ZERO], False: [ZERO, ZERO, ZERO]}  # quantity, value, cost
+        for lot in pos.lots:
+            if lot.quantity <= ZERO:
+                continue
+            start = free_from(lot.date)
+            free = on >= start
+            value = (lot.quantity * unit).quantize(ZERO2) if unit is not None else None
+            lots.append(
+                LotOut(
+                    date=lot.date,
+                    free_from=start,
+                    free=free,
+                    days_left=max(0, (start - on).days),
+                    quantity=lot.quantity,
+                    cost=lot.cost.quantize(ZERO2),
+                    value=value,
+                    gain=(value - lot.cost).quantize(ZERO2) if value is not None else None,
+                )
+            )
+            s_ = sums[free]
+            s_[0] += lot.quantity
+            s_[1] += value or ZERO
+            s_[2] += lot.cost
+        pending = sorted((lt for lt in lots if not lt.free), key=lambda lt: lt.free_from)
+        next_date = pending[0].free_from if pending else None
+        priced_ok = unit is not None
+        out.append(
+            HoldingPeriodPosition(
+                instrument=instrument_out(db, instrument),
+                quantity=pos.quantity,
+                free_quantity=sums[True][0],
+                free_value=sums[True][1].quantize(ZERO2) if priced_ok else None,
+                free_gain=(sums[True][1] - sums[True][2]).quantize(ZERO2) if priced_ok else None,
+                locked_quantity=sums[False][0],
+                locked_value=sums[False][1].quantize(ZERO2) if priced_ok else None,
+                locked_gain=(sums[False][1] - sums[False][2]).quantize(ZERO2) if priced_ok else None,
+                next_free_date=next_date,
+                next_free_quantity=sum((lt.quantity for lt in pending if lt.free_from == next_date), ZERO) if next_date else None,
+                lots=lots,
+            )
+        )
+    out.sort(key=lambda p: (p.free_value or ZERO) + (p.locked_value or ZERO), reverse=True)
+    return HoldingPeriodOut(
+        on=on,
+        positions=out,
+        years=[
+            HoldingPeriodYear(year=y, short_gain=v[0].quantize(ZERO2), long_gain=v[1].quantize(ZERO2), exemption=exemption_limit(y))
+            for y, v in sorted(years.items(), reverse=True)
+        ],
+    )
 
 
 # --- Loans ---------------------------------------------------------------------------------------

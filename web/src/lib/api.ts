@@ -278,3 +278,34 @@ export interface FintsJob {
   result: any;
   error: string;
 }
+
+export interface HoldingLot {
+  date: string;
+  free_from: string;
+  free: boolean;
+  days_left: number;
+  quantity: string;
+  cost: string;
+  value: string | null;
+  gain: string | null;
+}
+
+export interface HoldingPeriodPosition {
+  instrument: Instrument;
+  quantity: string;
+  free_quantity: string;
+  free_value: string | null;
+  free_gain: string | null;
+  locked_quantity: string;
+  locked_value: string | null;
+  locked_gain: string | null;
+  next_free_date: string | null;
+  next_free_quantity: string | null;
+  lots: HoldingLot[];
+}
+
+export interface HoldingPeriod {
+  on: string;
+  positions: HoldingPeriodPosition[];
+  years: { year: number; short_gain: string; long_gain: string; exemption: string }[];
+}

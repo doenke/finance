@@ -19,6 +19,9 @@ Entscheidungen dort mitpflegen.
   (Kursquellen-Adapter: onvista als Standard, Yahoo; Fallback auf onvista per ISIN in `sync.py`), `fx.py` (EZB), `sync.py`, `loan.py`,
   `csvimport.py`, `backup.py` (JSON-Sicherung/-Wiederherstellung, auch CLI
   `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
+  Benachrichtigungen: `notify.py` (Ereignisse, Einstellungen je User, tägliche
+  Prüfungen, Monatsbericht; in Tests `push_sender`/`mail_sender` ersetzen),
+  `webpush.py` (VAPID + aes128gcm, `python -m finanzen vapid`), `mailer.py`.
   MCP: `mcp/oauth.py` (OAuth-2.1-Autorisierung mit DCR, PKCE, Zustimmungsseite;
   `/api/mcp/clients` für die Einstellungen) und `mcp/server.py` (JSON-RPC unter
   `/mcp`, Werkzeuge nutzen die Funktionen aus `api/`; nur lesen und anlegen,

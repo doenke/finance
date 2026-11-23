@@ -5,7 +5,7 @@
   const n = $derived(toNumber(value));
 </script>
 
-<span class="num" class:pos={colored && n > 0} class:neg={colored && n < 0}>{formatMoney(value, currency, cents)}</span>
+<span class="num money" class:pos={colored && n > 0} class:neg={colored && n < 0}>{formatMoney(value, currency, cents)}</span>
 
 <style>
   .pos {

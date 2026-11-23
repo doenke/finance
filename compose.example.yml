@@ -31,7 +31,7 @@ services:
     ports:
       - "43651:43651"     # Ziel für NPM: http://garageband:43651
     volumes:
-      # Anwendungsdaten (Avatare, Importe, später die täglichen Backups).
+      # Anwendungsdaten (Avatare, Importe und die täglichen Backups).
       # Der Ordner muss UID 10001 gehören (siehe chown oben).
       - /data/container/finanzen/data:/data
     healthcheck:

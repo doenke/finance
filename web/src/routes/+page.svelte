@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PrivacyToggle from '#lib/PrivacyToggle.svelte';
   import { onMount } from 'svelte';
   import { api, type Account, type NetWorthData } from '#lib/api.ts';
   import BarList from '#lib/charts/BarList.svelte';
@@ -73,7 +74,10 @@
 <svelte:head><title>Übersicht – Finanzen</title></svelte:head>
 
 <div class="stack">
-  <h1>{greeting}, {firstName}</h1>
+  <div class="title">
+    <h1>{greeting}, {firstName}</h1>
+    <PrivacyToggle />
+  </div>
   <PersonFilter />
   {#if error}<p class="error">{error}</p>{/if}
 
@@ -108,7 +112,7 @@
         <PeriodPicker bind:value={period} />
       </div>
       {#if nw.series.length > 1}
-        <LineChart series={netSeries} format={eur} area ariaLabel="Nettovermögen im Verlauf" />
+        <LineChart series={netSeries} format={eur} money area ariaLabel="Nettovermögen im Verlauf" />
       {:else}
         <p class="muted">Für einen Verlauf braucht es Werte an mehreren Tagen.</p>
       {/if}
@@ -117,13 +121,13 @@
     <div class="split">
       <section class="card stack">
         <h2>Nach Anlageklasse</h2>
-        <BarList items={classItems} format={eur} />
-        {#if toNumber(c.liabilities) < 0}<p class="muted small">Dazu kommen Schulden von {eur(toNumber(c.liabilities))}.</p>{/if}
+        <BarList items={classItems} format={eur} money />
+        {#if toNumber(c.liabilities) < 0}<p class="muted small">Dazu kommen Schulden von <span class="money">{eur(toNumber(c.liabilities))}</span>.</p>{/if}
       </section>
       {#if personItems.length > 1 && household.filter === null}
         <section class="card stack">
           <h2>Nach Person</h2>
-          <BarList items={personItems} format={eur} />
+          <BarList items={personItems} format={eur} money />
           <p class="muted small">Gemeinsame Konten zählen mit dem jeweiligen Anteil; netto nach Schulden.</p>
         </section>
       {/if}
@@ -136,6 +140,15 @@
 </div>
 
 <style>
+  .title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .title h1 {
+    margin: 0;
+  }
   .hero {
     display: grid;
     grid-template-columns: 1.6fr repeat(4, 1fr);

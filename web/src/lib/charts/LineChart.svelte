@@ -14,8 +14,9 @@
     height = 240,
     zeroLine = false,
     area = false,
-    ariaLabel = 'Diagramm'
-  }: { series: Series[]; format: (v: number) => string; height?: number; zeroLine?: boolean; area?: boolean; ariaLabel?: string } = $props();
+    ariaLabel = 'Diagramm',
+    money = false
+  }: { series: Series[]; format: (v: number) => string; height?: number; zeroLine?: boolean; area?: boolean; ariaLabel?: string; money?: boolean } = $props();
 
   let width = $state(0);
   let hover = $state<number | null>(null);
@@ -123,7 +124,7 @@
   <svg {width} {height} role="img" aria-label={ariaLabel} onpointermove={onMove} onpointerleave={() => (hover = null)}>
     {#each ticks as t (t)}
       <line x1={plotLeft} x2={plotLeft + plotW} y1={y(t)} y2={y(t)} class="grid" class:zero={t === 0} />
-      <text x={plotLeft - 6} y={y(t)} class="tick" text-anchor="end" dominant-baseline="middle">{format(Object.is(t, -0) || Math.abs(t) < 1e-12 ? 0 : t)}</text>
+      <text x={plotLeft - 6} y={y(t)} class="tick" class:money text-anchor="end" dominant-baseline="middle">{format(Object.is(t, -0) || Math.abs(t) < 1e-12 ? 0 : t)}</text>
     {/each}
     {#each xTicks as i (i)}
       <text x={x(i)} y={height - 6} class="tick" text-anchor={i === 0 ? 'start' : i === dates.length - 1 ? 'end' : 'middle'}>{dateLabel(dates[i], spanDays)}</text>
@@ -149,7 +150,7 @@
         <div class="trow">
           <span class="swatch" style:background={s.color}></span>
           <span class="tlabel">{s.label}</span>
-          <strong>{s.points[hover]?.value !== null && s.points[hover]?.value !== undefined ? format(s.points[hover].value as number) : '–'}</strong>
+          <strong class:money>{s.points[hover]?.value !== null && s.points[hover]?.value !== undefined ? format(s.points[hover].value as number) : '–'}</strong>
         </div>
       {/each}
     </div>

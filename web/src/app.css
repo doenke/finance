@@ -225,3 +225,13 @@ h2 {
 .error {
   color: var(--neg);
 }
+
+/* Privacy mode: amounts are blurred, percentages stay readable. */
+html.private .money {
+  filter: blur(7px);
+  user-select: none;
+}
+html.private svg .money {
+  filter: none;
+  visibility: hidden;
+}

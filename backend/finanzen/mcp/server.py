@@ -262,6 +262,14 @@ def t_get_performance(db: Session, user: User, args: dict) -> Any:
     return {"from": data.get("from"), "to": data.get("to"), "summary": data.get("summary"), "periods": data.get("periods")}
 
 
+def t_get_holding_period(db: Session, user: User, args: dict) -> Any:
+    on = date.fromisoformat(args["on"]) if args.get("on") else None
+    data = acc_api.holding_period(int(args["account_id"]), on, db).model_dump()
+    for p in data["positions"]:
+        p["instrument"] = {k: p["instrument"][k] for k in ("id", "name", "isin", "unit")}
+    return data
+
+
 def _schema(props: dict, required: list[str] | None = None) -> dict:
     return {"type": "object", "properties": props, "required": required or [], "additionalProperties": False}
 
@@ -285,6 +293,12 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         _schema({"account_id": {"type": "integer"}, "person": {"type": ["string", "integer"]}, "period": {"type": "string", "enum": PERIODS}}),
         False,
         "Rendite (TTWROR, IZF, Gewinn) für den Haushalt, eine Person oder ein Konto.",
+    ),
+    "get_holding_period": (
+        t_get_holding_period,
+        _schema({"account_id": {"type": "integer"}, "on": DATE}, ["account_id"]),
+        False,
+        "Haltefrist (§ 23 EStG) für Krypto- und Edelmetall-Konten: je Kaufposten frei ab, steuerfrei verkaufbare Menge, Gewinne nach Jahr.",
     ),
     "create_account": (
         t_create_account,

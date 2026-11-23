@@ -171,6 +171,13 @@ So rechnet Finanzen:
   Wert plus die Beiträge seither.
 - Kredite stecken im Nettovermögen, aber nicht in der Rendite.
 
+**Haltefrist bei Krypto und Gold:** Im Krypto- oder Edelmetall-Konto siehst
+du je Coin, wie viel du schon steuerfrei verkaufen könntest (gehalten länger
+als ein Jahr, § 23 EStG), was noch in der Frist steckt und wann der nächste
+Kaufposten frei wird. Gerechnet wird nach FIFO. Dazu kommen deine Verkäufe
+nach Jahr – getrennt in steuerpflichtig und steuerfrei, mit Hinweis auf die
+Freigrenze von 1.000 €.
+
 ### 5. Bank verbinden (FinTS)
 
 Unter **Banken** legst du mit „+ Bank“ Sparkasse, DKB, OLB & Co. an:
@@ -224,6 +231,27 @@ Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren�
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
 „wie das System“ um.
 
+**Privatmodus:** Das Auge oben auf der Übersicht (am Rechner in der
+Seitenleiste) macht alle Beträge unkenntlich – praktisch, wenn du jemandem
+etwas auf dem Handy zeigst. Prozente bleiben sichtbar. Die Einstellung gilt
+nur auf diesem Gerät.
+
+**Benachrichtigungen:** Unter **Einstellungen** schaltest du Push für dein
+Gerät ein und wählst je Ereignis Push und/oder E-Mail:
+
+- Bankabruf fehlgeschlagen oder TAN-Freigabe nötig (nur für deinen Zugang)
+- Festgeld oder Zinsbindung läuft aus (Standard: 30 Tage vorher)
+- Nettovermögen ändert sich stark (an einem Tag oder in einer Woche, ab
+  einem Prozentsatz oder Betrag)
+- Bewertung fällig: Rentenstand, Immobilienwert oder STAK-Kurs ist älter als
+  13 Monate
+- **Monatsbericht** per E-Mail am 1.: Nettovermögen, Veränderung, Rendite im
+  Monat und seit Jahresbeginn, größte Bewegungen
+
+Push braucht einmalig ein Schlüsselpaar in der `.env` (siehe unten), E-Mail
+die SMTP-Werte. Auf iPhone und iPad kommt Push nur in der installierten App
+an (über „Zum Home-Bildschirm“).
+
 ### 8. Mit Claude verbinden (MCP)
 
 Finanzen hat einen eingebauten MCP-Server. Damit kann Claude (oder ein
@@ -270,6 +298,8 @@ ID wird beim Login einmal geladen und von Finanzen selbst ausgeliefert.
 | `SECRETS_KEY` | Verschlüsselt gespeicherte Bank-PINs – **nie ändern, gut aufheben** |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID` | Anmeldung über Pocket ID |
 | `FINTS_PRODUCT_ID` | Registrierungsnummer für FinTS (Deutsche Kreditwirtschaft) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Schlüssel für Push-Nachrichten, einmal erzeugen mit `docker compose run --rm app python -m finanzen vapid` |
+| `SMTP_HOST`, `SMTP_FROM`, … | E-Mail-Versand für Benachrichtigungen und Monatsbericht |
 
 Alle Werte mit Erklärung stehen in [.env.example](.env.example). Was dort
 schon drinsteht, aber noch nicht genutzt wird, ist entsprechend markiert.

@@ -128,7 +128,7 @@
       {/if}
     </div>
     {#if data.series.length > 1}
-      <LineChart series={chartSeries} format={mode === 'value' ? eur : pct} zeroLine={mode === 'return'} ariaLabel="{title}: Verlauf" />
+      <LineChart series={chartSeries} format={mode === 'value' ? eur : pct} money={mode === 'value'} zeroLine={mode === 'return'} ariaLabel="{title}: Verlauf" />
     {/if}
 
     {#if showTable}

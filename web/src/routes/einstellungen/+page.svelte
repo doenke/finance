@@ -4,8 +4,10 @@
   import { formatDate } from '#lib/format.ts';
   import Avatar from '#lib/Avatar.svelte';
   import Icon from '#lib/Icon.svelte';
+  import NotificationSettings from '#lib/NotificationSettings.svelte';
   import { logout, session } from '#lib/session.svelte.ts';
   import { getTheme, setTheme, type Theme } from '#lib/theme.ts';
+  import { privacy, setPrivate } from '#lib/privacy.svelte.ts';
 
   interface SyncStatus {
     finished_at?: string;
@@ -141,6 +143,11 @@
         <button role="radio" aria-checked={theme === t.value} class:active={theme === t.value} onclick={() => choose(t.value)}>{t.label}</button>
       {/each}
     </div>
+    <label class="check">
+      <input type="checkbox" checked={privacy.on} onchange={(e) => setPrivate(e.currentTarget.checked)} />
+      Privatmodus: Beträge verbergen
+    </label>
+    <p class="muted small">Praktisch, wenn du die App jemandem zeigst. Prozentwerte bleiben sichtbar. Gilt nur auf diesem Gerät; umschalten geht auch mit dem Auge auf der Übersicht.</p>
   </section>
 
   <section class="card stack">
@@ -168,6 +175,8 @@
     </div>
     {#if switchInfo}<p class="small">{switchInfo}</p>{/if}
   </section>
+
+  <NotificationSettings />
 
   {#if mcp}
     <section class="card stack">
@@ -250,6 +259,17 @@
   }
   .wrap {
     flex-wrap: wrap;
+  }
+  .check {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+  .check input {
+    width: auto;
+    min-height: auto;
   }
   .files {
     list-style: none;

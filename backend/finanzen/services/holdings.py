@@ -28,6 +28,28 @@ class Lot:
 
 
 @dataclass
+class Sale:
+    """Realized gain of one sale, split by whether the sold lots were held longer than a year (§ 23 EStG)."""
+
+    date: date
+    short_gain: Decimal = ZERO  # lots held one year or less
+    long_gain: Decimal = ZERO
+
+
+def free_from(acquired: date) -> date:
+    """First day a lot can be sold outside the one-year holding period (§ 23 EStG, §§ 187/188 BGB).
+
+    The period ends on the anniversary of the acquisition day (28 Feb for a 29 Feb purchase);
+    a sale on the following day is no longer a private sale within the period.
+    """
+    try:
+        anniversary = acquired.replace(year=acquired.year + 1)
+    except ValueError:  # 29 February
+        anniversary = acquired.replace(year=acquired.year + 1, day=28)
+    return date.fromordinal(anniversary.toordinal() + 1)
+
+
+@dataclass
 class Position:
     instrument_id: int
     lots: list[Lot] = field(default_factory=list)
@@ -35,6 +57,7 @@ class Position:
     income: Decimal = ZERO  # dividends/interest received (gross)
     taxes: Decimal = ZERO
     fees: Decimal = ZERO
+    sales: list[Sale] = field(default_factory=list)
 
     @property
     def quantity(self) -> Decimal:
@@ -68,11 +91,19 @@ def build_positions(trades: list[TradeIn], until: date | None = None) -> dict[in
         elif t.type in ("sell", "deliver_out"):
             remaining = t.quantity
             cost_out = ZERO
+            sale = Sale(t.date)
+            net = t.amount - t.fees
             while remaining > ZERO and pos.lots:
                 lot = pos.lots[0]
                 take = min(remaining, lot.quantity)
                 part = (lot.cost * take / lot.quantity) if lot.quantity else ZERO
                 cost_out += part
+                if t.type == "sell" and t.quantity:
+                    gain = net * take / t.quantity - part
+                    if t.date >= free_from(lot.date):
+                        sale.long_gain += gain
+                    else:
+                        sale.short_gain += gain
                 lot.quantity -= take
                 lot.cost -= part
                 remaining -= take
@@ -80,6 +111,7 @@ def build_positions(trades: list[TradeIn], until: date | None = None) -> dict[in
                     pos.lots.pop(0)
             if t.type == "sell":
                 pos.realized += t.amount - t.fees - cost_out
+                pos.sales.append(sale)
         elif t.type == "split":
             factor = t.quantity
             if factor > ZERO:

@@ -123,3 +123,41 @@ def test_loan_with_past_installment_change(client):
     assert D(changed["value"]) == -D(b["balance_today"])
     row = next(r for r in b["rows"] if r["date"] == "2022-01-01")
     assert D(row["payment"]) == D("800")
+
+
+def test_holding_period_crypto(client):
+    from datetime import date
+
+    from finanzen.services.holdings import free_from
+
+    assert free_from(date(2025, 3, 10)) == date(2026, 3, 11)
+    assert free_from(date(2024, 2, 29)) == date(2025, 3, 1)
+
+    login(client)
+    acc = create(client, "/api/accounts", {"name": "Wallet", "kind": "krypto"})
+    btc = create(client, "/api/instruments", {"kind": "crypto", "name": "Bitcoin"})
+    create(client, f"/api/instruments/{btc['id']}/prices", {"date": "2026-06-30", "close": "50000"})
+    url = f"/api/accounts/{acc['id']}/trades"
+    create(client, url, {"date": "2024-01-15", "type": "buy", "instrument_id": btc["id"], "quantity": "1", "amount": "40000"})
+    create(client, url, {"date": "2026-03-01", "type": "buy", "instrument_id": btc["id"], "quantity": "1", "amount": "60000"})
+    # 2025-01-10: half of the first lot, not yet free -> taxable
+    create(client, url, {"date": "2025-01-10", "type": "sell", "instrument_id": btc["id"], "quantity": "0.5", "amount": "45000"})
+    # 2025-02-01: rest of the first lot, now free
+    create(client, url, {"date": "2025-02-01", "type": "sell", "instrument_id": btc["id"], "quantity": "0.25", "amount": "25000"})
+    res = client.get(f"/api/accounts/{acc['id']}/holding-period", params={"on": "2026-06-30"}).json()
+    pos = res["positions"][0]
+    assert D(pos["free_quantity"]) == D("0.25") and D(pos["locked_quantity"]) == D("1")
+    assert D(pos["free_value"]) == D("12500.00") and D(pos["free_gain"]) == D("2500.00")
+    assert D(pos["locked_gain"]) == D("-10000.00")
+    assert pos["next_free_date"] == "2027-03-02"
+    years = {y["year"]: y for y in res["years"]}
+    assert D(years[2025]["short_gain"]) == D("25000.00")  # 45000 - 20000
+    assert D(years[2025]["long_gain"]) == D("15000.00")  # 25000 - 10000
+    assert D(years[2025]["exemption"]) == D("1000")
+    giro = create(client, "/api/accounts", {"name": "Giro", "kind": "giro"})
+    assert client.get(f"/api/accounts/{giro['id']}/holding-period").status_code == 422
+    from finanzen.mcp.server import t_get_holding_period
+
+    with client.app.state.sessionmaker() as db:
+        data = t_get_holding_period(db, None, {"account_id": acc["id"], "on": "2026-06-30"})
+    assert data["positions"][0]["instrument"]["name"] == "Bitcoin"

@@ -197,7 +197,7 @@
         </tbody>
       </table>
     </div>
-    <LineChart series={chart} format={eur} ariaLabel="Restschuld je Szenario" />
+    <LineChart series={chart} format={eur} money ariaLabel="Restschuld je Szenario" />
     <p class="muted small">Restschuld jeweils zum Jahresende. Gestrichelt: ohne Sondertilgungen.</p>
   {/if}
 </section>

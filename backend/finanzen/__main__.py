@@ -1,4 +1,4 @@
-"""Run with `python -m finanzen` (server), `python -m finanzen backup` or `python -m finanzen restore FILE`."""
+"""Run with `python -m finanzen` (server), `python -m finanzen backup`, `python -m finanzen restore FILE` or `python -m finanzen vapid`."""
 
 import gzip
 import json
@@ -24,6 +24,14 @@ def serve() -> None:
 
 
 def cli(args: list[str]) -> int:
+    if args[0] == "vapid":
+        from .services.webpush import generate_vapid_keys
+
+        public, private = generate_vapid_keys()
+        print("# In die .env eintragen (einmal erzeugen, danach nicht mehr ändern):")
+        print(f"VAPID_PUBLIC_KEY={public}")
+        print(f"VAPID_PRIVATE_KEY={private}")
+        return 0
     from .db import make_engine, make_sessionmaker, run_migrations
     from .services.backup import restore_data, write_backup
 
@@ -49,7 +57,7 @@ def cli(args: list[str]) -> int:
                 return 1
             print("Wiederhergestellt: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
             return 0
-    print("Aufruf: python -m finanzen [backup | restore DATEI]")
+    print("Aufruf: python -m finanzen [backup | restore DATEI | vapid]")
     return 2
 
 

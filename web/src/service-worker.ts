@@ -88,3 +88,40 @@ sw.addEventListener('fetch', (event) => {
     })()
   );
 });
+
+// Web push: show the notification; a click opens (or focuses) the app at the given page.
+sw.addEventListener('push', (event) => {
+  let data: { title?: string; body?: string; url?: string } = {};
+  try {
+    data = event.data?.json() ?? {};
+  } catch {
+    data = { body: event.data?.text() };
+  }
+  event.waitUntil(
+    sw.registration.showNotification(data.title || 'Finanzen', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url || '/' },
+      tag: data.title
+    })
+  );
+});
+
+sw.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data as { url?: string })?.url || '/', sw.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of windows) {
+        if (new URL(client.url).origin === sw.location.origin && 'focus' in client) {
+          await client.focus();
+          if ('navigate' in client) await (client as WindowClient).navigate(url);
+          return;
+        }
+      }
+      await sw.clients.openWindow(url);
+    })()
+  );
+});

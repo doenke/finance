@@ -5,6 +5,8 @@
   import Avatar from '#lib/Avatar.svelte';
   import Icon from '#lib/Icon.svelte';
   import Login from '#lib/Login.svelte';
+  import PrivacyToggle from '#lib/PrivacyToggle.svelte';
+  import { initPrivacy } from '#lib/privacy.svelte.ts';
   import { loadSession, session } from '#lib/session.svelte.ts';
 
   let { children } = $props();
@@ -19,7 +21,10 @@
 
   const isActive = (href: string) => (href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href));
 
-  onMount(loadSession);
+  onMount(() => {
+    initPrivacy();
+    loadSession();
+  });
 </script>
 
 {#if session.loading}
@@ -47,6 +52,7 @@
         </a>
       {/each}
       <div class="spacer"></div>
+      <div class="privacy"><PrivacyToggle withLabel /></div>
       <a class="user" href="/einstellungen">
         <Avatar name={session.me.name} url={session.me.avatar_url} />
         <span>{session.me.name}</span>
@@ -144,6 +150,7 @@
     }
     .brand,
     .spacer,
+    .privacy,
     .user {
       display: none !important;
     }

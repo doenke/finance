@@ -41,6 +41,25 @@ class Settings:
     secrets_key: str = ""
     fints_product_id: str = ""
     fints_sync_schedule: str = "15 5 * * *"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: str = "starttls"  # starttls | ssl | none
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = ""
+    notify_schedule: str = "0 8 * * *"
+    report_schedule: str = "0 8 1 * *"
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from)
+
+    @property
+    def push_enabled(self) -> bool:
+        return bool(self.vapid_public_key and self.vapid_private_key)
 
     @property
     def secure_cookies(self) -> bool:
@@ -89,4 +108,15 @@ def load_settings() -> Settings:
         secrets_key=env.get("SECRETS_KEY", ""),
         fints_product_id=env.get("FINTS_PRODUCT_ID", ""),
         fints_sync_schedule=env.get("FINTS_SYNC_SCHEDULE", "15 5 * * *"),
+        smtp_host=env.get("SMTP_HOST", ""),
+        smtp_port=int(env.get("SMTP_PORT", "587") or "587"),
+        smtp_security=env.get("SMTP_SECURITY", "starttls").strip().lower() or "starttls",
+        smtp_user=env.get("SMTP_USER", ""),
+        smtp_password=env.get("SMTP_PASSWORD", ""),
+        smtp_from=env.get("SMTP_FROM", ""),
+        vapid_public_key=env.get("VAPID_PUBLIC_KEY", "").strip(),
+        vapid_private_key=env.get("VAPID_PRIVATE_KEY", "").strip(),
+        vapid_subject=env.get("VAPID_SUBJECT", "").strip(),
+        notify_schedule=env.get("NOTIFY_SCHEDULE", "0 8 * * *"),
+        report_schedule=env.get("REPORT_SCHEDULE", "0 8 1 * *"),
     )
