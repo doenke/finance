@@ -8,7 +8,9 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
+from . import cache
 from .api.accounts import router as accounts_router
+from .api.performance import router as performance_router
 from .api.prices import router as prices_router
 from .api.routes import public as public_api
 from .api.routes import router as api_router
@@ -64,6 +66,8 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
             if origin and origin != settings.public_origin:
                 return JSONResponse({"detail": "Ungültige Herkunft"}, status_code=403)
         response = await call_next(request)
+        if request.method in UNSAFE_METHODS and request.url.path.startswith("/api/") and response.status_code < 400:
+            cache.bump()
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -98,6 +102,7 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(api_router)
     app.include_router(accounts_router)
     app.include_router(prices_router)
+    app.include_router(performance_router)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     def api_not_found(path: str) -> JSONResponse:

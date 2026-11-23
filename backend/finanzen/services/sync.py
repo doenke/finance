@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
+from .. import cache
 from ..models import AppState, Instrument, Price, Trade
 from .fx import sync_fx
 from .prices import SOURCES, PriceSourceError
@@ -53,6 +54,7 @@ def sync_instrument(db: Session, instrument: Instrument, full: bool = False) -> 
     stmt = insert(Price).values(rows)
     db.execute(stmt.on_conflict_do_update(index_elements=["instrument_id", "date"], set_={"close": stmt.excluded.close, "source": stmt.excluded.source}))
     db.commit()
+    cache.bump()
     return len(rows)
 
 
@@ -74,6 +76,7 @@ def sync_all(db: Session) -> dict:
             db.rollback()
             log.warning("price sync failed for %s: %s", instrument.price_symbol, exc)
             errors.append({"instrument": instrument.name, "message": str(exc)[:200]})
+    cache.bump()
     status = {"finished_at": datetime.now(UTC).isoformat(), "updated": updated, "total": len(instruments), "errors": errors}
     set_state(db, "price_sync", status)
     return status
