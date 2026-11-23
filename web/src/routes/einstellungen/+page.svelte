@@ -134,6 +134,14 @@
       </div>
       <button class="btn" onclick={doLogout}><Icon name="logout" size={18} /> Abmelden</button>
     </section>
+    <a class="card row navlink" href="/haushalt">
+      <Icon name="people" />
+      <div class="grow">
+        <strong>Haushalt</strong>
+        <div class="muted small">Personen und wem welche Konten gehören</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
   {/if}
 
   <section class="card stack">
@@ -270,6 +278,10 @@
   .check input {
     width: auto;
     min-height: auto;
+  }
+  .navlink {
+    color: inherit;
+    text-decoration: none;
   }
   .files {
     list-style: none;

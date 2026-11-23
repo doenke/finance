@@ -14,9 +14,10 @@
   const nav = [
     { href: '/', label: 'Übersicht', icon: 'home' },
     { href: '/konten', label: 'Konten', icon: 'wallet' },
+    { href: '/vertraege', label: 'Verträge', icon: 'repeat' },
     { href: '/banken', label: 'Banken', icon: 'bank' },
-    { href: '/haushalt', label: 'Haushalt', icon: 'people' },
-    { href: '/einstellungen', label: 'Einstellungen', icon: 'settings' }
+    { href: '/haushalt', label: 'Haushalt', icon: 'people', desktopOnly: true },
+    { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings' }
   ];
 
   const isActive = (href: string) => (href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href));
@@ -46,9 +47,10 @@
         <span>Finanzen</span>
       </a>
       {#each nav as item (item.href)}
-        <a href={item.href} class:active={isActive(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
+        <a href={item.href} class:desktop-only={item.desktopOnly} class:active={isActive(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
           <Icon name={item.icon} />
-          <span>{item.label}</span>
+          <span class="full">{item.label}</span>
+          {#if item.short}<span class="short">{item.short}</span>{/if}
         </a>
       {/each}
       <div class="spacer"></div>
@@ -124,6 +126,17 @@
     min-width: 0;
   }
 
+  .short {
+    display: none;
+  }
+  @media (max-width: 400px) {
+    .sidebar a:has(.short) .full {
+      display: none;
+    }
+    .sidebar a .short {
+      display: inline;
+    }
+  }
   @media (max-width: 760px) {
     .shell {
       grid-template-columns: minmax(0, 1fr);
@@ -145,12 +158,23 @@
     .sidebar a {
       flex-direction: column;
       gap: 2px;
-      padding: 6px 10px;
+      padding: 6px 2px;
       font-size: 0.75rem;
+    }
+    .sidebar a {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    .sidebar a span {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .brand,
     .spacer,
     .privacy,
+    .desktop-only,
     .user {
       display: none !important;
     }

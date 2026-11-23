@@ -12,6 +12,7 @@ from . import cache
 from .api.accounts import router as accounts_router
 from .api.banks import router as banks_router
 from .api.notifications import router as notifications_router
+from .api.recurring import router as recurring_router
 from .mcp.oauth import api as mcp_api_router
 from .mcp.oauth import router as oauth_router
 from .mcp.server import router as mcp_router
@@ -120,6 +121,7 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(admin_router)
     app.include_router(banks_router)
     app.include_router(notifications_router)
+    app.include_router(recurring_router)
     app.include_router(oauth_router)
     app.include_router(mcp_router)
     app.include_router(mcp_api_router)

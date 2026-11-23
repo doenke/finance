@@ -22,6 +22,8 @@ Entscheidungen dort mitpflegen.
   Benachrichtigungen: `notify.py` (Ereignisse, Einstellungen je User, tägliche
   Prüfungen, Monatsbericht; in Tests `push_sender`/`mail_sender` ersetzen),
   `webpush.py` (VAPID + aes128gcm, `python -m finanzen vapid`), `mailer.py`.
+  `recurring.py` (wiederkehrende Zahlungen: Schlüssel, Intervall, Kategorieregeln;
+  Übersicht in `api/recurring.py`, Regeln werden bei jedem Aufruf zugeordnet).
   MCP: `mcp/oauth.py` (OAuth-2.1-Autorisierung mit DCR, PKCE, Zustimmungsseite;
   `/api/mcp/clients` für die Einstellungen) und `mcp/server.py` (JSON-RPC unter
   `/mcp`, Werkzeuge nutzen die Funktionen aus `api/`; nur lesen und anlegen,

@@ -270,6 +270,19 @@ def t_get_holding_period(db: Session, user: User, args: dict) -> Any:
     return data
 
 
+def t_get_recurring(db: Session, user: User, args: dict) -> Any:
+    from ..api.recurring import overview
+
+    data = overview(db)
+    keep = ("name", "direction", "interval_label", "category", "amount", "amount_varies", "monthly", "last_date", "next_date", "overdue", "changed", "status", "account")
+    return {
+        "summary_per_month": data["summary"],
+        "by_category_per_month": data["by_category"],
+        "items": [{k: i[k] for k in keep} for i in data["items"]],
+        "open_suggestions": [{k: s[k] for k in ("name", "direction", "interval_label", "amount", "monthly", "account")} for s in data["suggestions"]],
+    }
+
+
 def _schema(props: dict, required: list[str] | None = None) -> dict:
     return {"type": "object", "properties": props, "required": required or [], "additionalProperties": False}
 
@@ -299,6 +312,12 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         _schema({"account_id": {"type": "integer"}, "on": DATE}, ["account_id"]),
         False,
         "Haltefrist (§ 23 EStG) für Krypto- und Edelmetall-Konten: je Kaufposten frei ab, steuerfrei verkaufbare Menge, Gewinne nach Jahr.",
+    ),
+    "get_recurring_payments": (
+        t_get_recurring,
+        _schema({}),
+        False,
+        "Verträge, Abos und regelmäßige Einnahmen: Fixkosten je Monat nach Kategorie, nächste Fälligkeit, Preisänderungen, offene Vorschläge.",
     ),
     "create_account": (
         t_create_account,

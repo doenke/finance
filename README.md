@@ -13,8 +13,8 @@ besser läuft als der MSCI World.
 > **Stand:** Konten, Depots, alle Anlageformen, Tilgungsplan, tägliche Kurse,
 > Rendite, Dashboard mit Benchmark, Bankanbindung per FinTS, CSV-Import (Bank
 > und Portfolio Performance), Export, tägliche Sicherung, Haltefrist für
-> Krypto, Privatmodus und Benachrichtigungen sind fertig. Als Nächstes: der
-> Budget-Planer – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> Krypto, Privatmodus, Benachrichtigungen sowie Verträge & Abos sind fertig.
+> Als Nächstes: der Budget-Planer – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Übersicht | Depot | Kredit | Konten |
 | --- | --- | --- | --- |
@@ -226,7 +226,24 @@ stammt, und wählt das passende Konto vor, wenn es nur eins gibt. (iPhone
 und iPad unterstützen das Teilen an Web-Apps leider nicht; dort wählst du
 die Datei auf der Importseite aus.)
 
-### 7. Zum Startbildschirm hinzufügen
+### 7. Verträge und Abos im Blick
+
+Unter **Verträge** sucht Finanzen in euren Umsätzen nach Zahlungen, die
+regelmäßig wiederkommen – Miete, Strom, Versicherungen, Netflix, der Kredit,
+das Gehalt, die Sparrate. Es erkennt wöchentliche bis jährliche Zahlungen,
+auch wenn mal ein Monat fehlt, und trennt Abos, die über PayPal laufen.
+Jeder Vorschlag kommt mit einer Kategorie; du übernimmst ihn, änderst Name
+oder Kategorie oder ignorierst ihn.
+
+Die Übersicht zeigt dann eure Fixkosten im Monat, die regelmäßigen
+Einnahmen, die Sparraten und was frei bleibt, die Kosten nach Kategorie und
+was in den nächsten 30 Tagen fällig ist. Finanzen markiert, wenn ein Betrag
+sich geändert hat (Preiserhöhung) oder eine Zahlung ausbleibt (gekündigt?).
+Die Kategorie landet auch an den einzelnen Umsätzen – die Grundlage für den
+späteren Budget-Planer. Am besten holst du vorher ein Jahr Umsätze ab, dann
+findet Finanzen auch die jährlichen Zahlungen.
+
+### 8. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
@@ -253,7 +270,7 @@ Push braucht einmalig ein Schlüsselpaar in der `.env` (siehe unten), E-Mail
 die SMTP-Werte. Auf iPhone und iPad kommt Push nur in der installierten App
 an (über „Zum Home-Bildschirm“).
 
-### 8. Mit Claude verbinden (MCP)
+### 9. Mit Claude verbinden (MCP)
 
 Finanzen hat einen eingebauten MCP-Server. Damit kann Claude (oder ein
 anderer Assistent mit MCP) deine Konten lesen und für dich Dinge eintragen –

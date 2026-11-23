@@ -185,7 +185,8 @@ Geplant sind später:
 - Erkennung interner Umbuchungen
 - Auswertung Einnahmen/Ausgaben, Sparquote, Cashflow je Monat
 - Budgets je Kategorie mit Soll/Ist
-- Erkennung von Verträgen und Abos (wiederkehrende Zahlungen)
+- Erkennung von Verträgen und Abos (wiederkehrende Zahlungen) – **umgesetzt**,
+  siehe Entscheidungen
 
 ## 5. Nicht-funktionale Anforderungen
 
@@ -284,6 +285,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Privatmodus | F-UI-09 umgesetzt: verwischt alle Beträge (Money-Komponente, Diagrammachsen, Tooltips), Prozente bleiben; Schalter auf der Übersicht, in der Seitenleiste und in den Einstellungen; gilt je Gerät (localStorage) |
 | Benachrichtigungen | F-NO-01 bis -03 umgesetzt. Web-Push ohne Zusatzbibliothek (VAPID ES256, aes128gcm nach RFC 8291), E-Mail per SMTP. Ereignisse je Person: Bankabruf fehlgeschlagen und TAN nötig (nur an den Besitzer des Zugangs), Festgeld/Zinsbindung (X Tage vorher), Nettovermögen ändert sich um X % oder X € (Tag/Woche), Bewertung bzw. manueller Kurs älter als X Monate, Monatsbericht (nur E-Mail). Doppelte Meldungen verhindert ein Protokoll mit Schlüssel und Zeitfenster |
 | Trade Republic, Advanzia | F-IM-02 und F-IM-02a entfallen als eigene Importer: Die Exporte funktionieren mit dem allgemeinen CSV-Import (F-IM-01) |
+| Verträge & Abos | Erster Baustein des Budget-Planers. Kategorien (Ausgabe/Einnahme/Umbuchung, vorbelegt, erweiterbar), `transactions.category_id` mit Fremdschlüssel. Erkennung über Bargeldkonten der letzten 24 Monate: Gruppierung nach normalisiertem Empfänger (bei PayPal & Co. nach Zweck), Intervall wöchentlich bis jährlich mit Toleranz und erlaubter Lücke, bei Mischgruppen Trennung nach Betrag. Vorschläge mit Kategorie per Stichwortregel bzw. eigene IBAN → Umbuchung. Übernommene Regeln ordnen Umsätze laufend zu und setzen deren Kategorie; Hinweise auf Preisänderung und ausbleibende Zahlung. Übersicht: Fixkosten, Einnahmen, Sparraten, frei verfügbar je Monat, Kosten nach Kategorie, Fälligkeiten 30 Tage. Auch als MCP-Werkzeug |
 
 ## 9. Offene Fragen
 

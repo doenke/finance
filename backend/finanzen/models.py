@@ -113,7 +113,7 @@ class Transaction(Base):
     kind: Mapped[str] = mapped_column(String(20), default="other")
     counterparty: Mapped[str] = mapped_column(String(255), default="")
     purpose: Mapped[str] = mapped_column(Text, default="")
-    category_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True)
     transfer_account_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     import_batch_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -274,6 +274,36 @@ class BankLogin(Base):
     @property
     def server_url(self) -> str:
         return self.bank.server_url
+
+
+class Category(Base):
+    """Budget category for transactions and recurring payments (kind: expense, income or transfer)."""
+
+    __tablename__ = "categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80))
+    kind: Mapped[str] = mapped_column(String(10), default="expense")
+    sort: Mapped[int] = mapped_column(Integer, default=100)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RecurringPayment(Base):
+    """A recurring payment (contract, subscription, salary ...) and the rule that finds its transactions."""
+
+    __tablename__ = "recurring_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    match_key: Mapped[str] = mapped_column(String(200), index=True)
+    direction: Mapped[str] = mapped_column(String(3))  # in | out
+    amount_min: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)  # absolute amounts; None = any
+    amount_max: Mapped[Decimal | None] = mapped_column(MONEY, nullable=True)
+    interval: Mapped[str] = mapped_column(String(12))  # weekly | monthly | quarterly | halfyearly | yearly
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="active")  # active | ended | ignored
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PushSubscription(Base):
