@@ -283,6 +283,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Haltefrist | F-AN-04a umgesetzt für Krypto- und Edelmetall-Konten: Kaufposten nach FIFO, frei ab dem Tag nach dem Jahrestag (§ 23 EStG, 29.02. → 28.02.), steuerfrei verkaufbare Menge, nächste Freigabe, realisierte Gewinne je Jahr getrennt nach innerhalb/außerhalb der Frist, Hinweis auf die Freigrenze (600 € bis 2023, 1.000 € ab 2024). Auch als MCP-Werkzeug |
 | Privatmodus | F-UI-09 umgesetzt: verwischt alle Beträge (Money-Komponente, Diagrammachsen, Tooltips), Prozente bleiben; Schalter auf der Übersicht, in der Seitenleiste und in den Einstellungen; gilt je Gerät (localStorage) |
 | Benachrichtigungen | F-NO-01 bis -03 umgesetzt. Web-Push ohne Zusatzbibliothek (VAPID ES256, aes128gcm nach RFC 8291), E-Mail per SMTP. Ereignisse je Person: Bankabruf fehlgeschlagen und TAN nötig (nur an den Besitzer des Zugangs), Festgeld/Zinsbindung (X Tage vorher), Nettovermögen ändert sich um X % oder X € (Tag/Woche), Bewertung bzw. manueller Kurs älter als X Monate, Monatsbericht (nur E-Mail). Doppelte Meldungen verhindert ein Protokoll mit Schlüssel und Zeitfenster |
+| Trade Republic, Advanzia | F-IM-02 und F-IM-02a entfallen als eigene Importer: Die Exporte funktionieren mit dem allgemeinen CSV-Import (F-IM-01) |
 
 ## 9. Offene Fragen
 
@@ -295,6 +296,6 @@ die App ist auch ohne FinTS schon nützlich.
 2. **Depot-Abdeckung per FinTS:** Bei der Sparkasse ist der Depotabruf per
    FinTS üblich. Bei DKB und OLB ist zu prüfen, ob Depotbestände und
    -umsätze geliefert werden; sonst greift der CSV-Import.
-3. **Advanzia-Exportformat:** Welche Exporte bietet das Kundenportal (nur
-   PDF-Abrechnung oder auch CSV)? Ein Beispiel-Export (anonymisiert) hilft
-   beim Bau des Importers. Dasselbe gilt für Trade Republic (BSDEX ist erledigt).
+3. **Advanzia und Trade Republic:** Erledigt – die Exporte lassen sich mit dem
+   normalen CSV-Import (Spaltenzuordnung) einlesen; eigene Importer sind
+   nicht nötig.

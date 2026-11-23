@@ -12,9 +12,9 @@ besser läuft als der MSCI World.
 
 > **Stand:** Konten, Depots, alle Anlageformen, Tilgungsplan, tägliche Kurse,
 > Rendite, Dashboard mit Benchmark, Bankanbindung per FinTS, CSV-Import (Bank
-> und Portfolio Performance), Export und tägliche Sicherung sind fertig. Als
-> Nächstes: Importer für Trade Republic und Advanzia sowie
-> Benachrichtigungen – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> und Portfolio Performance), Export, tägliche Sicherung, Haltefrist für
+> Krypto, Privatmodus und Benachrichtigungen sind fertig. Als Nächstes: der
+> Budget-Planer – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Übersicht | Depot | Kredit | Konten |
 | --- | --- | --- | --- |
@@ -29,8 +29,9 @@ besser läuft als der MSCI World.
   Jahre.
 - **Rendite, die stimmt** – zeitgewichtet (TTWROR) und geldgewichtet (IZF),
   damit Sparpläne und Entnahmen das Ergebnis nicht verfälschen.
-- **Direkt von der Bank** – Sparkasse, DKB und OLB per FinTS; Trade Republic,
-  die Bitcoins bei BSDEX und die Advanzia-Kreditkarte per Import.
+- **Direkt von der Bank** – Sparkasse, DKB und OLB per FinTS; Trade Republic
+  und die Advanzia-Kreditkarte per CSV-Import, die Bitcoins bei BSDEX per
+  eigenem Import.
 - **Kurse von selbst** – täglich über onvista oder Yahoo Finance, per ISIN,
   mit automatischer Ausweichquelle.
 - **Für den ganzen Haushalt** – jede Person meldet sich selbst an, Konten
