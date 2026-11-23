@@ -17,6 +17,9 @@
   /* chart series (validated categorical slots 1-2) and chart chrome */
   --series-1: #2a78d6;
   --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
   --grid: #e7e9e3;
   --bar: #2a78d6;
   color-scheme: light;
@@ -40,6 +43,9 @@
     --shadow: none;
     --series-1: #3987e5;
     --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
     --grid: #262c25;
     --bar: #3987e5;
     color-scheme: dark;
@@ -63,6 +69,9 @@
   --shadow: none;
   --series-1: #3987e5;
   --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
   --grid: #262c25;
   --bar: #3987e5;
   color-scheme: dark;

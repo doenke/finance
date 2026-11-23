@@ -127,6 +127,11 @@ Unter **Konten** legst du mit „+ Konto“ alles an, was Wert hat – oder kost
   Sondertilgungen (z. B. jedes Jahr im Dezember) fließen ein, das
   Sondertilgungsrecht wird überwacht. Trägst du die Restschuld aus dem
   Kontoauszug ein, rechnet der Plan ab dort weiter.
+  Unter **Szenarien** spielst du durch, was wäre, wenn: geplante oder
+  zusätzliche Sondertilgungen, eine höhere Rate ab einem Stichtag oder ein
+  anderer Zins nach der Zinsbindung. Bis zu vier Varianten stehen neben dem
+  Plan ohne Sondertilgungen – mit Schuldenfrei-Datum, Restschuld zum Ende der
+  Zinsbindung, Zinsersparnis und wie viel früher ihr fertig seid.
 
 **Kurse:** Beim Anlegen eines Wertpapiers suchst du per ISIN oder Name das
 passende Yahoo-Symbol – am besten das Xetra-Kürzel mit `.DE` (z. B.

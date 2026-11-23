@@ -16,6 +16,7 @@ from ..db import get_db
 from ..models import Account, AccountOwner, BalanceSnapshot, Instrument, Person, Price, Trade, Transaction, User, Valuation
 from ..services import valuation as val
 from ..services.fx import FxConverter
+from ..services.loan_scenarios import run_scenario, spec_from_dict
 from .prices import is_stale
 from ..services.sync import sync_instrument_in_background
 
@@ -737,3 +738,68 @@ def delete_price(instrument_id: int, price_id: int, db: Session = Depends(get_db
     db.delete(row)
     db.commit()
     return Response(status_code=204)
+
+
+# --- Loan scenarios -------------------------------------------------------------------------------
+
+
+class ScenariosIn(BaseModel):
+    scenarios: list[dict[str, Any]] = Field(default_factory=list, max_length=4)
+    save: bool = False
+
+
+def _sample_rows(rows, start_balance: Decimal, start_date: date | None) -> list[dict[str, Any]]:
+    """Balance at the end of each year (and the start), for charts."""
+    points: dict[date, Decimal] = {}
+    if start_date:
+        points[start_date] = start_balance
+    for r in rows:
+        points[date(r.date.year, 12, 31)] = r.balance
+    if rows:
+        points[rows[-1].date] = rows[-1].balance
+    return [{"date": d, "balance": b} for d, b in sorted(points.items())]
+
+
+@router.post("/accounts/{account_id}/scenarios")
+def loan_scenarios(account_id: int, data: ScenariosIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Baseline (contract, actual prepayments only) plus up to four user scenarios."""
+    account = get_account(db, account_id)
+    require_mode(account, kinds.LOAN)
+    if val.loan_terms(account) is None:
+        raise HTTPException(422, "Für Szenarien fehlen Darlehensbetrag, Auszahlungsdatum oder erste Rate.")
+    if data.save:
+        details = dict(account.details or {})
+        details["scenarios"] = data.scenarios
+        account.details = details
+        db.commit()
+    specs = [spec_from_dict({"name": "Ohne Sondertilgungen", "include_planned": False})] + [spec_from_dict(s) for s in data.scenarios]
+    results = []
+    terms = val.loan_terms(account)
+    base = None
+    for spec in specs:
+        res = run_scenario(db, account, spec)
+        if res is None:
+            continue
+        base = base or res
+        start = res.rows[0].balance + res.rows[0].principal + res.rows[0].prepayment if res.rows else Decimal("0")
+        results.append(
+            {
+                "name": res.name,
+                "end_date": res.end_date,
+                "interest_remaining": res.interest_remaining,
+                "payments_remaining": res.payments_remaining,
+                "prepayments_remaining": res.prepayments_remaining,
+                "balance_at_fixed_until": res.balance_at_fixed_until,
+                "balance_today": res.balance_today,
+                "interest_saved": base.interest_remaining - res.interest_remaining,
+                "months_saved": _months_between(res.end_date, base.end_date),
+                "series": _sample_rows(res.rows, start, res.rows[0].date if res.rows else None),
+            }
+        )
+    return {"fixed_until": terms.fixed_until if terms else None, "results": results, "saved": (account.details or {}).get("scenarios") or []}
+
+
+def _months_between(earlier: date | None, later: date | None) -> int | None:
+    if earlier is None or later is None:
+        return None
+    return (later.year - earlier.year) * 12 + (later.month - earlier.month)

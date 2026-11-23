@@ -7,6 +7,7 @@
   import HoldingsPanel from '#lib/HoldingsPanel.svelte';
   import Icon from '#lib/Icon.svelte';
   import LoanPanel from '#lib/LoanPanel.svelte';
+  import LoanScenarios from '#lib/LoanScenarios.svelte';
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
   import PerformanceCard from '#lib/PerformanceCard.svelte';
@@ -161,6 +162,9 @@
       </section>
     {:else if account.mode === 'loan'}
       <LoanPanel {account} {refresh} />
+      {#if account.details.principal && account.details.first_payment}
+        {#key account.id}<LoanScenarios {account} />{/key}
+      {/if}
       <DatedValuesPanel
         accountId={account.id}
         endpoint="balances"

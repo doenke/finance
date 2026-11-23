@@ -80,11 +80,17 @@ def schedule(
     start_balance: Decimal | None = None,
     start_date: date | None = None,
     max_years: int = 80,
+    installment_changes: list[tuple[date, Decimal]] | None = None,
 ) -> list[Row]:
-    """Rows in date order. Optionally starts from a known balance at a date (bank statement)."""
+    """Rows in date order. Optionally starts from a known balance at a date (bank statement).
+
+    `installment_changes`: from each date on, the payment per period (or the principal part for
+    fixed repayment loans) becomes the given amount.
+    """
     prepayments = sorted(prepayments or [], key=lambda p: p.date)
+    changes = sorted(installment_changes or [], key=lambda c: c[0])
     step = 12 // terms.frequency
-    payment = periodic_payment(terms)
+    base_payment = periodic_payment(terms)
     balance = start_balance if start_balance is not None else terms.principal
     last_date = start_date or terms.disbursed_on
     pay_date = terms.first_payment
@@ -107,6 +113,7 @@ def schedule(
         rate = terms.rate
         if terms.fixed_until and terms.followup_rate is not None and pay_date > terms.fixed_until:
             rate = terms.followup_rate
+        payment = next((amount for day, amount in reversed(changes) if day <= pay_date), base_payment)
         if first_period:
             interest = money(balance * rate / 100 * days360(last_date, pay_date) / 360)
             first_period = False

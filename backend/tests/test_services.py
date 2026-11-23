@@ -86,3 +86,13 @@ def test_deposit_accrual():
     assert deposit_value(D("10000"), D("3"), date(2025, 1, 1), date(2026, 1, 1), date(2027, 6, 1)) == D("10300.00")
     assert deposit_value(D("10000"), D("3"), date(2025, 1, 1), date(2026, 1, 1), date(2025, 7, 2)) == D("10148.48")
     assert deposit_value(D("10000"), D("3"), date(2024, 1, 1), None, date(2023, 12, 1)) == 0
+
+
+def test_installment_change():
+    terms = LoanTerms(principal=D("100000"), disbursed_on=date(2024, 1, 1), rate=D("3"), first_payment=date(2024, 2, 1), installment=D("500"))
+    base = schedule(terms)
+    higher = schedule(terms, installment_changes=[(date(2025, 1, 1), D("1000"))])
+    assert all(r.payment == D("500") for r in higher if date(2024, 2, 1) <= r.date < date(2025, 1, 1))
+    assert next(r for r in higher if r.date >= date(2025, 1, 1)).payment == D("1000")
+    assert higher[-1].date < base[-1].date
+    assert higher[-1].balance == 0

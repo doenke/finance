@@ -272,6 +272,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Backup | Tägliche JSON-Sicherung aller Tabellen durch die App selbst (statt `pg_dump`, dessen Version im Image nicht zur Datenbank passen würde); Wiederherstellung per `python -m finanzen restore` |
 | Rendite | TTWROR mit Zahlungsströmen am Tagesende (Käufe zum Schlusskurs), IZF per XIRR; Kredite zählen nur zum Nettovermögen, nicht zur Rendite |
 | Wechselkurse | EZB-Referenzkurse bereits im MVP (F-RE-07 vorgezogen) |
+| Kredit-Szenarien | F-AN-03c umgesetzt: bis zu vier Szenarien je Kredit (geplante/zusätzliche Sondertilgungen, Ratenwechsel ab Stichtag, Anschlusszins), Vergleich gegen den Plan ohne Sondertilgungen; Szenarien werden am Kredit gespeichert |
 | FinTS | Abruf als Hintergrund-Job mit TAN-Dialog im Browser (Text-TAN, photoTAN-Grafik, Decoupled/App-Freigabe); chipTAN-Flickercode wird nicht dargestellt. Erstabruf 90 Tage Umsätze. Depot: Anfangsbestand laut Bank, später Abweichungen mit Ein-/Auslieferung abgleichen |
 
 ## 9. Offene Fragen
