@@ -243,7 +243,7 @@ Port `43651`).
   kopieren. Wiederherstellen in eine frische Datenbank (gleiche App-Version):
 
   ```bash
-  docker compose run --rm finanzen python -m finanzen restore /data/backup/finanzen-2026-11-23_0330.json.gz
+  docker compose run --rm app python -m finanzen restore /data/backup/finanzen-2026-11-23_0330.json.gz
   ```
 
 - **Image privat?** Ist das Paket auf ghcr.io privat, auf garageband einmal
