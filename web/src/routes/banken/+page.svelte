@@ -3,6 +3,7 @@
   import { api, type Account, type BankLogin, type FintsAccount, type FintsJob } from '#lib/api.ts';
   import FintsDialog from '#lib/FintsDialog.svelte';
   import { formatDate } from '#lib/format.ts';
+  import { blzFromIban, normalizeIban } from '#lib/iban.ts';
   import Icon from '#lib/Icon.svelte';
   import { loadMeta, meta } from '#lib/meta.svelte.ts';
 
@@ -25,6 +26,18 @@
   let dialog = $state<{ login: BankLogin; kind: 'discover' | 'sync' } | null>(null);
   let linking = $state<{ login: BankLogin; rows: LinkRow[] } | null>(null);
   let error = $state('');
+  let iban = $state('');
+  const ibanState = $derived.by(() => {
+    const clean = normalizeIban(iban);
+    if (!clean) return '';
+    if (clean.length < 22) return 'typing';
+    return blzFromIban(clean) ? 'ok' : 'invalid';
+  });
+
+  function onIban() {
+    const blz = blzFromIban(iban);
+    if (blz && form) form.blz = blz;
+  }
 
   async function load() {
     await loadMeta();
@@ -33,10 +46,12 @@
   onMount(load);
 
   function startNew() {
+    iban = '';
     form = { id: null, name: '', blz: '', server_url: '', username: '', customer_id: '', store_pin: false, pin: '', auto_sync: false, reset_tan: false };
   }
 
   function startEdit(b: BankLogin) {
+    iban = '';
     form = { id: b.id, name: b.name, blz: b.blz, server_url: b.server_url, username: b.username, customer_id: b.customer_id, store_pin: b.store_pin, pin: '', auto_sync: b.auto_sync, reset_tan: false };
   }
 
@@ -121,7 +136,18 @@
       <h2>{form.id === null ? 'Neuer Bankzugang' : 'Bankzugang bearbeiten'}</h2>
       <div class="grid">
         <label>Name <input bind:value={form.name} required maxlength="120" placeholder="z. B. Sparkasse" /></label>
-        <label>Bankleitzahl <input bind:value={form.blz} required inputmode="numeric" pattern={'[0-9]{8}'} maxlength="8" /></label>
+        <label>
+          IBAN eines Kontos dort
+          <input bind:value={iban} oninput={onIban} placeholder="DE89 3704 0044 0532 0130 00" autocomplete="off" maxlength="42" aria-describedby="iban-hint" />
+          <span id="iban-hint" class="hint" class:bad={ibanState === 'invalid'} class:good={ibanState === 'ok'}>
+            {#if ibanState === 'ok'}Bankleitzahl übernommen.{:else if ibanState === 'invalid'}Das ist keine gültige deutsche IBAN.{:else}Füllt die Bankleitzahl aus – wird nicht gespeichert.{/if}
+          </span>
+        </label>
+        <label>
+          Bankleitzahl
+          <input bind:value={form.blz} required inputmode="numeric" pattern={'[0-9]{8}'} maxlength="8" />
+          <span class="hint">8 Ziffern – Stellen 5 bis 12 der IBAN</span>
+        </label>
         <label class="wide">FinTS-Adresse <input bind:value={form.server_url} required placeholder="https://…" /></label>
         <label>Anmeldename / Legitimations-ID <input bind:value={form.username} required autocomplete="off" /></label>
         <label>Kunden-ID (falls abweichend) <input bind:value={form.customer_id} autocomplete="off" /></label>
@@ -261,6 +287,16 @@
   }
   .warn {
     color: var(--warn);
+  }
+  .hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .hint.bad {
+    color: var(--neg);
+  }
+  .hint.good {
+    color: var(--pos);
   }
   .check {
     display: flex;
