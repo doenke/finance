@@ -101,7 +101,7 @@ Haushalt – mit Vornamen und Profilbild aus Pocket ID.
 
 ### 2. Haushalt vervollständigen
 
-Unter **Haushalt** steht jede Person, die sich schon einmal angemeldet hat.
+Unter **Haushalt** (am Handy über Optionen) steht jede Person, die sich schon einmal angemeldet hat.
 Kinder oder andere Personen ohne eigenen Login legst du dort mit „+ Person“ an,
 damit du ihnen später Konten und Anlagen zuordnen kannst. Jede Person bekommt
 eine Farbe, die später in Diagrammen wieder auftaucht.
