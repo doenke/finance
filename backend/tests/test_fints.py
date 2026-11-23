@@ -250,3 +250,46 @@ def test_validation(fints_client):
     assert bad.status_code == 422
     bank = client.post("/api/banks", json={"name": "X", "blz": "12345678", "server_url": "https://x.example.org", "username": "a"}, headers=ORIGIN).json()
     assert client.post(f"/api/banks/{bank['id']}/sync", json={}, headers=ORIGIN).status_code == 422  # no PIN
+
+
+def test_friendly_errors_use_bank_codes():
+    from finanzen.services.fints_sync import BankRejected, _friendly_error, bank_messages
+
+    exc = type("FinTSConnectionError", (Exception,), {})("Bad status code 400")
+    msgs = [("9800", "Dialog abgebrochen."), ("9078", "FinTS-Produkt ist nicht registriert.")]
+    assert "Produkt-ID" in _friendly_error(exc, msgs)
+    assert "PIN" in _friendly_error(exc, [("9931", "PIN gesperrt")])
+    assert _friendly_error(exc, [("9999", "Irgendwas")]) == "Die Bank meldet: 9999 Irgendwas"
+    assert "ohne Begründung" in _friendly_error(BankRejected(400, []))
+    unreachable = type("FinTSConnectionError", (Exception,), {})("Could not connect to FinTS endpoint: timeout")
+    assert "nicht erreichbar" in _friendly_error(unreachable, [])
+    assert bank_messages(b"not base64 fints") == []
+
+
+def test_job_shows_bank_reason(fints_client):
+    client, scenario = fints_client
+
+    class Rejecting(FakeClient):
+        def __init__(self, *a):
+            super().__init__(*a)
+            self.callbacks = []
+
+        def add_response_callback(self, cb):
+            self.callbacks.append(cb)
+
+        def __enter__(self):
+            for cb in self.callbacks:
+                cb(None, SimpleNamespace(code="9078", text="FinTS-Produkt ist nicht registriert."))
+            raise type("FinTSConnectionError", (Exception,), {})("Bad status code 400")
+
+    client.app.state.fints_factory = lambda login, pin, product: Rejecting(login, pin, product, scenario)
+    login(client)
+    bank = client.post("/api/banks", json={"name": "DKB", "blz": "12030000", "server_url": "https://fints.example.org", "username": "x"}, headers=ORIGIN).json()
+    job = client.post(f"/api/banks/{bank['id']}/discover", json={"pin": "1234"}, headers=ORIGIN).json()
+    job = wait_for(client, job["id"], {"need_choice", "error"})
+    if job["status"] == "need_choice":
+        client.post(f"/api/fints/jobs/{job['id']}/answer", json={"value": "921"}, headers=ORIGIN)
+        job = wait_for(client, job["id"], {"error", "done"})
+    assert job["status"] == "error"
+    assert "Produkt-ID" in job["error"]
+    assert "Produkt-ID" in client.get("/api/banks").json()[0]["last_error"]

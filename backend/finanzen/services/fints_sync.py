@@ -75,11 +75,59 @@ def is_tan_response(obj: Any) -> bool:
     return bool(getattr(obj, "_needs_tan", False))
 
 
+class BankRejected(Exception):
+    """The bank answered with an HTTP error; `messages` holds its FinTS return codes (if readable)."""
+
+    def __init__(self, status: int, messages: list[tuple[str, str]]) -> None:
+        super().__init__(f"HTTP {status}")
+        self.status = status
+        self.messages = messages
+
+
+def bank_messages(raw: bytes) -> list[tuple[str, str]]:
+    """Return codes (HIRMG/HIRMS) from a base64 encoded FinTS answer; empty if it is not one."""
+    try:
+        from fints.message import FinTSInstituteMessage
+
+        message = FinTSInstituteMessage(segments=base64.b64decode(raw.decode("iso-8859-1")))
+        result = []
+        for name in ("HIRMG", "HIRMS"):
+            for seg in message.find_segments(name):
+                for resp in seg.responses:
+                    result.append((str(resp.code), str(resp.text or "").strip()))
+        return result
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _connection(url: str):
+    """python-fints connection that keeps the bank's explanation when it answers with an HTTP error."""
+    from fints.connection import FinTSHTTPSConnection
+
+    class Connection(FinTSHTTPSConnection):
+        def send(self, msg):
+            original = self.session.post
+
+            def post(*args, **kwargs):
+                res = original(*args, **kwargs)
+                if not 200 <= res.status_code < 300:
+                    raise BankRejected(res.status_code, bank_messages(res.content))
+                return res
+
+            self.session.post = post
+            try:
+                return super().send(msg)
+            finally:
+                self.session.post = original
+
+    return Connection(url)
+
+
 def default_client_factory(login: BankLogin, pin: str, product_id: str):
     from fints.client import FinTS3PinTanClient
 
     state = base64.b64decode(login.client_state) if login.client_state else None
-    return FinTS3PinTanClient(
+    client = FinTS3PinTanClient(
         login.blz,
         login.username,
         pin,
@@ -89,6 +137,8 @@ def default_client_factory(login: BankLogin, pin: str, product_id: str):
         from_data=state,
         tan_medium=login.tan_medium,
     )
+    client.connection = _connection(login.server_url)
+    return client
 
 
 ClientFactory = Callable[[BankLogin, str, str], Any]
@@ -300,6 +350,7 @@ def _sepa(account: Account):
 
 
 def run_job(job: Job, pin: str | None, settings: Settings, make_session: sessionmaker, factory: ClientFactory, account_ids: list[int] | None) -> None:
+    messages: list[tuple[str, str]] = []  # return codes the bank sent during this job
     with make_session() as db:
         login = db.get(BankLogin, job.login_id)
         try:
@@ -312,6 +363,8 @@ def run_job(job: Job, pin: str | None, settings: Settings, make_session: session
                     raise RuntimeError("Für diesen Bankzugang ist keine PIN gespeichert.")
                 pin = decrypt(settings.secrets_key, login.pin_encrypted, f"bank_login:{login.id}")
             client = factory(login, pin, settings.fints_product_id)
+            if hasattr(client, "add_response_callback"):
+                client.add_response_callback(lambda _seg, resp: messages.append((str(resp.code), str(resp.text or "").strip())))
             db.commit()  # end the read transaction; the job may wait for the user
             _prepare_tan(job, client, login, db)
             job.message = "Verbinde mit der Bank …"
@@ -344,8 +397,9 @@ def run_job(job: Job, pin: str | None, settings: Settings, make_session: session
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             job.status = "error"
-            job.error = _friendly_error(exc)
-            log.warning("fints job failed: %s", exc.__class__.__name__)
+            job.error = _friendly_error(exc, messages)
+            codes = [c for c, _ in (exc.messages if isinstance(exc, BankRejected) else messages) if c[:1] in "39"]
+            log.warning("fints job failed: %s %s", exc.__class__.__name__, " ".join(codes))
             _record_error(make_session, job.login_id, job.error)
         finally:
             pin = None  # noqa: F841 - drop the PIN reference as early as possible
@@ -360,21 +414,47 @@ def _record_error(make_session: sessionmaker, login_id: int, message: str, needs
             db.commit()
 
 
-def _friendly_error(exc: Exception) -> str:
-    name = exc.__class__.__name__
-    if name == "FinTSClientPINError":
+PIN_CODES = {"9340", "9910", "9930", "9931", "9942"}
+
+
+def _bank_text(messages: list[tuple[str, str]]) -> str | None:
+    """Readable explanation from the bank's error codes (9xxx), with hints for the common ones."""
+    errors = [(c, t) for c, t in messages if c.startswith("9") and c not in ("9800", "9050")]
+    if not errors:
+        errors = [(c, t) for c, t in messages if c.startswith("9")]
+    if not errors:
+        return None
+    codes = {c for c, _ in errors}
+    if codes & {"9078", "9079"}:
+        return "Die Bank kennt die FinTS-Produkt-ID nicht (9078). Prüfe FINTS_PRODUCT_ID – eine frisch registrierte Nummer ist manchmal erst nach einigen Tagen bei allen Banken bekannt."
+    if codes & PIN_CODES:
         return "Die Bank hat die Anmeldung abgelehnt – stimmen Anmeldename und PIN?"
+    if "9010" in codes:
+        return "Die Bank lehnt die Anfrage ab – passen Bankleitzahl und FinTS-Adresse zusammen?"
+    text = "; ".join(f"{c} {t}".strip() for c, t in errors[:2])
+    return f"Die Bank meldet: {text}"
+
+
+def _friendly_error(exc: Exception, messages: list[tuple[str, str]] | None = None) -> str:
+    name = exc.__class__.__name__
+    if isinstance(exc, BankRejected):
+        return _bank_text(exc.messages) or _bank_text(messages or []) or f"Die Bank hat die Anfrage ohne Begründung abgelehnt (HTTP {exc.status})."
+    explained = _bank_text(messages or [])
+    if name == "FinTSClientPINError":
+        return explained or "Die Bank hat die Anmeldung abgelehnt – stimmen Anmeldename und PIN?"
     if name == "FinTSClientTemporaryAuthError":
         return "Der Zugang ist bei der Bank vorübergehend gesperrt."
     if name == "FinTSSCARequiredError":
         return "Die Bank verlangt eine starke Authentifizierung (TAN)."
+    if name == "FinTSConnectionError" and "Bad status code" in str(exc):
+        return explained or f"Die Bank hat die Anfrage abgelehnt ({exc})."
     if name in ("FinTSConnectionError", "ConnectionError", "RequestException") or "Connection" in name:
         return "Die Bank ist nicht erreichbar – stimmt die FinTS-Adresse?"
     if isinstance(exc, SecretsError | TimeoutError | RuntimeError):
         return str(exc)
     if name == "FinTSUnsupportedOperation":
         return "Die Bank bietet diese Abfrage per FinTS nicht an."
-    return f"Fehler beim Abruf ({name})."
+    return explained or f"Fehler beim Abruf ({name})."
 
 
 def _discover(job: Job, client: Any, db: Session, login: BankLogin) -> dict:
