@@ -9,6 +9,7 @@
   import LoanPanel from '#lib/LoanPanel.svelte';
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
+  import PerformanceCard from '#lib/PerformanceCard.svelte';
   import { loadPersons, personName } from '#lib/persons.svelte.ts';
   import TransactionsPanel from '#lib/TransactionsPanel.svelte';
 
@@ -65,6 +66,12 @@
         <button class="btn danger" onclick={remove}><Icon name="trash" size={18} /> Löschen</button>
       </div>
     </header>
+
+    {#if account.mode !== 'loan' && !account.liability}
+      {#key refresh}
+        <PerformanceCard title="Wertentwicklung" params={{ account_id: account.id }} />
+      {/key}
+    {/if}
 
     {#if account.mode === 'cash'}
       <DatedValuesPanel

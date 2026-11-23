@@ -21,6 +21,7 @@
   let q = $state('');
   let form = $state<{ id: number | null; booking_date: string; amount: string; kind: string; counterparty: string; purpose: string } | null>(null);
   let error = $state('');
+  let showAll = $state(false);
 
   async function load() {
     const params = new URLSearchParams({ limit: '200' });
@@ -100,7 +101,7 @@
     <p class="muted">Noch keine Buchungen.</p>
   {:else}
     <ul class="list">
-      {#each items as t (t.id)}
+      {#each showAll ? items : items.slice(0, 25) as t (t.id)}
         <li>
           <button class="item" onclick={() => startEdit(t)}>
             <span class="date muted">{formatDate(t.booking_date)}</span>
@@ -114,6 +115,9 @@
         </li>
       {/each}
     </ul>
+    {#if items.length > 25 && !showAll}
+      <button class="btn" onclick={() => (showAll = true)}>Alle {items.length} Buchungen zeigen</button>
+    {/if}
   {/if}
 </section>
 

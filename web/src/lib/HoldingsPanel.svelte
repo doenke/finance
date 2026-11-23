@@ -18,6 +18,7 @@
   let form = $state<null | { id: number | null; date: string; type: string; instrument_id: number | null; quantity: string; price: string; amount: string; fees: string; taxes: string; note: string }>(null);
   let newInstrument = $state<null | { kind: string; name: string; isin: string; symbol: string; unit: string; price_source: string; price_symbol: string }>(null);
   let error = $state('');
+  let showAll = $state(false);
 
   async function load() {
     [positions, trades, instruments] = await Promise.all([
@@ -238,7 +239,7 @@
     <p class="muted">Noch keine Transaktionen.</p>
   {:else}
     <ul class="list">
-      {#each trades as t (t.id)}
+      {#each showAll ? trades : trades.slice(0, 15) as t (t.id)}
         <li>
           <button class="item" onclick={() => startEdit(t)}>
             <span class="muted">{formatDate(t.date)}</span>
@@ -252,6 +253,9 @@
         </li>
       {/each}
     </ul>
+    {#if trades.length > 15 && !showAll}
+      <button class="btn" onclick={() => (showAll = true)}>Alle {trades.length} Transaktionen zeigen</button>
+    {/if}
   {/if}
 </section>
 

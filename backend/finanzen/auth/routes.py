@@ -123,7 +123,7 @@ def dev_login(request: Request, name: str = "Entwickler", admin: bool = True, db
     settings = _settings(request)
     if not settings.dev_login:
         return Response(status_code=404)
-    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "dev"
+    slug = re.sub(r"[^\w]+", "-", name.lower()).strip("-") or "dev"
     claims = {"sub": f"dev:{slug}", "name": name, "email": f"{slug}@example.org", "groups": [settings.oidc_admin_group] if admin else []}
     user: User = upsert_user(db, claims, settings.oidc_admin_group)
     db.commit()

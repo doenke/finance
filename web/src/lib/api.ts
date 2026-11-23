@@ -188,3 +188,35 @@ export interface Schedule {
   prepaid_this_year: string;
   prepayment_allowance: string | null;
 }
+
+export interface ReturnSummary {
+  start_value: string;
+  end_value: string;
+  net_flows: string;
+  gain: string;
+  ttwror: string | null;
+  ttwror_pa: string | null;
+  irr: string | null;
+  days: number;
+}
+
+export interface PerformanceData {
+  from: string | null;
+  to: string;
+  inception?: string;
+  summary: ReturnSummary | null;
+  periods: Record<string, ReturnSummary>;
+  series: { date: string; value: string; invested: string; ttwror: string }[];
+}
+
+export interface NetWorthData {
+  series: { date: string; assets: string; liabilities: string; net: string; by_class: Record<string, string> }[];
+  current: {
+    assets: string;
+    liabilities: string;
+    net: string;
+    by_class: Record<string, string>;
+    change_month: string | null;
+    change_ytd: string | null;
+  } | null;
+}

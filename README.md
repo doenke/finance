@@ -10,15 +10,16 @@ Schrank – alles an einem Ort, mit Verlauf und ehrlicher Rendite.
 Kurz gesagt: einmal reinschauen und wissen, wo ihr steht – und ob euer Depot
 besser läuft als der MSCI World.
 
-> **Stand:** Anmeldung, Haushalt, Konten, Depots und alle Anlageformen zum
-> Selbsteintragen sind fertig – inklusive Tilgungsplan für Kredite und
-> täglicher Kurse von Yahoo Finance samt EZB-Wechselkursen. Rendite und das
-> Dashboard kommen als Nächstes – was geplant ist, steht in
-> [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> **Stand:** Alles zum Selbsteintragen ist fertig – Konten, Depots, alle
+> Anlageformen, Tilgungsplan, tägliche Kurse, Rendite und Dashboard mit
+> Benchmark. Importe, Bankanbindung per FinTS und Benachrichtigungen folgen –
+> was geplant ist, steht in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
-| Dashboard | Depot | Benchmark |
-| --- | --- | --- |
-| *Screenshot folgt* | *Screenshot folgt* | *Screenshot folgt* |
+| Übersicht | Depot | Kredit | Konten |
+| --- | --- | --- | --- |
+| ![Nettovermögen mit Verlauf, Aufteilung nach Anlageklasse und Person](docs/screenshots/dashboard.png) | ![Depot mit Rendite im Vergleich zum MSCI World](docs/screenshots/depot.png) | ![Tilgungsplan mit Restschuld, Zinsen und Sondertilgungen](docs/screenshots/kredit.png) | ![Konten gruppiert nach Anlageklasse mit Personenfilter](docs/screenshots/konten.png) |
+
+<sub>Screenshots mit Beispieldaten.</sub>
 
 ## Was Finanzen für dich machen wird
 
@@ -139,7 +140,28 @@ Jedes Konto gehört einer Person oder mehreren mit Anteilen. Oben in der
 Kontenliste filterst du nach Person – gemeinsame Konten zählen dann mit dem
 jeweiligen Anteil.
 
-### 4. Zum Startbildschirm hinzufügen
+### 4. Wissen, wo ihr steht
+
+Die **Übersicht** zeigt euer Nettovermögen, die Veränderung seit Vormonat und
+Jahresbeginn, den Verlauf und die Aufteilung nach Anlageklasse und Person.
+Darunter steht die Rendite eurer Anlagen – als **TTWROR** (wie gut die
+Anlagen selbst gelaufen sind, egal wann ihr Geld eingezahlt habt) und als
+**IZF** (eure persönliche Rendite pro Jahr, mit Timing). Wähl einen
+Vergleichswert, etwa einen MSCI-World-ETF, und Finanzen legt dessen Verlauf
+daneben. Dieselbe Auswertung gibt es für jedes einzelne Konto und Depot, mit
+allen Zeiträumen von einem Monat bis „seit Beginn“.
+
+So rechnet Finanzen:
+
+- Käufe, Verkäufe, Beiträge und Einzahlungen sind Ein- und Auszahlungen und
+  zählen nicht als Gewinn. Dividenden, Zinsen und Kursgewinne schon.
+- Umbuchungen innerhalb des Haushalts – Girokonto aufs Depot – heben sich in
+  der Gesamtsicht auf.
+- Bei Immobilien und Altersvorsorge gilt zwischen zwei Bewertungen der letzte
+  Wert plus die Beiträge seither.
+- Kredite stecken im Nettovermögen, aber nicht in der Rendite.
+
+### 5. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
