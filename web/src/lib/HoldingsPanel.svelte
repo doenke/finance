@@ -47,7 +47,7 @@
 
   function startNewInstrument() {
     const kind = defaultInstrumentKind[accountKind] ?? 'etf';
-    newInstrument = { kind, name: '', isin: '', symbol: '', unit: kind === 'metal' ? 'g' : 'piece', price_source: kind === 'stak' ? 'manual' : 'yahoo', price_symbol: '' };
+    newInstrument = { kind, name: '', isin: '', symbol: '', unit: kind === 'metal' ? 'g' : 'piece', price_source: kind === 'stak' ? 'manual' : 'onvista', price_symbol: '' };
   }
 
   async function saveInstrument() {
@@ -186,14 +186,16 @@
         <label>
           Kursquelle
           <select bind:value={newInstrument.price_source}>
+            <option value="onvista">onvista</option>
             <option value="yahoo">Yahoo Finance</option>
             <option value="manual">manuell</option>
           </select>
         </label>
-        {#if newInstrument.price_source === 'yahoo'}
+        {#if newInstrument.price_source !== 'manual'}
           <div class="wide2 field">
-            <span class="field-label">Yahoo-Symbol</span>
+            <span class="field-label">{newInstrument.price_source === 'onvista' ? 'onvista-Wertpapier' : 'Yahoo-Symbol'}</span>
             <SymbolSearch
+              source={newInstrument.price_source}
               bind:symbol={newInstrument.price_symbol}
               query={newInstrument.isin || newInstrument.name}
               onpick={(r) => {

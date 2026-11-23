@@ -154,6 +154,11 @@ def loan_terms(account: Account) -> LoanTerms | None:
         grace_until=_date(d.get("grace_until")),
         fixed_until=_date(d.get("fixed_until")),
         followup_rate=_dec(d.get("followup_rate")) if d.get("followup_rate") not in (None, "") else None,
+        installment_changes=tuple(
+            (day, _dec(c.get("installment")))
+            for c in d.get("installment_changes") or []
+            if (day := _date(c.get("date"))) and _dec(c.get("installment")) > ZERO
+        ),
     )
 
 

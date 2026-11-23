@@ -1,8 +1,9 @@
 """Price sources. Each source is an adapter; more can be registered later (see SOURCES)."""
 
 from .base import PricePoint, PriceSource, PriceSourceError, SearchResult
+from .onvista import OnvistaSource
 from .yahoo import YahooSource
 
-SOURCES: dict[str, PriceSource] = {"yahoo": YahooSource()}
+SOURCES: dict[str, PriceSource] = {"onvista": OnvistaSource(), "yahoo": YahooSource()}
 
 __all__ = ["SOURCES", "PricePoint", "PriceSource", "PriceSourceError", "SearchResult"]

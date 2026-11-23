@@ -16,7 +16,7 @@ Entscheidungen dort mitpflegen.
   Wertreihen und Zahlungsströme je Kontoart), `returns.py` (TTWROR mit
   Zahlungen am Tagesende, XIRR), `performance.py` (Aggregation, Cache über
   `cache.py`, jede schreibende API-Anfrage verwirft ihn), `prices/`
-  (Kursquellen-Adapter, Yahoo), `fx.py` (EZB), `sync.py`, `loan.py`,
+  (Kursquellen-Adapter: onvista als Standard, Yahoo; Fallback auf onvista per ISIN in `sync.py`), `fx.py` (EZB), `sync.py`, `loan.py`,
   `csvimport.py`, `backup.py` (JSON-Sicherung/-Wiederherstellung, auch CLI
   `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
   FinTS: `services/fints_sync.py` – jeder Abruf ist ein Job in einem Thread,

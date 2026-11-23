@@ -141,6 +141,82 @@ def test_sync_and_fx_conversion(client, monkeypatch):
     assert D(acc["value"]) == D("1000.00")  # 10 x 110 USD / 1.10
     pos = client.get(f"/api/accounts/{depot['id']}/positions").json()[0]
     assert D(pos["price"]) == 110 and D(pos["value"]) == D("1000.00")
-    assert client.get("/api/prices/search", params={"q": "msci"}).json()[0]["symbol"] == "EUNL.DE"
+    assert client.get("/api/prices/search", params={"q": "msci", "source": "yahoo"}).json()[0]["symbol"] == "EUNL.DE"
     status = client.get("/api/prices/status").json()
     assert status["schedule"]
+
+
+ONVISTA_SEARCH = {"facets": [{"results": [{"entityType": "FUND", "entityValue": "16353294", "name": "Xtrackers II EUR Overnight Rate Swap UCITS ETF 1C", "isin": "LU0290358497", "displayType": "ETF"}]}]}
+ONVISTA_SNAPSHOT = {
+    "quote": {"market": {"idNotation": 1}, "isoCurrency": "EUR"},
+    "quoteList": {"list": [
+        {"market": {"codeExchange": "SWX", "idNotation": 9}, "isoCurrency": "CHF"},
+        {"market": {"codeExchange": "GAT", "idNotation": 7}, "isoCurrency": "EUR"},
+        {"market": {"codeExchange": "GER", "idNotation": 18271340}, "isoCurrency": "EUR"},
+    ]},
+}
+ONVISTA_EOD = {"isoCurrency": "EUR", "datetimeLast": [1795176000, 1795435200], "last": [150.874, 150.9]}
+
+
+def onvista_transport():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.path.endswith("/search/facet"):
+            return httpx.Response(200, json=ONVISTA_SEARCH)
+        if request.url.path.endswith("/snapshot"):
+            return httpx.Response(200, json=ONVISTA_SNAPSHOT)
+        if request.url.path.endswith("/eod_history"):
+            assert request.url.params["idNotation"] == "18271340"  # Xetra preferred
+            return httpx.Response(200, json=ONVISTA_EOD)
+        return httpx.Response(404, json={})
+
+    return httpx.MockTransport(handler), calls
+
+
+def test_onvista_adapter():
+    from finanzen.services.prices import onvista
+
+    onvista.MIN_INTERVAL = 0
+    transport, calls = onvista_transport()
+    src = onvista.OnvistaSource(transport=transport)
+    assert src.find_by_isin("LU0290358497") == "FUND:16353294"
+    points = src.history("FUND:16353294", date(2026, 11, 1), date(2026, 11, 30))
+    assert [p.close for p in points] == [D("150.874000"), D("150.900000")]
+    assert points[0].currency == "EUR"
+    assert onvista.parse_symbol("FUND:1@2") == ("FUND", "1", 2)
+    with pytest.raises(PriceSourceError):
+        onvista.parse_symbol("EUNL.DE")
+
+
+def test_fallback_to_onvista_and_switch(client, monkeypatch):
+    from finanzen.services.prices import onvista
+
+    onvista.MIN_INTERVAL = 0
+    transport, _ = onvista_transport()
+    monkeypatch.setitem(prices_pkg.SOURCES, "onvista", onvista.OnvistaSource(transport=transport))
+
+    class Blocked:
+        name = "yahoo"
+        label = "Yahoo"
+
+        def history(self, *a):
+            raise PriceSourceError("Yahoo verweigert gerade den Zugriff (zu viele Anfragen).")
+
+        def search(self, q):
+            raise PriceSourceError("zu viele Anfragen")
+
+    monkeypatch.setitem(prices_pkg.SOURCES, "yahoo", Blocked())
+    login(client)
+    xeon = client.post("/api/instruments", json={"kind": "etf", "name": "XEON", "isin": "LU0290358497", "price_source": "yahoo", "price_symbol": "XEON.DE"}, headers=ORIGIN).json()
+    res = client.post(f"/api/prices/instruments/{xeon['id']}", headers=ORIGIN).json()
+    assert res == {"updated": 2}
+    inst = next(i for i in client.get("/api/instruments").json() if i["id"] == xeon["id"])
+    assert inst["details"]["onvista_symbol"] == "FUND:16353294"
+    assert D(inst["last_price"]) == D("150.9")
+    sw = client.post("/api/prices/switch-to-onvista", headers=ORIGIN).json()
+    assert sw["switched"] == 1
+    inst = next(i for i in client.get("/api/instruments").json() if i["id"] == xeon["id"])
+    assert (inst["price_source"], inst["price_symbol"]) == ("onvista", "FUND:16353294")
+    assert client.get("/api/prices/search", params={"q": "LU0290358497"}).json()[0]["symbol"] == "FUND:16353294"

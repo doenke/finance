@@ -31,31 +31,84 @@ def get_state(db: Session, key: str) -> dict:
     return row.value if row else {}
 
 
+def onvista_symbol_for(instrument: Instrument) -> str | None:
+    """onvista symbol for an instrument: remembered, from a Yahoo crypto symbol (BTC-EUR), or found by ISIN."""
+    remembered = (instrument.details or {}).get("onvista_symbol")
+    if remembered:
+        return remembered
+    if instrument.price_source == "onvista" and instrument.price_symbol:
+        return instrument.price_symbol
+    if instrument.price_symbol and instrument.kind == "crypto" and instrument.price_symbol.upper().endswith("-EUR"):
+        return "CRYPTO:" + instrument.price_symbol.upper().replace("-", "")
+    if instrument.isin:
+        return SOURCES["onvista"].find_by_isin(instrument.isin)
+    return None
+
+
+def _start_date(db: Session, instrument: Instrument, full: bool) -> date:
+    last = None if full else db.scalar(select(func.max(Price.date)).where(Price.instrument_id == instrument.id, Price.source != "manual"))
+    if last:
+        return last - timedelta(days=5)
+    first_trade = db.scalar(select(func.min(Trade.date)).where(Trade.instrument_id == instrument.id))
+    return (first_trade - timedelta(days=10)) if first_trade else date.today() - timedelta(days=365 * 10)
+
+
 def sync_instrument(db: Session, instrument: Instrument, full: bool = False) -> int:
     source = SOURCES.get(instrument.price_source)
     if source is None or not instrument.price_symbol:
         return 0
-    last = None if full else db.scalar(select(func.max(Price.date)).where(Price.instrument_id == instrument.id, Price.source == source.name))
-    if last:
-        start = last - timedelta(days=5)
-    else:
-        first_trade = db.scalar(select(func.min(Trade.date)).where(Trade.instrument_id == instrument.id))
-        start = (first_trade - timedelta(days=10)) if first_trade else date.today() - timedelta(days=365 * 10)
-    points = source.history(instrument.price_symbol, start, date.today())
+    start = _start_date(db, instrument, full)
+    source_name = source.name
+    try:
+        points = source.history(instrument.price_symbol, start, date.today())
+    except PriceSourceError:
+        # Fallback: onvista by ISIN (or crypto symbol), so one blocked source does not leave gaps.
+        if source.name == "onvista":
+            raise
+        try:
+            fallback = onvista_symbol_for(instrument)
+        except PriceSourceError:
+            fallback = None
+        if not fallback:
+            raise
+        points = SOURCES["onvista"].history(fallback, start, date.today())
+        source_name = "onvista"
+        details = dict(instrument.details or {})
+        details["onvista_symbol"] = fallback
+        instrument.details = details
+        log.info("used onvista as fallback for %s", instrument.price_symbol)
     if not points:
         return 0
-    has_prices = db.scalar(select(func.count()).select_from(Price).where(Price.instrument_id == instrument.id)) or 0
+    has_prices = db.scalar(select(func.count()).select_from(Price).where(Price.instrument_id == instrument.id, Price.source != "manual")) or 0
     quote_currency = points[-1].currency
     if quote_currency != instrument.currency:
         if has_prices and not full:
             raise PriceSourceError(f"Währung der Kurse ({quote_currency}) passt nicht zum Wertpapier ({instrument.currency}).")
         instrument.currency = quote_currency
-    rows = [{"instrument_id": instrument.id, "date": p.date, "close": p.close, "source": source.name} for p in points]
+    rows = [{"instrument_id": instrument.id, "date": p.date, "close": p.close, "source": source_name} for p in points]
     stmt = insert(Price).values(rows)
     db.execute(stmt.on_conflict_do_update(index_elements=["instrument_id", "date"], set_={"close": stmt.excluded.close, "source": stmt.excluded.source}))
     db.commit()
     cache.bump()
     return len(rows)
+
+
+def switch_to_onvista(db: Session) -> dict:
+    """Moves all Yahoo instruments that onvista knows (by ISIN or crypto symbol) to onvista."""
+    switched, missing = [], []
+    for instrument in db.scalars(select(Instrument).where(Instrument.price_source == "yahoo")).all():
+        try:
+            symbol = onvista_symbol_for(instrument)
+        except PriceSourceError:
+            symbol = None
+        if symbol:
+            instrument.price_source = "onvista"
+            instrument.price_symbol = symbol
+            switched.append(instrument.id)
+        else:
+            missing.append(instrument.name)
+    db.commit()
+    return {"switched": switched, "missing": missing}
 
 
 def sync_all(db: Session) -> dict:

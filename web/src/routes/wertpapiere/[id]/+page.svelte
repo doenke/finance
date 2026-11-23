@@ -112,14 +112,15 @@
         <label>
           Kursquelle
           <select bind:value={form.price_source}>
+            <option value="onvista">onvista</option>
             <option value="yahoo">Yahoo Finance</option>
             <option value="manual">manuell</option>
           </select>
         </label>
-        {#if form.price_source === 'yahoo'}
+        {#if form.price_source !== 'manual'}
           <div class="field wide">
-            <span class="field-label">Yahoo-Symbol</span>
-            <SymbolSearch bind:symbol={form.price_symbol} query={form.isin || form.name} />
+            <span class="field-label">{form.price_source === 'onvista' ? 'onvista-Wertpapier' : 'Yahoo-Symbol'}</span>
+            <SymbolSearch source={form.price_source} bind:symbol={form.price_symbol} query={form.isin || form.name} />
           </div>
         {/if}
         {#if form.kind === 'metal'}

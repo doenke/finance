@@ -9,7 +9,12 @@
     type: string;
   }
 
-  let { symbol = $bindable(), query = '', onpick = () => {} }: { symbol?: string | null; query?: string; onpick?: (r: Result) => void } = $props();
+  let {
+    symbol = $bindable(),
+    query = '',
+    source = 'onvista',
+    onpick = () => {}
+  }: { symbol?: string | null; query?: string; source?: string; onpick?: (r: Result) => void } = $props();
 
   let results = $state<Result[]>([]);
   let searching = $state(false);
@@ -25,7 +30,7 @@
     searching = true;
     error = '';
     try {
-      results = await api.get<Result[]>(`/api/prices/search?q=${encodeURIComponent(q)}`);
+      results = await api.get<Result[]>(`/api/prices/search?q=${encodeURIComponent(q)}&source=${source}`);
       searched = true;
     } catch (e) {
       error = (e as Error).message;
@@ -44,7 +49,7 @@
 
 <div class="wrap">
   <div class="row nowrap">
-    <input bind:value={symbol} placeholder="z. B. EUNL.DE, BTC-EUR" autocomplete="off" aria-label="Yahoo-Symbol" />
+    <input bind:value={symbol} placeholder={source === 'onvista' ? 'per ISIN suchen' : 'z. B. EUNL.DE, BTC-EUR'} autocomplete="off" aria-label="Kurs-Symbol" />
     <button type="button" class="btn" onclick={search} disabled={searching}>{searching ? 'Sucht …' : 'Suchen'}</button>
   </div>
   {#if error}<p class="error small">{error}</p>{/if}

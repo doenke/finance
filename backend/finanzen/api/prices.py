@@ -11,7 +11,7 @@ from ..auth.session import current_user
 from ..db import get_db
 from ..models import Instrument
 from ..services.prices import SOURCES, PriceSourceError
-from ..services.sync import get_state, start_sync_in_background, sync_instrument
+from ..services.sync import get_state, start_sync_in_background, switch_to_onvista, sync_instrument
 
 router = APIRouter(prefix="/api/prices", dependencies=[Depends(current_user)])
 
@@ -29,7 +29,7 @@ def sources() -> list[dict[str, str]]:
 
 
 @router.get("/search", response_model=list[SearchOut])
-def search(q: str, source: str = "yahoo") -> list[SearchOut]:
+def search(q: str, source: str = "onvista") -> list[SearchOut]:
     adapter = SOURCES.get(source)
     if adapter is None:
         raise HTTPException(404, "Unbekannte Kursquelle")
@@ -52,6 +52,14 @@ def status(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
 def sync_now(request: Request) -> dict[str, str]:
     start_sync_in_background(request.app.state.sessionmaker)
     return {"status": "started"}
+
+
+@router.post("/switch-to-onvista")
+def switch(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
+    result = switch_to_onvista(db)
+    if result["switched"]:
+        start_sync_in_background(request.app.state.sessionmaker)
+    return {"switched": len(result["switched"]), "missing": result["missing"]}
 
 
 @router.post("/instruments/{instrument_id}")

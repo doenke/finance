@@ -110,3 +110,16 @@ def test_valuation_loan_and_deposit(client):
 
     fd = create(client, "/api/accounts", {"name": "Festgeld", "kind": "festgeld", "details": {"amount": "10000", "rate": "3", "start": "2024-01-01", "end": "2025-01-01"}})
     assert D(fd["value"]) == D("10300.83")  # 2024 has 366 days
+
+
+def test_loan_with_past_installment_change(client):
+    login(client)
+    base = {"principal": "100000", "disbursed_on": "2020-01-01", "rate": "2", "first_payment": "2020-02-01", "installment": "400"}
+    plain = create(client, "/api/accounts", {"name": "A", "kind": "kredit", "details": base})
+    changed = create(client, "/api/accounts", {"name": "B", "kind": "kredit", "details": {**base, "installment_changes": [{"date": "2022-01-01", "installment": "800"}]}})
+    a = client.get(f"/api/accounts/{plain['id']}/schedule").json()
+    b = client.get(f"/api/accounts/{changed['id']}/schedule").json()
+    assert D(b["balance_today"]) < D(a["balance_today"]) - D("10000")
+    assert D(changed["value"]) == -D(b["balance_today"])
+    row = next(r for r in b["rows"] if r["date"] == "2022-01-01")
+    assert D(row["payment"]) == D("800")

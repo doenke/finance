@@ -31,8 +31,8 @@ besser läuft als der MSCI World.
   damit Sparpläne und Entnahmen das Ergebnis nicht verfälschen.
 - **Direkt von der Bank** – Sparkasse, DKB und OLB per FinTS; Trade Republic,
   die Bitcoins bei BSDEX und die Advanzia-Kreditkarte per Import.
-- **Kurse von selbst** – täglich über Yahoo Finance, weitere Anbieter lassen
-  sich später zuschalten.
+- **Kurse von selbst** – täglich über onvista oder Yahoo Finance, per ISIN,
+  mit automatischer Ausweichquelle.
 - **Für den ganzen Haushalt** – jede Person meldet sich selbst an, Konten
   gehören einer Person oder euch gemeinsam.
 - **Für sich bleiben** – läuft auf eurem eigenen Server, keine Cloud, kein
@@ -127,20 +127,24 @@ Unter **Konten** legst du mit „+ Konto“ alles an, was Wert hat – oder kost
   Sondertilgungen (z. B. jedes Jahr im Dezember) fließen ein, das
   Sondertilgungsrecht wird überwacht. Trägst du die Restschuld aus dem
   Kontoauszug ein, rechnet der Plan ab dort weiter.
+  Hat sich die Rate geändert – oder wird sie es? Unter **Ratenänderungen**
+  trägst du ab einem Datum die neue Rate ein, auch rückwirkend; Restschuld,
+  Verlauf und Szenarien rechnen damit.
   Unter **Szenarien** spielst du durch, was wäre, wenn: geplante oder
   zusätzliche Sondertilgungen, eine höhere Rate ab einem Stichtag oder ein
   anderer Zins nach der Zinsbindung. Bis zu vier Varianten stehen neben dem
   Plan ohne Sondertilgungen – mit Schuldenfrei-Datum, Restschuld zum Ende der
   Zinsbindung, Zinsersparnis und wie viel früher ihr fertig seid.
 
-**Kurse:** Beim Anlegen eines Wertpapiers suchst du per ISIN oder Name das
-passende Yahoo-Symbol – am besten das Xetra-Kürzel mit `.DE` (z. B.
-`EUNL.DE`), dann ist der Kurs schon in Euro. Bitcoin heißt `BTC-EUR`, Gold
-`GC=F` (Dollar je Feinunze – Finanzen rechnet mit dem EZB-Kurs in Euro um).
+**Kurse:** Beim Anlegen eines Wertpapiers suchst du es per ISIN oder Name –
+standardmäßig bei **onvista**, das Aktien, ETFs, Fonds, Anleihen, Krypto und
+Edelmetalle kennt und gleich einen Euro-Handelsplatz (Xetra, Tradegate, …)
+wählt. Yahoo Finance gibt es weiter als Alternative (z. B. `EUNL.DE`); blockiert
+Yahoo, springt onvista über die ISIN automatisch ein. Unter **Einstellungen**
+stellst du alle bisherigen Yahoo-Wertpapiere mit einem Klick auf onvista um.
 Die Historie ab dem ersten Kauf wird sofort geladen, danach kommt jeden
 Werktag um 23:30 Uhr der Schlusskurs dazu. Kurse, die älter als drei
-Handelstage sind, werden als „veraltet“ markiert. Unter **Einstellungen**
-siehst du, wann zuletzt aktualisiert wurde und ob etwas schiefging.
+Handelstage sind, werden als „veraltet“ markiert.
 
 Jedes Konto gehört einer Person oder mehreren mit Anteilen. Oben in der
 Kontenliste filterst du nach Person – gemeinsame Konten zählen dann mit dem

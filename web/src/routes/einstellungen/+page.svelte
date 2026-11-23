@@ -47,6 +47,14 @@
     sync = await api.get<SyncStatus>('/api/prices/status');
   }
 
+  let switchInfo = $state('');
+  async function switchOnvista() {
+    if (!confirm('Alle Wertpapiere, die bisher Kurse von Yahoo bekommen, auf onvista umstellen? Wertpapiere ohne ISIN bleiben bei Yahoo.')) return;
+    const res = await api.post<{ switched: number; missing: string[] }>('/api/prices/switch-to-onvista');
+    switchInfo = `${res.switched} umgestellt${res.missing.length ? ` – nicht gefunden: ${res.missing.join(', ')}` : ''}. Die Kurse werden jetzt neu geladen.`;
+    setTimeout(loadSync, 5000);
+  }
+
   async function startSync() {
     starting = true;
     await api.post('/api/prices/sync');
@@ -109,7 +117,8 @@
   <section class="card stack">
     <h2>Kurse</h2>
     <p class="muted small">
-      Kurse kommen täglich automatisch von Yahoo Finance, Wechselkurse von der EZB (Zeitplan <code>{sync?.schedule}</code>, Europe/Berlin).
+      Kurse kommen täglich automatisch von onvista oder Yahoo Finance – je nachdem, was beim Wertpapier eingestellt ist –, Wechselkurse von der EZB
+      (Zeitplan <code>{sync?.schedule}</code>, Europe/Berlin). Klappt Yahoo nicht, springt onvista über die ISIN ein.
     </p>
     {#if finished}
       <p class="small">
@@ -124,7 +133,11 @@
         {#each sync.errors as e (e.instrument)}<li><strong>{e.instrument}:</strong> {e.message}</li>{/each}
       </ul>
     {/if}
-    <div><button class="btn" onclick={startSync} disabled={starting}>{starting ? 'Läuft …' : 'Alle Kurse jetzt aktualisieren'}</button></div>
+    <div class="row">
+      <button class="btn" onclick={startSync} disabled={starting}>{starting ? 'Läuft …' : 'Alle Kurse jetzt aktualisieren'}</button>
+      <button class="btn" onclick={switchOnvista}>Yahoo-Wertpapiere auf onvista umstellen</button>
+    </div>
+    {#if switchInfo}<p class="small">{switchInfo}</p>{/if}
   </section>
 
   <section class="card stack">

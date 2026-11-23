@@ -45,6 +45,7 @@ class LoanTerms:
     grace_until: date | None = None  # interest only up to and including this date
     fixed_until: date | None = None
     followup_rate: Decimal | None = None  # assumed rate after fixed_until
+    installment_changes: tuple[tuple[date, Decimal], ...] = ()  # contract changes of the payment (past or future)
 
 
 @dataclass
@@ -88,7 +89,7 @@ def schedule(
     fixed repayment loans) becomes the given amount.
     """
     prepayments = sorted(prepayments or [], key=lambda p: p.date)
-    changes = sorted(installment_changes or [], key=lambda c: c[0])
+    changes = sorted(list(terms.installment_changes) + list(installment_changes or []), key=lambda c: c[0])
     step = 12 // terms.frequency
     base_payment = periodic_payment(terms)
     balance = start_balance if start_balance is not None else terms.principal

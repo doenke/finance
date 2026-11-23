@@ -30,6 +30,9 @@
   let planned = $state<Planned[]>(
     (init?.details?.planned_prepayments ?? []).map((p: any) => ({ date: p.date, amount: String(p.amount), repeat: p.repeat === 'yearly', until: p.until ?? '' }))
   );
+  let installmentChanges = $state<{ date: string; installment: string }[]>(
+    (init?.details?.installment_changes ?? []).map((c: any) => ({ date: c.date, installment: String(c.installment) }))
+  );
   let ownerShares = $state<Record<number, string>>({});
   let others = $state<Account[]>([]);
   let error = $state('');
@@ -80,6 +83,10 @@
       cleanDetails.planned_prepayments = planned
         .filter((p) => p.date && p.amount)
         .map((p) => ({ date: p.date, amount: p.amount, repeat: p.repeat ? 'yearly' : null, until: p.until || null }));
+      cleanDetails.installment_changes = installmentChanges
+        .filter((c) => c.date && c.installment)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((c) => ({ date: c.date, installment: c.installment }));
     }
     const body = {
       name,
@@ -171,6 +178,17 @@
           </label>
         {/if}
       </div>
+      <h3>Ratenänderungen</h3>
+      <p class="muted small">Hat sich die Rate geändert – oder wird sie sich ändern? Ab dem Datum gilt die neue Rate {details.mode === 'fixed_repayment' ? '(Tilgungsanteil)' : '(Zins + Tilgung)'}.</p>
+      {#each installmentChanges as c, i (i)}
+        <div class="planned">
+          <label>Ab <input type="date" bind:value={c.date} /></label>
+          <label>Neue Rate <DecimalInput bind:value={c.installment} suffix="€" /></label>
+          <button type="button" class="btn danger" onclick={() => installmentChanges.splice(i, 1)}>Entfernen</button>
+        </div>
+      {/each}
+      <div><button type="button" class="btn" onclick={() => installmentChanges.push({ date: '', installment: '' })}>+ Ratenänderung</button></div>
+
       <h3>Geplante Sondertilgungen</h3>
       {#each planned as p, i (i)}
         <div class="planned">
@@ -314,5 +332,9 @@
   h3 {
     font-size: 1rem;
     margin: 8px 0 0;
+  }
+  .small {
+    font-size: 0.85rem;
+    margin: 0;
   }
 </style>

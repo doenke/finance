@@ -96,3 +96,17 @@ def test_installment_change():
     assert next(r for r in higher if r.date >= date(2025, 1, 1)).payment == D("1000")
     assert higher[-1].date < base[-1].date
     assert higher[-1].balance == 0
+
+
+def test_contract_installment_changes_in_terms():
+    from dataclasses import replace
+
+    terms = LoanTerms(principal=D("100000"), disbursed_on=date(2020, 1, 1), rate=D("2"), first_payment=date(2020, 2, 1), installment=D("400"))
+    changed = replace(terms, installment_changes=((date(2022, 1, 1), D("800")),))
+    rows = schedule(changed)
+    assert next(r for r in rows if r.date == date(2021, 12, 1)).payment == D("400")
+    assert next(r for r in rows if r.date == date(2022, 1, 1)).payment == D("800")
+    # a scenario change on top of the contract change wins from its date on
+    rows2 = schedule(changed, installment_changes=[(date(2024, 1, 1), D("1000"))])
+    assert next(r for r in rows2 if r.date == date(2023, 6, 1)).payment == D("800")
+    assert next(r for r in rows2 if r.date == date(2024, 1, 1)).payment == D("1000")
