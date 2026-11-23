@@ -10,17 +10,23 @@
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
   import PerformanceCard from '#lib/PerformanceCard.svelte';
+  import FintsDialog from '#lib/FintsDialog.svelte';
+  import type { BankLogin } from '#lib/api.ts';
   import { loadPersons, personName } from '#lib/persons.svelte.ts';
   import TransactionsPanel from '#lib/TransactionsPanel.svelte';
 
   let account = $state<Account | null>(null);
   let error = $state('');
   let refresh = $state(0);
+  let bank = $state<BankLogin | null>(null);
+  let syncing = $state(false);
 
   async function load() {
     try {
       await Promise.all([loadMeta(), loadPersons()]);
-      account = await api.get<Account>(`/api/accounts/${page.params.id}`);
+      const loaded = await api.get<Account>(`/api/accounts/${page.params.id}`);
+      account = loaded;
+      bank = loaded.bank_login_id ? ((await api.get<BankLogin[]>('/api/banks')).find((b) => b.id === loaded.bank_login_id) ?? null) : null;
       refresh++;
     } catch (e) {
       error = (e as Error).message;
@@ -36,6 +42,18 @@
     if (!account || !confirm(`„${account.name}“ mit allen Buchungen löschen? Das lässt sich nicht rückgängig machen.`)) return;
     await api.del(`/api/accounts/${account.id}`);
     goto('/konten');
+  }
+
+  async function reconcile() {
+    if (!account) return;
+    await api.post(`/api/accounts/${account.id}/reconcile`);
+    await load();
+  }
+
+  async function unlink() {
+    if (!account || !confirm('Verknüpfung mit dem Bankzugang lösen? Bisherige Daten bleiben erhalten.')) return;
+    await api.post(`/api/accounts/${account.id}/unlink`);
+    await load();
   }
 
   const owners = $derived(account?.owners.map((o) => `${personName(o.person_id)}${account!.owners.length > 1 ? ` ${Math.round(toNumber(o.share) * 100)} %` : ''}`).join(', ') ?? '');
@@ -66,6 +84,29 @@
         <button class="btn danger" onclick={remove}><Icon name="trash" size={18} /> Löschen</button>
       </div>
     </header>
+
+    {#if bank}
+      <section class="card bankbar">
+        <div class="grow">
+          <strong>Verbunden mit {bank.name}</strong>
+          <div class="muted small">{bank.last_sync_at ? `Zuletzt abgerufen ${formatDate(bank.last_sync_at.slice(0, 10))}` : 'Noch nicht abgerufen'}{bank.needs_tan ? ' · TAN-Freigabe nötig' : ''}</div>
+        </div>
+        <button class="btn primary" onclick={() => (syncing = true)}>Jetzt abrufen</button>
+        <button class="btn" onclick={unlink}>Verknüpfung lösen</button>
+      </section>
+    {/if}
+    {#if account.details.fints_differences?.length}
+      <section class="card stack warnbox">
+        <h2>Abweichung zum Bankbestand</h2>
+        <ul class="small">
+          {#each account.details.fints_differences as d (d.instrument_id)}
+            <li>{d.name}: laut Bank {d.bank}, bei Finanzen {d.ours}</li>
+          {/each}
+        </ul>
+        <p class="muted small">Meist fehlen noch Käufe oder Verkäufe. Trag sie als Transaktion nach – oder gleich die Differenz als Ein-/Auslieferung zum aktuellen Kurs buchen.</p>
+        <div><button class="btn" onclick={reconcile}>Differenz buchen</button></div>
+      </section>
+    {/if}
 
     {#if account.mode !== 'loan' && !account.liability}
       {#key refresh}
@@ -139,7 +180,36 @@
   </div>
 {/if}
 
+{#if syncing && bank && account}
+  <FintsDialog
+    login={bank}
+    kind="sync"
+    accountIds={[account.id]}
+    onclose={() => {
+      syncing = false;
+      load();
+    }}
+  />
+{/if}
+
 <style>
+  .bankbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .grow {
+    flex: 1;
+    min-width: 0;
+  }
+  .warnbox {
+    border-color: var(--warn);
+  }
+  .warnbox ul {
+    margin: 0;
+    padding-left: 18px;
+  }
   .back {
     text-decoration: none;
     font-size: 0.9rem;

@@ -14,6 +14,7 @@ dependencies = [
   "itsdangerous==2.2.0",
   "pillow==13.0.0",
   "apscheduler==3.11.3",
+  "fints==5.0.1",
 ]
 
 [project.optional-dependencies]

@@ -19,6 +19,11 @@ Entscheidungen dort mitpflegen.
   (Kursquellen-Adapter, Yahoo), `fx.py` (EZB), `sync.py`, `loan.py`,
   `csvimport.py`, `backup.py` (JSON-Sicherung/-Wiederherstellung, auch CLI
   `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
+  FinTS: `services/fints_sync.py` – jeder Abruf ist ein Job in einem Thread,
+  der den Dialog offen hält und auf TAN/Auswahl wartet (vorher immer
+  `db.commit()`, nie eine Transaktion offen halten). Der Bank-Client kommt
+  über `app.state.fints_factory`, Tests nutzen einen Fake-Client
+  (`tests/test_fints.py`). PINs: `secrets.py` (AES-GCM, Kontext pro Login).
 - `web/` – SvelteKit **3** (SPA, adapter-static, Svelte 5 Runes). Achtung,
   Kit 3 unterscheidet sich von Kit 2: Konfiguration in `vite.config.ts`
   (`sveltekit({...})`, kein `svelte.config.js`), Imports über `#lib/…` mit

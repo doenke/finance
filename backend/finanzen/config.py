@@ -38,6 +38,9 @@ class Settings:
     scheduler: bool = True
     backup_schedule: str = "30 3 * * *"
     backup_keep_days: int = 30
+    secrets_key: str = ""
+    fints_product_id: str = ""
+    fints_sync_schedule: str = "15 5 * * *"
 
     @property
     def secure_cookies(self) -> bool:
@@ -83,4 +86,7 @@ def load_settings() -> Settings:
         scheduler=_bool(env.get("SCHEDULER"), True),
         backup_schedule=env.get("BACKUP_SCHEDULE", "30 3 * * *"),
         backup_keep_days=int(env.get("BACKUP_KEEP_DAYS", "30")),
+        secrets_key=env.get("SECRETS_KEY", ""),
+        fints_product_id=env.get("FINTS_PRODUCT_ID", ""),
+        fints_sync_schedule=env.get("FINTS_SYNC_SCHEDULE", "15 5 * * *"),
     )

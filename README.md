@@ -11,10 +11,10 @@ Kurz gesagt: einmal reinschauen und wissen, wo ihr steht – und ob euer Depot
 besser läuft als der MSCI World.
 
 > **Stand:** Konten, Depots, alle Anlageformen, Tilgungsplan, tägliche Kurse,
-> Rendite, Dashboard mit Benchmark, CSV-Import (Bank und Portfolio
-> Performance), Export und tägliche Sicherung sind fertig. Als Nächstes:
-> Bankanbindung per FinTS, Importer für Trade Republic, BSDEX und Advanzia
-> sowie Benachrichtigungen – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> Rendite, Dashboard mit Benchmark, Bankanbindung per FinTS, CSV-Import (Bank
+> und Portfolio Performance), Export und tägliche Sicherung sind fertig. Als
+> Nächstes: Importer für Trade Republic, BSDEX und Advanzia sowie
+> Benachrichtigungen – siehe [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Übersicht | Depot | Kredit | Konten |
 | --- | --- | --- | --- |
@@ -162,7 +162,30 @@ So rechnet Finanzen:
   Wert plus die Beiträge seither.
 - Kredite stecken im Nettovermögen, aber nicht in der Rendite.
 
-### 5. Umsätze und Depots importieren
+### 5. Bank verbinden (FinTS)
+
+Unter **Banken** legst du mit „+ Bankzugang“ den Zugang zu Sparkasse, DKB,
+OLB & Co. an: Bankleitzahl, FinTS-Adresse und Anmeldename wie im
+Online-Banking. Finanzen fragt dann nach der PIN, lässt dich das
+TAN-Verfahren wählen und zeigt die Konten, die die Bank kennt. Du
+entscheidest je Konto: neu anlegen, mit einem vorhandenen verknüpfen oder
+weglassen.
+
+- **Aktualisieren** holt Salden, Umsätze (beim ersten Mal 90 Tage) und
+  Depotbestände. Verlangt die Bank eine TAN, erscheint sie im Dialog –
+  pushTAN und App-Freigaben bestätigst du einfach in der Banking-App,
+  photoTAN scannst du vom Bildschirm, beim chipTAN gibst du die TAN aus der
+  manuellen Eingabe ein (Flickercode wird nicht angezeigt).
+- **PIN speichern** ist freiwillig. Ohne gespeicherte PIN fragt Finanzen bei
+  jedem Abruf. Mit gespeicherter PIN (verschlüsselt mit `SECRETS_KEY`) kann
+  Finanzen jede Nacht selbst abrufen; braucht die Bank alle 90 Tage eine
+  TAN-Freigabe, siehst du unter Banken einen Hinweis.
+- **Depots:** Beim ersten Abruf übernimmt Finanzen den Bestand zum
+  Einstandskurs laut Bank. Später zeigt es Abweichungen zwischen Bank und
+  deinen Transaktionen – meist fehlt ein Kauf – und bucht sie auf Wunsch als
+  Ein- oder Auslieferung.
+
+### 6. Umsätze und Depots importieren
 
 Unter **Konten → Import** liest Finanzen den CSV-Export deiner Bank
 (Sparkasse „CSV-CAMT“, DKB, OLB, …) und Exporte aus **Portfolio
@@ -172,7 +195,7 @@ werden übersprungen, und jeder Import lässt sich mit einem Klick komplett
 rückgängig machen. Beim Portfolio-Performance-Import werden fehlende
 Wertpapiere gleich mit angelegt – samt Kurshistorie ab dem ersten Kauf.
 
-### 6. Zum Startbildschirm hinzufügen
+### 7. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und
@@ -204,7 +227,7 @@ ID wird beim Login einmal geladen und von Finanzen selbst ausgeliefert.
 | `SESSION_KEY` | Signiert die Anmeldung; ändern meldet alle ab |
 | `SECRETS_KEY` | Verschlüsselt gespeicherte Bank-PINs – **nie ändern, gut aufheben** |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID` | Anmeldung über Pocket ID |
-| `FINTS_PRODUCT_ID` | Registrierungsnummer für FinTS – ab der Bankanbindung |
+| `FINTS_PRODUCT_ID` | Registrierungsnummer für FinTS (Deutsche Kreditwirtschaft) |
 
 Alle Werte mit Erklärung stehen in [.env.example](.env.example). Was dort
 schon drinsteht, aber noch nicht genutzt wird, ist entsprechend markiert.

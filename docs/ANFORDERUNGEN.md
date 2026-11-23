@@ -272,10 +272,11 @@ die App ist auch ohne FinTS schon nützlich.
 | Backup | Tägliche JSON-Sicherung aller Tabellen durch die App selbst (statt `pg_dump`, dessen Version im Image nicht zur Datenbank passen würde); Wiederherstellung per `python -m finanzen restore` |
 | Rendite | TTWROR mit Zahlungsströmen am Tagesende (Käufe zum Schlusskurs), IZF per XIRR; Kredite zählen nur zum Nettovermögen, nicht zur Rendite |
 | Wechselkurse | EZB-Referenzkurse bereits im MVP (F-RE-07 vorgezogen) |
+| FinTS | Abruf als Hintergrund-Job mit TAN-Dialog im Browser (Text-TAN, photoTAN-Grafik, Decoupled/App-Freigabe); chipTAN-Flickercode wird nicht dargestellt. Erstabruf 90 Tage Umsätze. Depot: Anfangsbestand laut Bank, später Abweichungen mit Ein-/Auslieferung abgleichen |
 
 ## 9. Offene Fragen
 
-1. **FinTS-Produktregistrierung:** Am 22.11.2026 beantragt (Kategorie
+1. **FinTS-Produktregistrierung:** Erledigt, Registrierungsnummer liegt vor (wird nur in der `.env` hinterlegt). Am 22.11.2026 beantragt (Kategorie
    „Web-Server“, Produktbezeichnung „finance“). Die Registrierungsnummer
    kommt laut DK meist innerhalb von 10–15 Werktagen und wird dann als
    `FINTS_PRODUCT_ID` eingetragen. Dass die App inzwischen „finanzen“ heißt,

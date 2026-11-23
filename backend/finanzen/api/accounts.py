@@ -81,6 +81,7 @@ class AccountOut(BaseModel):
     notes: str
     details: dict[str, Any]
     settlement_account_id: int | None
+    bank_login_id: int | None = None
     owners: list[OwnerOut]
     value: Decimal
     value_as_of: date | None
@@ -260,6 +261,7 @@ def account_out(db: Session, account: Account, on: date) -> AccountOut:
         notes=account.notes,
         details=account.details or {},
         settlement_account_id=account.settlement_account_id,
+        bank_login_id=account.bank_login_id,
         owners=[OwnerOut(person_id=o.person_id, share=o.share) for o in account.owners],
         value=value.value,
         value_as_of=value.as_of,

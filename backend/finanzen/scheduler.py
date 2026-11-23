@@ -24,8 +24,31 @@ def start_scheduler(settings: Settings, make_session: sessionmaker) -> Backgroun
         scheduler.add_job(run_backup_job, trigger, args=[settings, make_session], id="backup", max_instances=1, coalesce=True)
     except ValueError:
         log.error("invalid BACKUP_SCHEDULE %r – automatic backups are off", settings.backup_schedule)
+    try:
+        trigger = CronTrigger.from_crontab(settings.fints_sync_schedule, timezone="Europe/Berlin")
+        scheduler.add_job(run_fints_job, trigger, args=[settings, make_session], id="fints_sync", max_instances=1, coalesce=True)
+    except ValueError:
+        log.error("invalid FINTS_SYNC_SCHEDULE %r – automatic bank sync is off", settings.fints_sync_schedule)
     scheduler.start()
     return scheduler
+
+
+def run_fints_job(settings: Settings, make_session: sessionmaker) -> None:
+    """Automatic sync for bank logins with a stored PIN. Stops (and flags the login) if a TAN is required."""
+    from sqlalchemy import select
+
+    from .models import BankLogin
+    from .services.fints_sync import jobs
+
+    if not settings.fints_product_id:
+        return
+    with make_session() as db:
+        ids = db.scalars(select(BankLogin.id).where(BankLogin.auto_sync.is_(True), BankLogin.pin_encrypted.is_not(None))).all()
+    for login_id in ids:
+        try:
+            jobs.start("sync", login_id, None, settings, make_session, interactive=False, background=False)
+        except Exception:  # noqa: BLE001
+            log.exception("automatic bank sync failed")
 
 
 def run_backup_job(settings: Settings, make_session: sessionmaker) -> None:

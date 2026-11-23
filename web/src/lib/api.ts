@@ -84,6 +84,7 @@ export interface Account {
   notes: string;
   details: Record<string, any>;
   settlement_account_id: number | null;
+  bank_login_id: number | null;
   owners: Owner[];
   value: string;
   value_as_of: string | null;
@@ -219,4 +220,48 @@ export interface NetWorthData {
     change_month: string | null;
     change_ytd: string | null;
   } | null;
+}
+
+export interface BankLogin {
+  id: number;
+  name: string;
+  blz: string;
+  server_url: string;
+  username: string;
+  customer_id: string;
+  tan_mechanism_name: string;
+  tan_medium: string | null;
+  store_pin: boolean;
+  has_pin: boolean;
+  auto_sync: boolean;
+  last_sync_at: string | null;
+  last_error: string;
+  needs_tan: boolean;
+  account_ids: number[];
+}
+
+export interface FintsAccount {
+  iban: string | null;
+  accountnumber: string | null;
+  subaccount: string | null;
+  blz: string | null;
+  type: number | null;
+  suggested_kind: string;
+  product_name: string;
+  owner: string;
+  currency: string;
+  linked_account_id: number | null;
+}
+
+export interface FintsJob {
+  id: string;
+  login_id: number;
+  kind: 'discover' | 'sync';
+  status: 'running' | 'need_tan' | 'need_choice' | 'done' | 'error' | 'cancelled';
+  message: string;
+  challenge: { text: string; decoupled: boolean; image?: string; hhduc?: string } | null;
+  choices: { value: string; label: string }[] | null;
+  choice_kind: string;
+  result: any;
+  error: string;
 }

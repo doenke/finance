@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from . import cache
 from .api.accounts import router as accounts_router
+from .api.banks import router as banks_router
 from .api.imports import admin as admin_router
 from .api.imports import router as imports_router
 from .api.performance import router as performance_router
@@ -48,11 +49,17 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
 
             scheduler = start_scheduler(settings, app.state.sessionmaker)
         yield
+        from .services.fints_sync import jobs
+
+        jobs.cancel_all()
         if scheduler:
             scheduler.shutdown(wait=False)
 
     app = FastAPI(title="finanzen", version=settings.version, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.settings = settings
+    from .services.fints_sync import default_client_factory
+
+    app.state.fints_factory = default_client_factory
     if settings.database_url:
         if migrate:
             run_migrations(settings.database_url)
@@ -107,6 +114,7 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(performance_router)
     app.include_router(imports_router)
     app.include_router(admin_router)
+    app.include_router(banks_router)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     def api_not_found(path: str) -> JSONResponse:
