@@ -10,10 +10,10 @@ def make_client(monkeypatch, tmp_path, database_url: str) -> TestClient:
     monkeypatch.setenv("APP_VERSION", "1.2.3")
     import importlib
 
-    import finance.main
+    import finanzen.main
 
-    importlib.reload(finance.main)
-    return TestClient(finance.main.app)
+    importlib.reload(finanzen.main)
+    return TestClient(finanzen.main.app)
 
 
 def test_healthz_reports_unreachable_db(monkeypatch, tmp_path):
@@ -40,5 +40,5 @@ def test_liveness_and_placeholder(monkeypatch, tmp_path):
     assert client.get("/healthz/live").json() == {"status": "ok", "version": "1.2.3"}
     page = client.get("/")
     assert page.status_code == 200
-    assert "finance" in page.text
+    assert "Finanzen" in page.text
     assert page.headers["x-robots-tag"] == "noindex, nofollow"

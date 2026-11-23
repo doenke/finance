@@ -10,9 +10,9 @@ from .config import load_settings
 from .health import run_checks
 
 settings = load_settings()
-log = logging.getLogger("finance")
+log = logging.getLogger("finanzen")
 
-app = FastAPI(title="finance", version=settings.version, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="finanzen", version=settings.version, docs_url=None, redoc_url=None, openapi_url=None)
 
 NO_STORE = {"Cache-Control": "no-store"}
 

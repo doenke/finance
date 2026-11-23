@@ -204,8 +204,8 @@ Geplant sind später:
 
 | ID | Anforderung |
 | --- | --- |
-| N-BT-01 | Ein Docker-Image (Server + Frontend) unter `ghcr.io/doenke/finance`, Multi-Arch (amd64/arm64), nicht als root. |
-| N-BT-02 | PostgreSQL als eigener Dienst im Compose-Stack, ohne Port-Freigabe. Mounts unter `/data/container/finance/...`. |
+| N-BT-01 | Ein Docker-Image (Server + Frontend) unter `ghcr.io/doenke/finanzen`, Multi-Arch (amd64/arm64), nicht als root. |
+| N-BT-02 | PostgreSQL als eigener Dienst im Compose-Stack, ohne Port-Freigabe. Mounts unter `/data/container/finanzen/...`. |
 | N-BT-03 | Healthcheck `GET /healthz` (prüft DB und Datenverzeichnis, liefert Version), im Dockerfile und im Compose-Beispiel. |
 | N-BT-04 | Konfiguration nur über Env (`.env.example` mit Kommentaren): `PUBLIC_URL`, `PORT`, `TZ`, OIDC-Werte, `SESSION_KEY`, `SECRETS_KEY` (PIN-Verschlüsselung), `FINTS_PRODUCT_ID`, SMTP, VAPID-Schlüssel, Kursquellen-API-Keys. |
 | N-BT-05 | Unkonventioneller Port aus 30000–49151, innen und außen gleich. |
@@ -268,14 +268,16 @@ die App ist auch ohne FinTS schon nützlich.
 | STAK | Fester Wert je Periode, Dividenden als Transaktion |
 | Steuern | Werden als Transaktion erfasst; keine Auswertung von Verlusttöpfen, Freistellungsaufträgen oder Vorabpauschale |
 | Dividenden/Kosten | Werden als Transaktion erfasst; keine eigene Auswertungsansicht im MVP |
-| Name | `finance`, Subdomain `finance.kanonenwiese.de`, Port 43651 |
+| Name | `finanzen`, Subdomain `finanzen.kanonenwiese.de`, Port 43651 |
 
 ## 9. Offene Fragen
 
 1. **FinTS-Produktregistrierung:** Am 22.11.2026 beantragt (Kategorie
    „Web-Server“, Produktbezeichnung „finance“). Die Registrierungsnummer
    kommt laut DK meist innerhalb von 10–15 Werktagen und wird dann als
-   `FINTS_PRODUCT_ID` eingetragen.
+   `FINTS_PRODUCT_ID` eingetragen. Dass die App inzwischen „finanzen“ heißt,
+   ändert daran nichts: Die Nummer gilt für die Software, nicht für die
+   Subdomain.
 2. **Depot-Abdeckung per FinTS:** Bei der Sparkasse ist der Depotabruf per
    FinTS üblich. Bei DKB und OLB ist zu prüfen, ob Depotbestände und
    -umsätze geliefert werden; sonst greift der CSV-Import.

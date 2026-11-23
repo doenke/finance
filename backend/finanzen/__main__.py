@@ -1,4 +1,4 @@
-"""Run with `python -m finance`."""
+"""Run with `python -m finanzen`."""
 
 import uvicorn
 
@@ -8,7 +8,7 @@ from .config import load_settings
 def main() -> None:
     settings = load_settings()
     uvicorn.run(
-        "finance.main:app",
+        "finanzen.main:app",
         host="0.0.0.0",
         port=settings.port,
         proxy_headers=False,

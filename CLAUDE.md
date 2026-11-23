@@ -1,4 +1,4 @@
-# finance – Hinweise für Claude
+# finanzen – Hinweise für Claude
 
 Finanzüberblick für den Haushalt (Konten, Depots, weitere Anlagen, Rendite).
 Anforderungen: `docs/ANFORDERUNGEN.md` – vor neuen Funktionen lesen und bei
@@ -6,16 +6,16 @@ Entscheidungen dort mitpflegen.
 
 ## Aufbau
 
-- `backend/` – Python 3.13, FastAPI (`finance/`), Tests unter `tests/` (pytest).
-  Start: `python -m finance`. Konfiguration nur über Env (`finance/config.py`).
+- `backend/` – Python 3.13, FastAPI (`finanzen/`), Tests unter `tests/` (pytest).
+  Start: `python -m finanzen`. Konfiguration nur über Env (`finanzen/config.py`).
 - `web/` – Frontend. Derzeit eine statische Platzhalterseite mit Manifest und
   Icons (aus `icon.svg`/`icon-maskable.svg` erzeugt). Wird später durch ein
   SvelteKit-Build ersetzt, das das Backend ausliefert.
 - `Dockerfile` – mehrstufig, läuft als UID 10001, `HEALTHCHECK` gegen `/healthz`.
 - `compose.example.yml`, `.env.example` – Betriebsvorlagen (Port 43651,
-  Mounts unter `/data/container/finance/...`, Postgres ohne Port-Freigabe).
+  Mounts unter `/data/container/finanzen/...`, Postgres ohne Port-Freigabe).
 - `.github/workflows/ci.yml` – Version, Tests, Smoke-Test des Images, Push
-  nach `ghcr.io/doenke/finance` (latest nur von `main`).
+  nach `ghcr.io/doenke/finanzen` (latest nur von `main`).
 
 ## Regeln
 

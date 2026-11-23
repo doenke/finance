@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "finance",
-  "short_name": "finance",
+  "name": "Finanzen",
+  "short_name": "Finanzen",
   "description": "Vermögen, Konten und Depots des Haushalts im Blick",
   "lang": "de",
   "start_url": "./",
