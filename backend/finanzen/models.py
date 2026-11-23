@@ -1,8 +1,10 @@
 """ORM models. Amounts are always NUMERIC/Decimal, never float."""
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, LargeBinary, String, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, LargeBinary, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -39,3 +41,146 @@ class Person(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped[User | None] = relationship(back_populates="person")
+
+
+# --- Accounts, holdings and valuations -------------------------------------------------------
+
+MONEY = Numeric(18, 2)
+QUANTITY = Numeric(28, 10)
+PRICE = Numeric(24, 10)
+JSON_TYPE = JSON().with_variant(JSONB(), "postgresql")
+
+
+class Account(Base):
+    """Anything with a value: bank account, portfolio, property, loan, pension, ... (see kinds.py)."""
+
+    __tablename__ = "accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(30))
+    asset_class: Mapped[str] = mapped_column(String(30))
+    institution: Mapped[str] = mapped_column(String(120), default="")
+    iban: Mapped[str] = mapped_column(String(34), default="")
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    opened_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    closed: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    details: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    settlement_account_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    owners: Mapped[list["AccountOwner"]] = relationship(back_populates="account", cascade="all, delete-orphan", lazy="selectin")
+
+
+class AccountOwner(Base):
+    """Share of a household member in an account (shares of an account add up to 1)."""
+
+    __tablename__ = "account_owners"
+
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True)
+    person_id: Mapped[int] = mapped_column(ForeignKey("persons.id", ondelete="RESTRICT"), primary_key=True)
+    share: Mapped[Decimal] = mapped_column(Numeric(7, 6))
+
+    account: Mapped[Account] = relationship(back_populates="owners")
+
+
+class BalanceSnapshot(Base):
+    """A known balance of a cash account (or the outstanding debt of a loan) at the end of a day."""
+
+    __tablename__ = "balances"
+    __table_args__ = (UniqueConstraint("account_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(MONEY)
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+
+
+class Transaction(Base):
+    """A cash movement on an account (bank booking, contribution, rent, ...)."""
+
+    __tablename__ = "transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    booking_date: Mapped[date] = mapped_column(Date, index=True)
+    value_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    amount: Mapped[Decimal] = mapped_column(MONEY)
+    kind: Mapped[str] = mapped_column(String(20), default="other")
+    counterparty: Mapped[str] = mapped_column(String(255), default="")
+    purpose: Mapped[str] = mapped_column(Text, default="")
+    category_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    transfer_account_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    import_batch_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw: Mapped[dict | None] = mapped_column(JSON_TYPE, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Instrument(Base):
+    """A security, coin, precious metal or other unit that can be held in a portfolio."""
+
+    __tablename__ = "instruments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(200))
+    isin: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
+    wkn: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    symbol: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    unit: Mapped[str] = mapped_column(String(10), default="piece")
+    price_source: Mapped[str] = mapped_column(String(20), default="manual")
+    price_symbol: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    details: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Price(Base):
+    """Closing price of an instrument on a day, in the instrument currency."""
+
+    __tablename__ = "prices"
+    __table_args__ = (UniqueConstraint("instrument_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id", ondelete="CASCADE"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    close: Mapped[Decimal] = mapped_column(PRICE)
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+
+
+class Trade(Base):
+    """A portfolio transaction: buy, sell, dividend, ... Amounts are in account currency."""
+
+    __tablename__ = "trades"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    instrument_id: Mapped[int | None] = mapped_column(ForeignKey("instruments.id", ondelete="RESTRICT"), nullable=True, index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    type: Mapped[str] = mapped_column(String(20))
+    quantity: Mapped[Decimal] = mapped_column(QUANTITY, default=Decimal("0"))
+    price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    amount: Mapped[Decimal] = mapped_column(MONEY, default=Decimal("0"))
+    fees: Mapped[Decimal] = mapped_column(MONEY, default=Decimal("0"))
+    taxes: Mapped[Decimal] = mapped_column(MONEY, default=Decimal("0"))
+    note: Mapped[str] = mapped_column(Text, default="")
+    external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    import_batch_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Valuation(Base):
+    """Value of an asset at a date (property estimate, pension statement, ...)."""
+
+    __tablename__ = "valuations"
+    __table_args__ = (UniqueConstraint("account_id", "date"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
+    date: Mapped[date] = mapped_column(Date)
+    value: Mapped[Decimal] = mapped_column(MONEY)
+    note: Mapped[str] = mapped_column(Text, default="")

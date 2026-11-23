@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth.session import current_user
@@ -88,5 +89,9 @@ def delete_person(person_id: int, db: Session = Depends(get_db)) -> Response:
     if person.user_id is not None:
         raise HTTPException(409, "Personen mit eigenem Login lassen sich nur archivieren.")
     db.delete(person)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Dieser Person gehören noch Konten. Archiviere sie stattdessen.") from None
     return Response(status_code=204)

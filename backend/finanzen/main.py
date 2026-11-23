@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
+from .api.accounts import router as accounts_router
 from .api.routes import public as public_api
 from .api.routes import router as api_router
 from .auth.routes import router as auth_router
@@ -81,6 +82,7 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(auth_router)
     app.include_router(public_api)
     app.include_router(api_router)
+    app.include_router(accounts_router)
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     def api_not_found(path: str) -> JSONResponse:
