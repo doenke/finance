@@ -11,6 +11,7 @@
 
   const nav = [
     { href: '/', label: 'Übersicht', icon: 'home' },
+    { href: '/konten', label: 'Konten', icon: 'wallet' },
     { href: '/haushalt', label: 'Haushalt', icon: 'people' },
     { href: '/einstellungen', label: 'Einstellungen', icon: 'settings' }
   ];

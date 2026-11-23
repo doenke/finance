@@ -17,7 +17,8 @@
   <div class="card stack">
     <h2>Hier entsteht euer Finanzüberblick</h2>
     <p class="muted">
-      Als Nächstes kommen Konten, Depots und Anlagen dazu – danach Kurse, Rendite und das Dashboard mit eurem Nettovermögen.
+      Unter <a href="/konten">Konten</a> kannst du schon Girokonten, Depots, Immobilien, Kredite und alle anderen Anlagen anlegen. Als Nächstes
+      kommen automatische Kurse, Rendite und das Dashboard mit eurem Nettovermögen.
     </p>
     <p class="muted">
       Schon jetzt kannst du unter <a href="/haushalt">Haushalt</a> festlegen, wer zum Haushalt gehört – auch Personen ohne eigenen Login,

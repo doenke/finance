@@ -10,9 +10,10 @@ Schrank – alles an einem Ort, mit Verlauf und ehrlicher Rendite.
 Kurz gesagt: einmal reinschauen und wissen, wo ihr steht – und ob euer Depot
 besser läuft als der MSCI World.
 
-> **Stand:** Anmeldung über Pocket ID und der Haushalt sind fertig. Konten,
-> Depots, Kurse und Rendite kommen Schritt für Schritt – was geplant ist, steht
-> in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
+> **Stand:** Anmeldung, Haushalt sowie Konten, Depots und alle Anlageformen
+> zum Selbsteintragen sind fertig – inklusive Tilgungsplan für Kredite.
+> Automatische Kurse, Rendite und das Dashboard kommen als Nächstes – was
+> geplant ist, steht in [docs/ANFORDERUNGEN.md](docs/ANFORDERUNGEN.md).
 
 | Dashboard | Depot | Benchmark |
 | --- | --- | --- |
@@ -101,7 +102,34 @@ Kinder oder andere Personen ohne eigenen Login legst du dort mit „+ Person“ 
 damit du ihnen später Konten und Anlagen zuordnen kannst. Jede Person bekommt
 eine Farbe, die später in Diagrammen wieder auftaucht.
 
-### 3. Zum Startbildschirm hinzufügen
+### 3. Konten und Anlagen anlegen
+
+Unter **Konten** legst du mit „+ Konto“ alles an, was Wert hat – oder kostet:
+
+- **Girokonto, Tagesgeld, Kreditkarte:** einen Kontostand zu einem Stichtag
+  eintragen, spätere Umsätze werden darauf gerechnet. Ein Stand im Monat
+  reicht auch.
+- **Depot, Krypto, STAK-Anteile, Edelmetalle:** Käufe, Verkäufe und
+  Dividenden als Transaktionen erfassen, Bestand und Einstand (FIFO) rechnet
+  Finanzen selbst. Für STAK-Zertifikate trägst du den festgesetzten Kurs je
+  Periode beim Wertpapier ein; er gilt bis zum nächsten Eintrag. Beim Gold
+  zählt der Feingehalt mit.
+- **Immobilie, Altersvorsorge, Sonstiges:** Schätzwert oder Wert aus der
+  Standmitteilung zu Stichtagen, dazu Beiträge oder Mieteinnahmen.
+- **Festgeld:** Betrag, Zins und Laufzeit – der Wert wird bis zur Fälligkeit
+  aufgezinst.
+- **Kredit:** Darlehensbetrag, Zins, Tilgung oder Rate und erste Rate – daraus
+  entsteht der **Tilgungsplan** mit Restschuld zum Ende der Zinsbindung,
+  Zinsen bisher und noch, Schuldenfrei-Datum und CSV-Export. Geplante
+  Sondertilgungen (z. B. jedes Jahr im Dezember) fließen ein, das
+  Sondertilgungsrecht wird überwacht. Trägst du die Restschuld aus dem
+  Kontoauszug ein, rechnet der Plan ab dort weiter.
+
+Jedes Konto gehört einer Person oder mehreren mit Anteilen. Oben in der
+Kontenliste filterst du nach Person – gemeinsame Konten zählen dann mit dem
+jeweiligen Anteil.
+
+### 4. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“
 wählen. Unter **Einstellungen** schaltest du zwischen hell, dunkel und

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "svelte-kit sync && vite dev",
     "build": "svelte-kit sync && vite build",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --experimental-strip-types --no-warnings --test src/lib/*.test.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "4.0.1",
