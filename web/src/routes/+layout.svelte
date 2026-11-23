@@ -67,7 +67,7 @@
   }
   .shell {
     display: grid;
-    grid-template-columns: 232px 1fr;
+    grid-template-columns: 232px minmax(0, 1fr);
     min-height: 100dvh;
   }
   .sidebar {
@@ -115,11 +115,12 @@
     padding: 24px;
     max-width: 1200px;
     width: 100%;
+    min-width: 0;
   }
 
   @media (max-width: 760px) {
     .shell {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
     .sidebar {
       position: fixed;

@@ -204,6 +204,17 @@ label {
   gap: 16px;
 }
 
+/* Grid and flex children may shrink below their content width, so wide content never widens the page. */
+.stack > *,
+.card {
+  min-width: 0;
+}
+
+h1,
+h2 {
+  overflow-wrap: anywhere;
+}
+
 .row {
   display: flex;
   gap: 12px;

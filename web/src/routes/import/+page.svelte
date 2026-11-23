@@ -358,6 +358,7 @@
   }
   .seg {
     display: inline-flex;
+    flex-wrap: wrap;
     border: 1px solid var(--border);
     border-radius: 10px;
     overflow: hidden;

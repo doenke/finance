@@ -220,12 +220,16 @@
   .bench {
     flex-direction: row;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 4px 8px;
+    min-width: 0;
+    max-width: 100%;
   }
   .bench select {
     width: auto;
-    max-width: 260px;
+    max-width: min(260px, 100%);
+    min-width: 0;
   }
   details summary {
     cursor: pointer;

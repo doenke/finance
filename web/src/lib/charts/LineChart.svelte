@@ -17,7 +17,7 @@
     ariaLabel = 'Diagramm'
   }: { series: Series[]; format: (v: number) => string; height?: number; zeroLine?: boolean; area?: boolean; ariaLabel?: string } = $props();
 
-  let width = $state(600);
+  let width = $state(0);
   let hover = $state<number | null>(null);
 
   const pad = { top: 12, right: 12, bottom: 26, left: 8 };
@@ -111,7 +111,7 @@
   );
 </script>
 
-<div class="chart" bind:clientWidth={width}>
+<div class="chart" bind:clientWidth={width} style:min-height="{height}px">
   {#if series.length > 1}
     <ul class="legend">
       {#each series as s (s.key)}
@@ -119,6 +119,7 @@
       {/each}
     </ul>
   {/if}
+  {#if width > 0}
   <svg {width} {height} role="img" aria-label={ariaLabel} onpointermove={onMove} onpointerleave={() => (hover = null)}>
     {#each ticks as t (t)}
       <line x1={plotLeft} x2={plotLeft + plotW} y1={y(t)} y2={y(t)} class="grid" class:zero={t === 0} />
@@ -140,7 +141,8 @@
       {/each}
     {/if}
   </svg>
-  {#if hover !== null}
+  {/if}
+  {#if hover !== null && width > 0}
     <div class="tooltip" style:left="{Math.min(x(hover) + 12, width - 190)}px">
       <div class="tdate">{dates[hover].split('-').reverse().join('.')}</div>
       {#each series as s (s.key)}
@@ -161,6 +163,8 @@
   .chart {
     position: relative;
     width: 100%;
+    min-width: 0;
+    overflow: hidden;
     touch-action: pan-y;
   }
   svg {
