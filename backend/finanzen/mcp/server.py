@@ -132,14 +132,23 @@ def t_get_account(db: Session, user: User, args: dict) -> Any:
         for t in db.scalars(select(Transaction).where(Transaction.account_id == account.id).order_by(Transaction.booking_date.desc()).limit(20)).all()
     ]
     if kinds.KINDS[account.kind].mode == kinds.HOLDINGS:
-        from ..services.valuation import holdings_value
+        from ..services.fx import FxConverter
+        from ..services.valuation import holdings_value, position_value
 
-        _, pos = holdings_value(db, account.id, date.today())
-        result["positions"] = [
-            {"instrument": db.get(Instrument, p.instrument_id).name, "quantity": p.quantity, "cost": p.cost.quantize(Decimal("0.01"))}
-            for p in pos.values()
-            if p.quantity
-        ]
+        today = date.today()
+        fx = FxConverter(db)
+        _, pos = holdings_value(db, account.id, today, fx)
+        result["positions"] = []
+        for p in pos.values():
+            if not p.quantity:
+                continue
+            inst = db.get(Instrument, p.instrument_id)
+            priced = position_value(db, inst, p.quantity, today, fx)
+            cost = p.cost.quantize(Decimal("0.01"))
+            entry = {"instrument": inst.name, "isin": inst.isin, "quantity": p.quantity, "cost": cost, "price_source": inst.price_source}
+            if priced:
+                entry.update({"price": priced[1], "price_date": priced[2], "value": priced[0], "gain": (priced[0] - cost).quantize(Decimal("0.01"))})
+            result["positions"].append(entry)
     return result
 
 
@@ -231,6 +240,12 @@ def t_add_trade(db: Session, user: User, args: dict) -> Any:
             )
             db.add(inst)
             db.commit()
+            if symbol:
+                # load the price history right away, like the app does for new instruments
+                from ..db import make_sessionmaker
+                from ..services.sync import sync_instrument_in_background
+
+                sync_instrument_in_background(make_sessionmaker(db.get_bind()), inst.id)
         instrument_id = inst.id
     data = acc_api.TradeIn(
         date=args["date"],
