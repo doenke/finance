@@ -192,7 +192,7 @@
     <button class="btn primary" onclick={startNewBank} disabled={!status?.product_id}><Icon name="plus" size={18} /> Bank</button>
   </div>
   <p class="muted">
-    Per FinTS holt Finanzen Salden, Umsätze und Depotbestände direkt von der Bank – zum Beispiel von Sparkasse, DKB und OLB. Die Bank mit Adresse und
+    Per FinTS holt Finanzen Salden, Umsätze und Depotbestände direkt von der Bank. Die Bank mit Adresse und
     Bankleitzahl gilt für den ganzen Haushalt; Anmeldename und PIN hinterlegt jede Person selbst.
   </p>
 
