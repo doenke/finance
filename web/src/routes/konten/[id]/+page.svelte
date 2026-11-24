@@ -179,6 +179,7 @@
         onchange={load}
       />
       <TransactionsPanel accountId={account.id} title="Geleistete Sondertilgungen" fixedKind="prepayment" positiveOnly onchange={load} />
+      <TransactionsPanel accountId={account.id} title="Gebühren auf den Kredit (erhöhen die Restschuld)" fixedKind="fee" positiveOnly onchange={load} />
     {/if}
 
     {#if account.notes}

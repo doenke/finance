@@ -50,3 +50,45 @@ def test_loan_scenarios(client):
     assert len(acc["details"]["scenarios"]) == 4
     too_many = client.post(f"/api/accounts/{loan['id']}/scenarios", json={"scenarios": [{}] * 5}, headers=ORIGIN)
     assert too_many.status_code == 422
+
+
+def test_fee_increases_loan_balance_like_the_bank():
+    """Bank statement balance, a fee for changing the installment and a prepayment (numbers from a real plan)."""
+    from datetime import date
+    from decimal import Decimal as Dec
+
+    from finanzen.services.loan import LoanTerms, Prepayment, schedule
+
+    terms = LoanTerms(
+        principal=Dec("268000"), disbursed_on=date(2019, 3, 1), rate=Dec("1.94"), first_payment=date(2019, 4, 1),
+        installment=Dec("1002"), installment_changes=((date(2026, 7, 1), Dec("1400.30")),),
+    )
+    events = [Prepayment(date(2026, 8, 1), Dec("13400")), Prepayment(date(2026, 7, 1), Dec("300"), fee=True)]
+    rows = schedule(terms, events, start_balance=Dec("144874.40"), start_date=date(2026, 3, 1))
+    by_date = {}
+    for r in rows:
+        by_date.setdefault(r.date, []).append(r)
+    fee_row, july = by_date[date(2026, 7, 1)]
+    assert fee_row.fee == Dec("300") and fee_row.balance == Dec("142867.31")  # fee comes before the payment
+    assert july.interest == Dec("230.97") and july.payment == Dec("1400.30")
+    assert by_date[date(2026, 8, 1)][0].balance == Dec("127126.76")  # after payment and prepayment
+    assert by_date[date(2026, 11, 1)][0].balance == Dec("123536.63")  # same as the bank's plan
+
+
+def test_fee_transaction_in_schedule_api(client):
+    from .conftest import login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    login(client)
+    acc = client.post(
+        "/api/accounts",
+        json={"name": "Kredit", "kind": "kredit", "details": {"principal": "100000", "disbursed_on": "2025-01-01", "rate": "3", "first_payment": "2025-02-01", "installment": "800"}},
+        headers=origin,
+    ).json()
+    before = client.get(f"/api/accounts/{acc['id']}/schedule").json()
+    assert client.post(f"/api/accounts/{acc['id']}/transactions", json={"booking_date": "2025-06-01", "amount": "250", "kind": "fee", "purpose": "Ratenänderung"}, headers=origin).status_code == 201
+    after = client.get(f"/api/accounts/{acc['id']}/schedule").json()
+    fee_rows = [r for r in after["rows"] if r["fee"] != "0" and float(r["fee"]) > 0]
+    assert len(fee_rows) == 1 and fee_rows[0]["date"] == "2025-06-01"
+    assert float(after["rows"][-1]["date"][:4]) >= float(before["rows"][-1]["date"][:4])
+    assert len(after["rows"]) > len(before["rows"])  # longer: the fee is paid off too

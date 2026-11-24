@@ -130,7 +130,10 @@ Unter **Konten** legst du mit „+ Konto“ alles an, was Wert hat – oder kost
   Kontoauszug ein, rechnet der Plan ab dort weiter.
   Hat sich die Rate geändert – oder wird sie es? Unter **Ratenänderungen**
   trägst du ab einem Datum die neue Rate ein, auch rückwirkend; Restschuld,
-  Verlauf und Szenarien rechnen damit.
+  Verlauf und Szenarien rechnen damit. Hat die Bank dafür (oder für etwas
+  anderes) eine Gebühr auf den Kredit geschlagen, trägst du sie unter
+  **Gebühren** ein – sie erhöht die Restschuld ab diesem Tag und wird mit
+  abgezahlt.
   Unter **Szenarien** spielst du durch, was wäre, wenn: geplante oder
   zusätzliche Sondertilgungen, eine höhere Rate ab einem Stichtag oder ein
   anderer Zins nach der Zinsbindung. Bis zu vier Varianten stehen neben dem

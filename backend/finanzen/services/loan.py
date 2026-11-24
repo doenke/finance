@@ -53,6 +53,7 @@ class Prepayment:
     date: date
     amount: Decimal
     planned: bool = False
+    fee: bool = False  # a charge added to the debt (e.g. for changing the installment) instead of a repayment
 
 
 @dataclass
@@ -64,6 +65,7 @@ class Row:
     prepayment: Decimal
     balance: Decimal
     planned: bool = False
+    fee: Decimal = ZERO
 
 
 def periodic_payment(terms: LoanTerms) -> Decimal:
@@ -88,7 +90,8 @@ def schedule(
     `installment_changes`: from each date on, the payment per period (or the principal part for
     fixed repayment loans) becomes the given amount.
     """
-    prepayments = sorted(prepayments or [], key=lambda p: p.date)
+    # fees first on the same day: they count before that day's payment
+    prepayments = sorted(prepayments or [], key=lambda p: (p.date, not p.fee))
     changes = sorted(list(terms.installment_changes) + list(installment_changes or []), key=lambda c: c[0])
     step = 12 // terms.frequency
     base_payment = periodic_payment(terms)
@@ -103,9 +106,14 @@ def schedule(
     limit = add_months(last_date, 12 * max_years)
     first_period = True  # pro rata interest from disbursement or the anchor date
     while balance > ZERO and pay_date <= limit:
-        # Prepayments before this payment reduce the balance immediately.
-        while pending and pending[0].date < pay_date and balance > ZERO:
+        # Prepayments before this payment reduce the balance immediately; fees up to and including
+        # the payment date increase it (and are paid off with the installments).
+        while pending and (pending[0].date < pay_date or (pending[0].fee and pending[0].date <= pay_date)) and balance > ZERO:
             p = pending.pop(0)
+            if p.fee:
+                balance += p.amount
+                rows.append(Row(p.date, ZERO, ZERO, ZERO, ZERO, balance, p.planned, fee=p.amount))
+                continue
             amount = min(p.amount, balance)
             balance -= amount
             rows.append(Row(p.date, ZERO, ZERO, ZERO, amount, balance, p.planned))
@@ -130,7 +138,7 @@ def schedule(
             principal = min(max(payment - interest, ZERO), balance)
             pay = principal + interest
         balance -= principal
-        same_day = [p for p in pending if p.date == pay_date]
+        same_day = [p for p in pending if p.date == pay_date and not p.fee]
         prepay = ZERO
         for p in same_day:
             pending.remove(p)

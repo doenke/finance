@@ -163,8 +163,8 @@ def loan_terms(account: Account) -> LoanTerms | None:
 
 
 def loan_prepayments(db: Session, account: Account, include_planned: bool, until: date) -> list[Prepayment]:
-    actual = db.scalars(select(Transaction).where(Transaction.account_id == account.id, Transaction.kind == "prepayment")).all()
-    result = [Prepayment(t.booking_date, abs(t.amount)) for t in actual]
+    actual = db.scalars(select(Transaction).where(Transaction.account_id == account.id, Transaction.kind.in_(("prepayment", "fee")))).all()
+    result = [Prepayment(t.booking_date, abs(t.amount), fee=t.kind == "fee") for t in actual]
     if include_planned:
         result += expand_planned((account.details or {}).get("planned_prepayments") or [], until)
     return result

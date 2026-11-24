@@ -219,6 +219,7 @@ class ScheduleRowOut(BaseModel):
     prepayment: Decimal
     balance: Decimal
     planned: bool
+    fee: Decimal = Decimal("0")
 
 
 class ScheduleOut(BaseModel):

@@ -39,6 +39,7 @@
       interest: rows.reduce((s, r) => s + Number(r.interest), 0),
       principal: rows.reduce((s, r) => s + Number(r.principal), 0),
       prepayment: rows.reduce((s, r) => s + Number(r.prepayment), 0),
+      fee: rows.reduce((s, r) => s + Number(r.fee ?? 0), 0),
       balance: rows[rows.length - 1].balance
     }));
   });
@@ -47,9 +48,9 @@
 
   function exportCsv() {
     if (!schedule) return;
-    const lines = ['Datum;Rate;Zinsen;Tilgung;Sondertilgung;Restschuld'];
+    const lines = ['Datum;Rate;Zinsen;Tilgung;Sondertilgung;Gebühr;Restschuld'];
     const n = (v: string) => v.replace('.', ',');
-    for (const r of schedule.rows) lines.push([r.date, n(r.payment), n(r.interest), n(r.principal), n(r.prepayment), n(r.balance)].join(';'));
+    for (const r of schedule.rows) lines.push([r.date, n(r.payment), n(r.interest), n(r.principal), n(r.prepayment), n(r.fee ?? '0'), n(r.balance)].join(';'));
     const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -96,7 +97,7 @@
               <td class="r"><Money value={y.payment} /></td>
               <td class="r"><Money value={y.interest} /></td>
               <td class="r"><Money value={y.principal} /></td>
-              <td class="r">{#if y.prepayment}<Money value={y.prepayment} />{/if}</td>
+              <td class="r">{#if y.prepayment}<Money value={y.prepayment} />{/if}{#if y.fee}<span class="fee">Gebühr <Money value={y.fee} /></span>{/if}</td>
               <td class="r"><Money value={y.balance} /></td>
             </tr>
             {#if open[y.year]}
@@ -106,7 +107,7 @@
                   <td class="r">{#if Number(r.payment)}<Money value={r.payment} />{/if}</td>
                   <td class="r">{#if Number(r.payment)}<Money value={r.interest} />{/if}</td>
                   <td class="r">{#if Number(r.payment)}<Money value={r.principal} />{/if}</td>
-                  <td class="r">{#if Number(r.prepayment)}<Money value={r.prepayment} />{/if}</td>
+                  <td class="r">{#if Number(r.prepayment)}<Money value={r.prepayment} />{/if}{#if Number(r.fee)}<span class="fee">Gebühr <Money value={r.fee} /></span>{/if}</td>
                   <td class="r"><Money value={r.balance} /></td>
                 </tr>
               {/each}
@@ -200,5 +201,10 @@
     color: inherit;
     cursor: pointer;
     padding: 0;
+  }
+  .fee {
+    display: block;
+    color: var(--warn);
+    font-size: 0.85em;
   }
 </style>

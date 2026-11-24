@@ -175,6 +175,8 @@ export interface ScheduleRow {
   prepayment: string;
   balance: string;
   planned: boolean;
+  /** charge added to the debt, e.g. for changing the installment */
+  fee: string;
 }
 
 export interface Schedule {
