@@ -250,7 +250,17 @@ def t_add_trade(db: Session, user: User, args: dict) -> Any:
 def t_get_net_worth(db: Session, user: User, args: dict) -> Any:
     person = _person_id(db, user, args["person"]) if args.get("person") else None
     data = net_worth(db, Scope(person_id=person), "1Y")
-    return {"current": data.get("current"), "as_of": date.today()}
+    from ..services.liquidity import liquidity
+
+    liq = liquidity(db, person)
+    bound = [{"name": i["name"], "value": i["value"], "free_from": i["free_from"], "reason": i["free_reason"]} for i in liq["items"] if i["bucket"] == "bound"]
+    return {
+        "current": data.get("current"),
+        "available": liq["available"],
+        "bound": liq["bound"],
+        "bound_items": bound,
+        "as_of": date.today(),
+    }
 
 
 def t_get_performance(db: Session, user: User, args: dict) -> Any:
@@ -300,7 +310,7 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
     "list_account_kinds": (t_list_account_kinds, _schema({}), False, "Verfügbare Kontoarten und welche Felder (details) sie nutzen."),
     "list_accounts": (t_list_accounts, _schema({"include_closed": {"type": "boolean"}}), False, "Alle Konten und Anlagen mit aktuellem Wert."),
     "get_account": (t_get_account, _schema({"account_id": {"type": "integer"}}, ["account_id"]), False, "Details eines Kontos: Angaben, Bewertungen, letzte Buchungen, Positionen."),
-    "get_net_worth": (t_get_net_worth, _schema({"person": {"type": ["string", "integer"]}}), False, "Aktuelles Vermögen, Schulden, Nettovermögen und Aufteilung nach Anlageklasse."),
+    "get_net_worth": (t_get_net_worth, _schema({"person": {"type": ["string", "integer"]}}), False, "Aktuelles Vermögen, Schulden, Nettovermögen, Aufteilung nach Anlageklasse sowie verfügbar vs. gebunden (mit frei-ab-Datum)."),
     "get_performance": (
         t_get_performance,
         _schema({"account_id": {"type": "integer"}, "person": {"type": ["string", "integer"]}, "period": {"type": "string", "enum": PERIODS}}),

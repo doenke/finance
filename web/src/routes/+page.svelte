@@ -9,6 +9,7 @@
   import Money from '#lib/Money.svelte';
   import PerformanceCard from '#lib/PerformanceCard.svelte';
   import ReturnBreakdown from '#lib/ReturnBreakdown.svelte';
+  import LiquidityCard from '#lib/LiquidityCard.svelte';
   import PeriodPicker from '#lib/PeriodPicker.svelte';
   import PersonFilter from '#lib/PersonFilter.svelte';
   import { household, loadPersons } from '#lib/persons.svelte.ts';
@@ -106,6 +107,8 @@
         <strong>{#if change(c.change_ytd) !== null}<Money value={change(c.change_ytd)} cents={false} colored />{:else}–{/if}</strong>
       </div>
     </section>
+
+    <LiquidityCard personId={household.filter} />
 
     <section class="card stack">
       <div class="row head">

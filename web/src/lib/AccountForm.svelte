@@ -26,7 +26,7 @@
   let notes = $state(init?.notes ?? '');
   let closed = $state(init?.closed ?? false);
   let settlementId = $state<number | null>(init?.settlement_account_id ?? null);
-  let details = $state<Record<string, any>>({ ...(init?.details ?? {}) });
+  let details = $state<Record<string, any>>({ liquidity: '', ...(init?.details ?? {}) });
   let planned = $state<Planned[]>(
     (init?.details?.planned_prepayments ?? []).map((p: any) => ({ date: p.date, amount: String(p.amount), repeat: p.repeat === 'yearly', until: p.until ?? '' }))
   );
@@ -50,6 +50,7 @@
 
   const kindMeta = $derived(meta.value?.kinds.find((k) => k.key === kind));
   const mode = $derived(kindMeta?.mode ?? 'cash');
+  const isBound = $derived(details.liquidity === 'bound' || (!details.liquidity && !!kindMeta?.bound));
   const cashAccounts = $derived(others.filter((a) => a.mode === 'cash' && !a.closed));
   const properties = $derived(others.filter((a) => a.kind === 'immobilie'));
   const persons = $derived(household.persons.filter((p) => !p.archived || ownerShares[p.id] !== undefined));
@@ -266,6 +267,21 @@
   </section>
 
   <section class="card stack">
+    {#if kindMeta && !kindMeta.liability}
+      <div class="liq">
+        <label>
+          Verfügbarkeit
+          <select bind:value={details.liquidity}>
+            <option value="">automatisch ({kindMeta.bound ? 'gebunden' : 'verfügbar'})</option>
+            <option value="available">verfügbar – kurzfristig nutzbar</option>
+            <option value="bound">gebunden – festgelegt</option>
+          </select>
+        </label>
+        {#if isBound && kind !== 'festgeld' && kind !== 'altersvorsorge'}
+          <label>Frei ab (optional) <input type="date" bind:value={details.free_from} /></label>
+        {/if}
+      </div>
+    {/if}
     <label>Notizen <textarea rows="3" bind:value={notes}></textarea></label>
     {#if init}
       <label class="check"><input type="checkbox" bind:checked={closed} /> Aufgelöst (zählt nicht mehr zum aktuellen Vermögen)</label>
@@ -336,5 +352,10 @@
   .small {
     font-size: 0.85rem;
     margin: 0;
+  }
+  .liq {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
   }
 </style>

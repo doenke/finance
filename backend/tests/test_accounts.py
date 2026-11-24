@@ -161,3 +161,32 @@ def test_holding_period_crypto(client):
     with client.app.state.sessionmaker() as db:
         data = t_get_holding_period(db, None, {"account_id": acc["id"], "on": "2026-06-30"})
     assert data["positions"][0]["instrument"]["name"] == "Bitcoin"
+
+
+def test_liquidity_available_vs_bound(client):
+    login(client)
+    today = date.today()
+    giro = create(client, "/api/accounts", {"name": "Giro", "kind": "giro"})
+    create(client, f"/api/accounts/{giro['id']}/balances", {"date": today.isoformat(), "amount": "2000"})
+    card = create(client, "/api/accounts", {"name": "Karte", "kind": "kreditkarte"})
+    create(client, f"/api/accounts/{card['id']}/balances", {"date": today.isoformat(), "amount": "-300"})
+    end = (today + timedelta(days=200)).isoformat()
+    create(client, "/api/accounts", {"name": "Festgeld", "kind": "festgeld", "details": {"amount": "10000", "rate": "0", "start": (today - timedelta(days=10)).isoformat(), "end": end}})
+    rente = create(client, "/api/accounts", {"name": "Rente", "kind": "altersvorsorge", "details": {"payout_start": "2046-05-01"}})
+    create(client, f"/api/accounts/{rente['id']}/valuations", {"date": today.isoformat(), "value": "25000"})
+    gold = create(client, "/api/accounts", {"name": "Goldmünzen im Safe", "kind": "sonstiges", "details": {"liquidity": "available"}})
+    create(client, f"/api/accounts/{gold['id']}/valuations", {"date": today.isoformat(), "value": "1500"})
+    create(client, "/api/accounts", {"name": "Kredit", "kind": "kredit", "details": {"principal": "50000", "disbursed_on": (today - timedelta(days=40)).isoformat(), "rate": "3", "first_payment": (today + timedelta(days=5)).isoformat(), "installment": "500"}})
+
+    res = client.get("/api/liquidity").json()
+    assert D(res["available"]) == D("3200.00")  # 2000 - 300 + 1500
+    assert D(res["bound"]) == D("35000.00")
+    assert D(res["liabilities"]) < D("-49000")
+    assert abs(D(res["net"]) - (D(res["available"]) + D(res["bound"]) + D(res["liabilities"]))) < D("0.01")
+    items = {i["name"]: i for i in res["items"]}
+    assert items["Festgeld"]["free_from"] == end and items["Festgeld"]["free_reason"] == "Fälligkeit"
+    assert items["Rente"]["free_from"] == "2046-05-01" and items["Rente"]["free_reason"] == "Rentenbeginn"
+    assert items["Goldmünzen im Safe"]["bucket"] == "available" and items["Goldmünzen im Safe"]["automatic"] is False
+    assert items["Kredit"]["bucket"] == "liability"
+    bound = [i["name"] for i in res["items"] if i["bucket"] == "bound"]
+    assert bound == ["Festgeld", "Rente"]  # sorted by the date they become free

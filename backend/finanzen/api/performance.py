@@ -36,6 +36,13 @@ def get_breakdown(period: str = "1Y", person_id: int | None = None, to: date | N
     return breakdown(db, person_id, _period(period), to)
 
 
+@router.get("/liquidity")
+def get_liquidity(person_id: int | None = None, to: date | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
+    from ..services.liquidity import liquidity
+
+    return liquidity(db, person_id, to)
+
+
 @router.get("/networth")
 def get_networth(period: str = "1Y", person_id: int | None = None, to: date | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
     return net_worth(db, Scope(person_id=person_id), _period(period), to)

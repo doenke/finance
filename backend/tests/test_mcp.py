@@ -92,6 +92,7 @@ def test_mcp_oauth_and_tools(client):
     assert err
     err, nw = tool(client, access, "get_net_worth")
     assert D(nw["current"]["net"]) == D("11600.38")
+    assert D(nw["bound"]) == D("11600.38") and D(nw["available"]) == 0 and nw["bound_items"][0]["name"] == "HDI Basisrente"
     unknown = rpc(client, access, "tools/call", {"name": "delete_everything"})
     assert unknown["error"]["code"] == -32602
 

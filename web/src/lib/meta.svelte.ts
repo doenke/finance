@@ -7,6 +7,8 @@ export interface KindMeta {
   mode: 'cash' | 'holdings' | 'valuation' | 'deposit' | 'loan';
   asset_class: string;
   liability: boolean;
+  /** default for "available vs. bound" */
+  bound: boolean;
 }
 export interface Option {
   key: string;

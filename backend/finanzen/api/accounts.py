@@ -321,7 +321,7 @@ def require_mode(account: Account, *modes: str) -> None:
 @router.get("/meta")
 def meta() -> dict[str, Any]:
     return {
-        "kinds": [{"key": k.key, "label": k.label, "mode": k.mode, "asset_class": k.asset_class, "liability": k.liability} for k in kinds.KINDS.values()],
+        "kinds": [{"key": k.key, "label": k.label, "mode": k.mode, "asset_class": k.asset_class, "liability": k.liability, "bound": k.bound} for k in kinds.KINDS.values()],
         "asset_classes": [{"key": k, "label": v} for k, v in kinds.ASSET_CLASSES.items()],
         "transaction_kinds": [{"key": k, "label": v} for k, v in kinds.TRANSACTION_KINDS.items()],
         "trade_types": [{"key": k, "label": v} for k, v in kinds.TRADE_TYPES.items()],

@@ -165,6 +165,14 @@ Vergleichswert, etwa einen MSCI-World-ETF, und Finanzen legt dessen Verlauf
 daneben. Dieselbe Auswertung gibt es für jedes einzelne Konto und Depot, mit
 allen Zeiträumen von einem Monat bis „seit Beginn“.
 
+**Verfügbar und gebunden** trennt, was ihr kurzfristig nutzen könntet
+(Konten, Tagesgeld, Depots, Krypto, Edelmetalle, abzüglich Kreditkarten), von
+dem, was festliegt (Festgeld, Altersvorsorge, Immobilien, Beteiligungen,
+sonstige Anlagen) – mit dem Datum, ab dem es frei wird: Fälligkeit beim
+Festgeld, Rentenbeginn bei der Altersvorsorge oder ein eigenes „frei ab“.
+Passt die Einteilung bei einem Konto nicht, stellst du sie unter
+„Bearbeiten“ → Verfügbarkeit um.
+
 Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
 nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure
 Gesamtrendite zusammensetzt: Jede Anlage steuert ihren Gewinn in Euro und in

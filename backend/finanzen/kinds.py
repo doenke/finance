@@ -17,6 +17,7 @@ class Kind:
     mode: str
     asset_class: str
     liability: bool = False
+    bound: bool = False  # default for "available vs. bound": money you cannot use at short notice
 
 
 KINDS: dict[str, Kind] = {
@@ -25,15 +26,15 @@ KINDS: dict[str, Kind] = {
         Kind("giro", "Girokonto", CASH, "cash"),
         Kind("tagesgeld", "Tagesgeld", CASH, "cash"),
         Kind("verrechnung", "Verrechnungskonto", CASH, "cash"),
-        Kind("festgeld", "Festgeld", DEPOSIT, "cash"),
+        Kind("festgeld", "Festgeld", DEPOSIT, "cash", bound=True),
         Kind("kreditkarte", "Kreditkarte", CASH, "liabilities", liability=True),
         Kind("depot", "Depot", HOLDINGS, "securities"),
         Kind("krypto", "Krypto", HOLDINGS, "crypto"),
-        Kind("stak", "STAK-Anteile", HOLDINGS, "participations"),
+        Kind("stak", "STAK-Anteile", HOLDINGS, "participations", bound=True),
         Kind("edelmetall", "Edelmetalle", HOLDINGS, "metals"),
-        Kind("immobilie", "Immobilie", VALUATION, "real_estate"),
-        Kind("altersvorsorge", "Altersvorsorge & Versicherung", VALUATION, "pension"),
-        Kind("sonstiges", "Sonstige Anlage", VALUATION, "other"),
+        Kind("immobilie", "Immobilie", VALUATION, "real_estate", bound=True),
+        Kind("altersvorsorge", "Altersvorsorge & Versicherung", VALUATION, "pension", bound=True),
+        Kind("sonstiges", "Sonstige Anlage", VALUATION, "other", bound=True),
         Kind("kredit", "Kredit", LOAN, "liabilities", liability=True),
     ]
 }
