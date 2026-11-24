@@ -36,6 +36,15 @@ def get_breakdown(period: str = "1Y", person_id: int | None = None, to: date | N
     return breakdown(db, person_id, _period(period), to)
 
 
+@router.get("/positions/compare")
+def get_position_compare(
+    period: str = "1Y", account_id: int | None = None, person_id: int | None = None, to: date | None = None, db: Session = Depends(get_db)
+) -> dict[str, Any]:
+    from ..services.positions import compare
+
+    return compare(db, account_id, person_id, _period(period), to)
+
+
 @router.get("/liquidity")
 def get_liquidity(person_id: int | None = None, to: date | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
     from ..services.liquidity import liquidity

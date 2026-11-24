@@ -5,6 +5,7 @@
   import DatedValuesPanel from '#lib/DatedValuesPanel.svelte';
   import { formatDate, formatPercent, toNumber } from '#lib/format.ts';
   import HoldingPeriodPanel from '#lib/HoldingPeriodPanel.svelte';
+  import PositionCompare from '#lib/PositionCompare.svelte';
   import HoldingsPanel from '#lib/HoldingsPanel.svelte';
   import Icon from '#lib/Icon.svelte';
   import LoanPanel from '#lib/LoanPanel.svelte';
@@ -128,6 +129,7 @@
       <TransactionsPanel accountId={account.id} onchange={load} />
     {:else if account.mode === 'holdings'}
       <HoldingsPanel accountId={account.id} accountKind={account.kind} onchange={load} />
+      {#key account}<PositionCompare accountId={account.id} />{/key}
       {#if account.kind === 'krypto' || account.kind === 'edelmetall'}
         {#key account}<HoldingPeriodPanel accountId={account.id} />{/key}
       {/if}

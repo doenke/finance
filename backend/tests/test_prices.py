@@ -123,7 +123,14 @@ def test_sync_and_fx_conversion(client, monkeypatch):
     client.post(f"/api/accounts/{depot['id']}/trades", json={"date": "2026-11-18", "type": "buy", "instrument_id": apple["id"], "quantity": "10", "amount": "900"}, headers=ORIGIN)
     res = client.post(f"/api/prices/instruments/{apple['id']}", headers=ORIGIN)
     assert res.json() == {"updated": 2}
-    assert fake.requested[0][1] == date(2026, 11, 8)  # first trade minus 10 days
+    from datetime import timedelta
+
+    target = min(date(2026, 11, 8), date.today() - timedelta(days=365 * 5 + 5))  # first trade minus 10 days, at least 5 years
+    assert fake.requested[0][1] == target
+    # the source had no older prices: the next sync tries the old history once more, then only new days
+    client.post(f"/api/prices/instruments/{apple['id']}", headers=ORIGIN)
+    client.post(f"/api/prices/instruments/{apple['id']}", headers=ORIGIN)
+    assert fake.requested[1][1] == target and fake.requested[2][1] == date(2026, 11, 15)
     # instrument currency follows the quote currency
     inst = next(i for i in client.get("/api/instruments").json() if i["id"] == apple["id"])
     assert inst["currency"] == "USD"

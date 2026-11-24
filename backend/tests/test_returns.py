@@ -150,3 +150,47 @@ def test_breakdown_contributions_add_up(client):
     # sorted by IRR, best first
     assert [i["name"] for i in res["items"]][-1] == "Kunst"
     assert client.get("/api/performance/breakdown", params={"period": "x"}).status_code == 422
+
+
+def test_position_compare(client):
+    import math
+    from datetime import date, timedelta
+    from decimal import Decimal as Dec
+
+    from finanzen.models import Price
+    from tests.conftest import login as do_login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    do_login(client)
+    acc = client.post("/api/accounts", json={"name": "Depot", "kind": "depot"}, headers=origin).json()
+    other = client.post("/api/accounts", json={"name": "Zweitdepot", "kind": "depot"}, headers=origin).json()
+    a = client.post("/api/instruments", json={"kind": "etf", "name": "World", "price_source": "manual"}, headers=origin).json()
+    b = client.post("/api/instruments", json={"kind": "stock", "name": "Rakete", "price_source": "manual"}, headers=origin).json()
+    end = date(2026, 6, 30)
+    with client.app.state.sessionmaker() as db:
+        for k in range(800):
+            d = end - timedelta(days=799 - k)
+            if d.weekday() >= 5:
+                continue
+            wave = math.sin(k / 7)
+            db.add(Price(instrument_id=a["id"], date=d, close=Dec(str(round(100 * (1.0004 ** k) * (1 + 0.01 * wave), 4))), source="manual"))
+            db.add(Price(instrument_id=b["id"], date=d, close=Dec(str(round(50 * (1.0002 ** k) * (1 + 0.05 * wave), 4))), source="manual"))
+        db.commit()
+    client.post(f"/api/accounts/{acc['id']}/trades", json={"date": "2026-06-01", "type": "deliver_in", "instrument_id": a["id"], "quantity": "10", "price": "100"}, headers=origin)
+    client.post(f"/api/accounts/{acc['id']}/trades", json={"date": "2026-06-01", "type": "deliver_in", "instrument_id": b["id"], "quantity": "20", "price": "60"}, headers=origin)
+    client.post(f"/api/accounts/{other['id']}/trades", json={"date": "2026-06-01", "type": "deliver_in", "instrument_id": a["id"], "quantity": "5", "price": "100"}, headers=origin)
+
+    res = client.get("/api/positions/compare", params={"period": "1Y", "to": end.isoformat(), "account_id": acc["id"]}).json()
+    assert [i["name"] for i in res["items"]] == ["World", "Rakete"]  # stable order by instrument
+    world, rakete = res["items"]
+    assert Dec(world["quantity"]) == 10  # only the chosen depot
+    assert abs(sum(i["weight"] for i in res["items"]) - 1) < 1e-9
+    assert len(world["points"]) == len(res["dates"]) and world["points"][0] == 0
+    assert world["returns"]["1Y"] > 0 and world["returns"]["3Y"] is None  # not enough history for 3 years
+    assert rakete["volatility"] > world["volatility"] > 0
+    assert rakete["max_drawdown"] < 0
+    corr = res["correlation"]
+    assert corr[0][0] == 1.0 and 0.5 < corr[0][1] <= 1 and corr[0][1] == corr[1][0]
+    every = client.get("/api/positions/compare", params={"period": "ALL", "to": end.isoformat()}).json()
+    assert Dec(every["items"][0]["quantity"]) == 15  # both depots together
+    assert every["from"] < "2024-06-01"

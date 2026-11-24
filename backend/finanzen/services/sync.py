@@ -45,12 +45,32 @@ def onvista_symbol_for(instrument: Instrument) -> str | None:
     return None
 
 
-def _start_date(db: Session, instrument: Instrument, full: bool) -> date:
-    last = None if full else db.scalar(select(func.max(Price.date)).where(Price.instrument_id == instrument.id, Price.source != "manual"))
-    if last:
-        return last - timedelta(days=5)
+HISTORY_YEARS = 5  # at least this much history, so positions can be compared even if bought recently
+
+
+def history_target(db: Session, instrument: Instrument) -> date:
     first_trade = db.scalar(select(func.min(Trade.date)).where(Trade.instrument_id == instrument.id))
-    return (first_trade - timedelta(days=10)) if first_trade else date.today() - timedelta(days=365 * 10)
+    floor = date.today() - timedelta(days=365 * HISTORY_YEARS + 5)
+    return min(first_trade - timedelta(days=10), floor) if first_trade else date.today() - timedelta(days=365 * 10)
+
+
+def _start_date(db: Session, instrument: Instrument, full: bool) -> date:
+    target = history_target(db, instrument)
+    if full:
+        return target
+    first, last = db.execute(
+        select(func.min(Price.date), func.max(Price.date)).where(Price.instrument_id == instrument.id, Price.source != "manual")
+    ).one()
+    if not last:
+        return target
+    # Older history missing (e.g. loaded only from a recent first trade): fetch it once.
+    checked = (instrument.details or {}).get("history_from")
+    if first > target + timedelta(days=7) and checked != target.isoformat():
+        details = dict(instrument.details or {})
+        details["history_from"] = target.isoformat()
+        instrument.details = details
+        return target
+    return last - timedelta(days=5)
 
 
 def sync_instrument(db: Session, instrument: Instrument, full: bool = False) -> int:

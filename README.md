@@ -196,6 +196,14 @@ Kaufposten frei wird. Gerechnet wird nach FIFO. Dazu kommen deine Verkäufe
 nach Jahr – getrennt in steuerpflichtig und steuerfrei, mit Hinweis auf die
 Freigrenze von 1.000 €.
 
+**Positionen im Vergleich:** In jedem Depot (und unter `/wertpapiere` für
+alle Depots zusammen) vergleichst du die einzelnen Wertpapiere: Kursverlauf
+aller Positionen ab gleichem Start, Gewichtung, Rendite gegen Schwankung als
+Streudiagramm, eine Kennzahlentabelle (1 Monat bis 5 Jahre, Schwankung,
+größter Rückgang) und eine Korrelations-Matrix, die zeigt, wie gut die
+Positionen das Risiko streuen. Kurse lädt Finanzen dafür mindestens fünf
+Jahre zurück – auch wenn du ein Wertpapier erst seit Kurzem hast.
+
 ### 5. Bank verbinden (FinTS)
 
 Unter **Banken** legst du mit „+ Bank“ Sparkasse, DKB, OLB & Co. an:

@@ -54,7 +54,7 @@
     const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? raw;
     const out: number[] = [];
     for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(Math.round(v / step) * step + 0); // + 0 turns -0 into 0
-    return out;
+    return [...new Set(out)];
   }
 
   function path(points: { value: number | null }[]): string {
@@ -83,7 +83,8 @@
   const xTicks = $derived.by(() => {
     if (dates.length < 2) return [] as number[];
     const n = Math.max(2, Math.min(6, Math.floor(plotW / 110)));
-    return Array.from({ length: n }, (_, k) => Math.round((k / (n - 1)) * (dates.length - 1)));
+    // few dates (e.g. an account with data since yesterday) would repeat indexes
+    return [...new Set(Array.from({ length: n }, (_, k) => Math.round((k / (n - 1)) * (dates.length - 1))))];
   });
 
   function dateLabel(iso: string, spanDays: number): string {

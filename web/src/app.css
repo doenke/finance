@@ -22,6 +22,9 @@
   --series-5: #e87ba4;
   --grid: #e7e9e3;
   --bar: #2a78d6;
+  --div-pos: #2a78d6;
+  --div-neg: #d64545;
+  --div-mid: #f0efec;
   color-scheme: light;
 }
 
@@ -48,6 +51,9 @@
     --series-5: #d55181;
     --grid: #262c25;
     --bar: #3987e5;
+  --div-pos: #3987e5;
+  --div-neg: #e5534b;
+  --div-mid: #383835;
     color-scheme: dark;
   }
 }
@@ -74,6 +80,9 @@
   --series-5: #d55181;
   --grid: #262c25;
   --bar: #3987e5;
+  --div-pos: #3987e5;
+  --div-neg: #e5534b;
+  --div-mid: #383835;
   color-scheme: dark;
 }
 
