@@ -332,3 +332,45 @@ def test_banks_are_shared_logins_are_personal(fints_client):
     assert client.get("/api/bank-logins").json()[0]["name"] == "DKB AG"
     assert client.delete(f"/api/banks/{banks[0]['id']}", headers=ORIGIN).status_code == 409
     assert client.delete(f"/api/bank-logins/{own['id']}", headers=ORIGIN).status_code == 204
+
+
+# Real answer of a bank (DKB) to a dialog with an unregistered product ID (made-up user): the codes are in a
+# normal HTTP 200 answer; the following dialog end is answered with an empty HTTP 400.
+DKB_9078 = (
+    "SE5IQks6MTozKzAwMDAwMDAwMDIzNiszMDArdW5iZWthbm50KzErdW5iZWthbm50OjEnSElSTUc6MjoyKzk4MDA6OkRpYWxvZyBhYmdlYnJvY2hlbi4r"
+    "OTA3ODo6RGlhbG9nIGFiZ2Vicm9jaGVuIBMgRmluVFMtUHJvZHVrdCBpc3QgbmljaHQgcmVnaXN0cmllcnQuKzMwNzk6OkJpdHRlIHdlbmRlbiBTaWUg"
+    "c2ljaCBhbiBkZW4gSGVyc3RlbGxlciBJaHJlcyBCYW5raW5nIC0gUHJvZ3JhbW1zLidITkhCUzozOjErMSc="
+)
+
+
+def test_connection_keeps_codes_before_empty_http_400():
+    from finanzen.services.fints_sync import BankRejected, _connection, _friendly_error
+
+    class Res:
+        def __init__(self, status, content):
+            self.status_code, self.content = status, content
+
+    answers = [Res(200, DKB_9078.encode()), Res(400, b"")]
+    conn = _connection("https://fints.example.org")
+    conn.session.post = lambda *a, **k: answers.pop(0)
+    sent = type("Msg", (), {"render_bytes": lambda self: b"x", "print_nested": lambda self, **k: None})()
+    import fints.connection as fc
+
+    original = fc.reduce_message_for_log
+    fc.reduce_message_for_log = lambda m: m
+    try:
+        conn.send(sent)  # first answer is parsed normally
+        with pytest.raises(BankRejected) as info:
+            conn.send(sent)
+    finally:
+        fc.reduce_message_for_log = original
+    assert ("9078", "Dialog abgebrochen \x13 FinTS-Produkt ist nicht registriert.") in conn.codes
+    assert "Produkt-ID" in _friendly_error(info.value, conn.codes)
+
+
+def test_generic_client_error_shows_pin_hint():
+    from finanzen.services.fints_sync import _friendly_error
+
+    exc = type("FinTSClientError", (Exception,), {})("Error during dialog initialization, could not fetch BPD.")
+    text = _friendly_error(exc, [("9050", "Die Nachricht enthält Fehler."), ("9010", "PIN/TAN Prüfung fehlgeschlagen"), ("9931", "Anmeldename oder PIN ist falsch.")])
+    assert "Anmeldename oder PIN ist falsch" in text and "drei falschen" in text

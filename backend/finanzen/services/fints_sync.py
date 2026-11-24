@@ -101,17 +101,26 @@ def bank_messages(raw: bytes) -> list[tuple[str, str]]:
 
 
 def _connection(url: str):
-    """python-fints connection that keeps the bank's explanation when it answers with an HTTP error."""
+    """python-fints connection that records every return code of the bank.
+
+    python-fints turns many rejections into generic errors (e.g. FinTSClientError for 9010), and some
+    banks (DKB) answer the closing message of a failed dialog with an empty HTTP 400 – the real reason
+    is in an earlier answer. `codes` keeps all of them so the job can show what the bank said.
+    """
     from fints.connection import FinTSHTTPSConnection
 
     class Connection(FinTSHTTPSConnection):
+        codes: list[tuple[str, str]]
+
         def send(self, msg):
             original = self.session.post
 
             def post(*args, **kwargs):
                 res = original(*args, **kwargs)
+                found = bank_messages(res.content)
+                self.codes.extend(found)
                 if not 200 <= res.status_code < 300:
-                    raise BankRejected(res.status_code, bank_messages(res.content))
+                    raise BankRejected(res.status_code, found or list(self.codes))
                 return res
 
             self.session.post = post
@@ -120,7 +129,9 @@ def _connection(url: str):
             finally:
                 self.session.post = original
 
-    return Connection(url)
+    conn = Connection(url)
+    conn.codes = []
+    return conn
 
 
 def default_client_factory(login: BankLogin, pin: str, product_id: str):
@@ -351,6 +362,7 @@ def _sepa(account: Account):
 
 def run_job(job: Job, pin: str | None, settings: Settings, make_session: sessionmaker, factory: ClientFactory, account_ids: list[int] | None) -> None:
     messages: list[tuple[str, str]] = []  # return codes the bank sent during this job
+    client: Any = None
     with make_session() as db:
         login = db.get(BankLogin, job.login_id)
         try:
@@ -397,6 +409,7 @@ def run_job(job: Job, pin: str | None, settings: Settings, make_session: session
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             job.status = "error"
+            messages = messages + list(getattr(getattr(client, "connection", None), "codes", None) or [])
             job.error = _friendly_error(exc, messages)
             codes = [c for c, _ in (exc.messages if isinstance(exc, BankRejected) else messages) if c[:1] in "39"]
             log.warning("fints job failed: %s %s", exc.__class__.__name__, " ".join(codes))
@@ -428,7 +441,10 @@ def _bank_text(messages: list[tuple[str, str]]) -> str | None:
     if codes & {"9078", "9079"}:
         return "Die Bank kennt die FinTS-Produkt-ID nicht (9078). Prüfe FINTS_PRODUCT_ID – eine frisch registrierte Nummer ist manchmal erst nach einigen Tagen bei allen Banken bekannt."
     if codes & PIN_CODES:
-        return "Die Bank hat die Anmeldung abgelehnt – stimmen Anmeldename und PIN?"
+        return (
+            "Die Bank hat die Anmeldung abgelehnt: Anmeldename oder PIN ist falsch. Gemeint ist der Anmeldename bzw. die "
+            "Legitimations-ID aus dem Online-Banking, nicht dein Name. Achtung: Nach drei falschen Versuchen sperrt die Bank den Zugang."
+        )
     if "9010" in codes:
         return "Die Bank lehnt die Anfrage ab – passen Bankleitzahl und FinTS-Adresse zusammen?"
     text = "; ".join(f"{c} {t}".strip() for c, t in errors[:2])
