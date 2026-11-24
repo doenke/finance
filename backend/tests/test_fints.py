@@ -374,3 +374,20 @@ def test_generic_client_error_shows_pin_hint():
     exc = type("FinTSClientError", (Exception,), {})("Error during dialog initialization, could not fetch BPD.")
     text = _friendly_error(exc, [("9050", "Die Nachricht enthält Fehler."), ("9010", "PIN/TAN Prüfung fehlgeschlagen"), ("9931", "Anmeldename oder PIN ist falsch.")])
     assert "Anmeldename oder PIN ist falsch" in text and "drei falschen" in text
+
+
+def test_username_is_stored_composed(fints_client):
+    client, _ = fints_client
+    login(client)
+    decomposed = "Sönke Jacobs"
+    res = new_login(client, {"name": "Sparkasse", "blz": "39050000", "server_url": "https://fints.example.org", "username": f" {decomposed} "})
+    assert res.status_code == 201
+    assert res.json()["username"] == "Sönke Jacobs"
+    assert res.json()["username"].encode("iso-8859-1") == b"S\xf6nke Jacobs"
+
+
+def test_unencodable_username_is_explained():
+    from finanzen.services.fints_sync import _friendly_error
+
+    exc = UnicodeEncodeError("iso-8859-1", "x€", 1, 2, "ordinal not in range")
+    assert "Legitimations-ID" in _friendly_error(exc, [])

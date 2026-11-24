@@ -1,5 +1,6 @@
 """Banks (shared) and personal bank logins (FinTS): manage them, discover and link accounts, run syncs with TAN dialogs."""
 
+import unicodedata
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -147,9 +148,11 @@ def _reset_tan(login: BankLogin) -> None:
 
 
 def _apply(request: Request, login: BankLogin, data: BankLoginIn, db: Session) -> None:
-    changed_access = login.id is not None and login.username != data.username.strip()
-    login.username = data.username.strip()
-    login.customer_id = data.customer_id.strip()
+    # FinTS sends ISO-8859-1: store composed characters ("ö" as one character, not "o" + diaeresis)
+    username = unicodedata.normalize("NFC", data.username.strip())
+    changed_access = login.id is not None and login.username != username
+    login.username = username
+    login.customer_id = unicodedata.normalize("NFC", data.customer_id.strip())
     login.store_pin = data.store_pin
     if changed_access or data.reset_tan:
         _reset_tan(login)

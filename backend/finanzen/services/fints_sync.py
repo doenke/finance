@@ -13,6 +13,7 @@ import hashlib
 import logging
 import threading
 import time
+import unicodedata
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -140,10 +141,10 @@ def default_client_factory(login: BankLogin, pin: str, product_id: str):
     state = base64.b64decode(login.client_state) if login.client_state else None
     client = FinTS3PinTanClient(
         login.blz,
-        login.username,
+        unicodedata.normalize("NFC", login.username),
         pin,
         login.server_url,
-        customer_id=login.customer_id or None,
+        customer_id=unicodedata.normalize("NFC", login.customer_id) if login.customer_id else None,
         product_id=product_id,
         from_data=state,
         tan_medium=login.tan_medium,
@@ -468,6 +469,8 @@ def _friendly_error(exc: Exception, messages: list[tuple[str, str]] | None = Non
         return "Die Bank ist nicht erreichbar – stimmt die FinTS-Adresse?"
     if isinstance(exc, SecretsError | TimeoutError | RuntimeError):
         return str(exc)
+    if isinstance(exc, UnicodeEncodeError):
+        return "Anmeldename oder Kunden-ID enthält Zeichen, die per FinTS nicht übertragen werden können. Nimm die Legitimations-ID aus dem Online-Banking."
     if name == "FinTSUnsupportedOperation":
         return "Die Bank bietet diese Abfrage per FinTS nicht an."
     return explained or f"Fehler beim Abruf ({name})."
