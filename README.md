@@ -272,8 +272,9 @@ Gerät ein und wählst je Ereignis Push und/oder E-Mail:
 - **Monatsbericht** per E-Mail am 1.: Nettovermögen, Veränderung, Rendite im
   Monat und seit Jahresbeginn, größte Bewegungen
 
-Push braucht einmalig ein Schlüsselpaar in der `.env` (siehe unten), E-Mail
-die SMTP-Werte. Auf iPhone und iPad kommt Push nur in der installierten App
+E-Mails – auch der Monatsbericht – sind am Anfang ausgeschaltet; du
+schaltest sie je Ereignis selbst ein. Push braucht einmalig ein Schlüsselpaar
+in der `.env` (siehe unten), E-Mail die SMTP-Werte. Auf iPhone und iPad kommt Push nur in der installierten App
 an (über „Zum Home-Bildschirm“).
 
 ### 9. Mit Claude verbinden (MCP)

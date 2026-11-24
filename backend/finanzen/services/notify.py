@@ -18,18 +18,18 @@ from .performance import Scope, aggregate, performance
 log = logging.getLogger("finanzen.notify")
 ZERO = Decimal("0")
 
-# Event definitions: label, channels it can use, defaults (incl. parameters).
+# Event definitions: label, channels it can use, defaults (incl. parameters). E-mail is opt-in everywhere.
 EVENTS: dict[str, dict[str, Any]] = {
     "bank_error": {"label": "Bankabruf fehlgeschlagen", "channels": ["push", "email"], "defaults": {"push": True, "email": False}},
-    "tan_required": {"label": "TAN-Freigabe für den automatischen Abruf nötig", "channels": ["push", "email"], "defaults": {"push": True, "email": True}},
-    "maturity": {"label": "Festgeld oder Zinsbindung läuft aus", "channels": ["push", "email"], "defaults": {"push": True, "email": True, "days": 30}},
+    "tan_required": {"label": "TAN-Freigabe für den automatischen Abruf nötig", "channels": ["push", "email"], "defaults": {"push": True, "email": False}},
+    "maturity": {"label": "Festgeld oder Zinsbindung läuft aus", "channels": ["push", "email"], "defaults": {"push": True, "email": False, "days": 30}},
     "value_change": {
         "label": "Große Veränderung des Nettovermögens",
         "channels": ["push", "email"],
         "defaults": {"push": False, "email": False, "period": "day", "percent": "3", "amount": ""},
     },
     "valuation_due": {"label": "Bewertung oder Kurs fällig", "channels": ["push", "email"], "defaults": {"push": True, "email": False, "months": 13}},
-    "monthly_report": {"label": "Monatsbericht", "channels": ["email"], "defaults": {"push": False, "email": True}},
+    "monthly_report": {"label": "Monatsbericht", "channels": ["email"], "defaults": {"push": False, "email": False}},
 }
 
 # Replaced in tests.

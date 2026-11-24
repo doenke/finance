@@ -103,7 +103,7 @@ def test_settings_subscribe_and_test_message(setup):
     client, box = setup
     state = client.get("/api/notifications").json()
     assert state["push_available"] and state["email_available"] and state["vapid_public_key"]
-    assert state["prefs"]["maturity"]["days"] == 30 and state["prefs"]["monthly_report"]["email"] is True
+    assert state["prefs"]["maturity"]["days"] == 30 and state["prefs"]["monthly_report"]["email"] is False and not any(p["email"] for p in state["prefs"].values())
     state = subscribe(client)
     assert state["devices"][0]["device"] == "Pixel"
     prefs = state["prefs"]
@@ -144,7 +144,7 @@ def test_daily_checks(setup):
     titles = [p["title"] for p in box.push]
     assert "Festgeld „Festgeld 1 Jahr“ endet am 04.12.2026" in titles
     assert "Neuer Wert für „HDI Privatrente“?" in titles
-    assert len(box.mail) == 1  # maturity also by mail by default, valuation reminder push only
+    assert box.mail == []  # e-mail is opt-in
     # nothing twice
     assert notify.run_daily(settings, make, today=today + timedelta(days=1)) == {"maturity": 0, "valuation_due": 0, "value_change": 0}
 
@@ -166,6 +166,8 @@ def test_value_change_and_report(setup):
     if (first_of_month - timedelta(days=5)) < today - timedelta(days=1):
         assert res["value_change"] == 1
         assert box.push[-1]["title"].startswith("Nettovermögen seit gestern +1.500,00 €")
+    assert notify.run_report(settings, make, today=today) == 0  # not opted in
+    client.put("/api/notifications/prefs", json={"monthly_report": {"email": True}}, headers=ORIGIN)
     sent = notify.run_report(settings, make, today=today)
     assert sent == 1
     to, subject, text = box.mail[-1]
@@ -189,7 +191,7 @@ def test_bank_failure_goes_to_login_owner(setup):
         notify.bank_job_failed(db, settings, lg, "Die Bank lehnt ab: 9078")
         assert db.scalar(__import__("sqlalchemy").select(__import__("sqlalchemy").func.count()).select_from(NotificationLog)) == 2
     assert [p["title"] for p in box.push] == ["DKB: TAN-Freigabe nötig", "DKB: Abruf fehlgeschlagen"]
-    assert len(box.mail) == 1  # TAN by mail too, bank error push only
+    assert box.mail == []  # push only unless e-mail is switched on
 
 
 def test_formatting():
