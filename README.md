@@ -162,6 +162,12 @@ Vergleichswert, etwa einen MSCI-World-ETF, und Finanzen legt dessen Verlauf
 daneben. Dieselbe Auswertung gibt es für jedes einzelne Konto und Depot, mit
 allen Zeiträumen von einem Monat bis „seit Beginn“.
 
+Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
+nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure
+Gesamtrendite zusammensetzt: Jede Anlage steuert ihren Gewinn in Euro und in
+Prozentpunkten bei, die Balken addieren sich zur Gesamtrendite des gewählten
+Zeitraums (Standard: ein Jahr).
+
 So rechnet Finanzen:
 
 - Käufe, Verkäufe, Beiträge und Einzahlungen sind Ein- und Auszahlungen und

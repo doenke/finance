@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth.session import current_user
 from ..db import get_db
-from ..services.performance import PERIODS, Scope, benchmark, net_worth, performance
+from ..services.performance import PERIODS, Scope, benchmark, breakdown, net_worth, performance
 
 router = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
 
@@ -29,6 +29,11 @@ def get_performance(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     return performance(db, Scope(account_id, asset_class, person_id), _period(period), to)
+
+
+@router.get("/performance/breakdown")
+def get_breakdown(period: str = "1Y", person_id: int | None = None, to: date | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
+    return breakdown(db, person_id, _period(period), to)
 
 
 @router.get("/networth")

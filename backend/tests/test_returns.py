@@ -113,3 +113,40 @@ def test_pension_contributions_between_statements(client):
     assert D(perf["end_value"]) == D("1300")
     assert D(perf["gain"]) == D("100")
     assert D(perf["ttwror"]) > 0
+
+
+def test_breakdown_contributions_add_up(client):
+    from datetime import date
+    from decimal import Decimal as Dec
+
+    from tests.conftest import login as do_login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    do_login(client)
+
+    def make(body):
+        res = client.post("/api/accounts", json=body, headers=origin)
+        assert res.status_code == 201, res.text
+        return res.json()["id"]
+
+    a = make({"name": "Rente", "kind": "altersvorsorge"})
+    b = make({"name": "Kunst", "kind": "sonstiges"})
+    late = make({"name": "Neu", "kind": "sonstiges"})
+    for acc, d, v in [(a, "2025-01-01", "10000"), (a, "2026-01-01", "11550"), (b, "2025-01-01", "5000"), (b, "2026-01-01", "4800"), (late, "2025-10-01", "1000"), (late, "2026-01-01", "1100")]:
+        assert client.post(f"/api/accounts/{acc}/valuations", json={"date": d, "value": v}, headers=origin).status_code in (200, 201)
+    client.post(f"/api/accounts/{a}/transactions", json={"booking_date": "2025-07-01", "amount": "1000", "kind": "contribution"}, headers=origin)
+    res = client.get("/api/performance/breakdown", params={"period": "1Y", "to": "2026-01-01"}).json()
+    items = {i["name"]: i for i in res["items"]}
+    assert Dec(items["Rente"]["gain"]) == Dec("550")
+    assert Dec(items["Kunst"]["gain"]) == Dec("-200")
+    assert Dec(items["Neu"]["gain"]) == Dec("100")
+    assert Dec(res["total"]["gain"]) == Dec("450")
+    total = Dec(res["total"]["simple_return"])
+    assert abs(sum(Dec(i["contribution"]) for i in res["items"]) - total) < Dec("1e-12")
+    assert abs(sum(Dec(i["weight"]) for i in res["items"]) - 1) < Dec("1e-12")
+    # average capital: start value plus flows weighted by the remaining part of the year
+    assert abs(Dec(items["Rente"]["avg_capital"]) - (Dec(10000) + Dec(1000) * Dec(184) / Dec(365))) < Dec("0.01")
+    assert abs(Dec(items["Neu"]["avg_capital"]) - Dec(1000) * Dec(92) / Dec(365)) < Dec("0.01")
+    # sorted by IRR, best first
+    assert [i["name"] for i in res["items"]][-1] == "Kunst"
+    assert client.get("/api/performance/breakdown", params={"period": "x"}).status_code == 422

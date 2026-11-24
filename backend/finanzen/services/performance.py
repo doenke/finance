@@ -228,3 +228,82 @@ def _result_dict(r: ReturnResult) -> dict:
         "irr": r.irr,
         "days": r.days,
     }
+
+
+def _avg_capital(agg: Aggregate, base: date, end: date) -> Decimal:
+    """Average invested capital over (base, end] (Modified Dietz): value at base plus time-weighted net flows.
+
+    Uses the same period length for every account, so the capitals of all accounts add up to the household's.
+    """
+    total_days = (end - base).days
+    if not agg.dates or total_days <= 0:
+        return ZERO
+    i = (base - agg.dates[0]).days
+    capital = agg.values[i] if i >= 0 else ZERO
+    for k in range(max(i + 1, 0), len(agg.dates)):
+        if agg.flows[k]:
+            capital += agg.flows[k] * Decimal((end - agg.dates[k]).days) / Decimal(total_days)
+    return capital
+
+
+def breakdown(db: Session, person_id: int | None, period: str = "1Y", end: date | None = None) -> dict:
+    """Return per account and each account's contribution to the total return of the period.
+
+    Gains add up exactly; contributions are gain / average capital of the whole household (Modified Dietz),
+    so they add up to the total simple return of the period.
+    """
+    end = end or date.today()
+    scope = Scope(person_id=person_id)
+    total = aggregate(db, scope, None, end)
+    if total.inception is None:
+        return {"from": None, "to": end, "total": None, "items": []}
+    base = period_start(period, end, total.inception)
+    items = []
+    for account in scope.accounts(db):
+        if scope.share(account) <= 0 or is_liability(account):
+            continue
+        agg = aggregate(db, Scope(account_id=account.id, person_id=person_id), None, end)
+        if not agg.dates or agg.dates[-1] < base:
+            continue
+        r = returns_for(agg, base)
+        capital = _avg_capital(agg, base, end)
+        if r.start_value == 0 and r.end_value == 0 and r.net_flows == 0:
+            continue
+        kind = kinds.KINDS.get(account.kind)
+        items.append(
+            {
+                "account_id": account.id,
+                "name": account.name,
+                "kind": account.kind,
+                "kind_label": kind.label if kind else account.kind,
+                "asset_class": account.asset_class,
+                "start_value": r.start_value,
+                "end_value": r.end_value,
+                "net_flows": r.net_flows,
+                "gain": r.gain,
+                "irr": r.irr,
+                "ttwror": r.ttwror,
+                "ttwror_pa": r.ttwror_pa,
+                "avg_capital": capital,
+            }
+        )
+    total_gain = sum((i["gain"] for i in items), ZERO)
+    total_capital = sum((i["avg_capital"] for i in items), ZERO)
+    for i in items:
+        i["contribution"] = i["gain"] / total_capital if total_capital > 0 else None
+        i["weight"] = i["avg_capital"] / total_capital if total_capital > 0 else None
+    items.sort(key=lambda i: (i["irr"] is None, -(i["irr"] or ZERO)))
+    overall = returns_for(total, base)
+    return {
+        "from": base,
+        "to": end,
+        "total": {
+            "gain": total_gain,
+            "avg_capital": total_capital,
+            "simple_return": total_gain / total_capital if total_capital > 0 else None,
+            "irr": overall.irr,
+            "ttwror": overall.ttwror,
+            "ttwror_pa": overall.ttwror_pa,
+        },
+        "items": items,
+    }

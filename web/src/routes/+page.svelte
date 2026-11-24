@@ -8,6 +8,7 @@
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
   import PerformanceCard from '#lib/PerformanceCard.svelte';
+  import ReturnBreakdown from '#lib/ReturnBreakdown.svelte';
   import PeriodPicker from '#lib/PeriodPicker.svelte';
   import PersonFilter from '#lib/PersonFilter.svelte';
   import { household, loadPersons } from '#lib/persons.svelte.ts';
@@ -134,6 +135,7 @@
     </div>
 
     <PerformanceCard title="Rendite eurer Anlagen" params={{ person_id: household.filter }} />
+    <ReturnBreakdown personId={household.filter} />
   {:else if !error}
     <p class="muted">Lädt …</p>
   {/if}
