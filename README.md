@@ -261,6 +261,12 @@ ebenso Gehalt und Spesen vom selben Arbeitgeber.
 Jeder Vorschlag kommt mit einer Kategorie; du übernimmst ihn, änderst Name
 oder Kategorie oder ignorierst ihn.
 
+Geld zwischen euren eigenen Konten gehört in die Kategorie **Umbuchungen**:
+Die zählt nirgends mit – weder als Einnahme noch als Ausgabe noch als
+Sparrate. Überweisungen an eine eigene IBAN oder an euren eigenen Namen
+schlägt Finanzen dort automatisch vor. Sparpläne, Riester und Co. stehen
+unter **Sparen & Anlegen** und zählen als Sparrate.
+
 Die Übersicht zeigt dann eure Fixkosten im Monat, die regelmäßigen
 Einnahmen, die Sparraten und was frei bleibt, die Kosten nach Kategorie und
 was in den nächsten 30 Tagen fällig ist. Finanzen markiert, wenn ein Betrag

@@ -16,7 +16,8 @@ from ..services import recurring as rec
 
 router = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
 ZERO = Decimal("0")
-CATEGORY_KINDS = ("expense", "income", "transfer")
+# transfer = savings (counted as savings rate); internal = between own accounts (not counted at all)
+CATEGORY_KINDS = ("expense", "income", "transfer", "internal")
 
 
 class CategoryIn(BaseModel):
@@ -139,6 +140,7 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     cats = {c.id: c for c in _categories(db)}
     accounts = {a.id: a.name for a in db.scalars(select(Account)).all()}
     ibans = rec.own_ibans(db)
+    names_own = rec.own_names(db)
 
     items = []
     for r in rules:
@@ -167,7 +169,7 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     for c in rec.detect(free, today):
         first = c.txs[-1]
         info = rec.describe(c.txs, c.interval, today)
-        category_id = rec.suggest_category(db, first.counterparty, first.purpose, c.direction, ibans)
+        category_id = rec.suggest_category(db, first.counterparty, first.purpose, c.direction, ibans, names_own)
         suggestions.append(
             {
                 "match_key": c.key,
@@ -190,6 +192,8 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     by_category: dict[str, Decimal] = {}
     for i in active:
         kind = i["category_kind"]
+        if kind == "internal":
+            continue  # transfers between own accounts are neither income, costs nor savings
         if i["direction"] == "in":
             summary["income"] += i["monthly"] if kind != "transfer" else ZERO
         elif kind == "transfer":
@@ -200,7 +204,7 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
             by_category[label] = by_category.get(label, ZERO) + i["monthly"]
     summary["free"] = summary["income"] - summary["costs"] - summary["savings"]
     upcoming = sorted(
-        ({"id": i["id"], "name": i["name"], "date": i["next_date"], "amount": i["amount"], "direction": i["direction"], "overdue": i["overdue"]} for i in active if i["next_date"] and i["next_date"] <= today + timedelta(days=30)),
+        ({"id": i["id"], "name": i["name"], "date": i["next_date"], "amount": i["amount"], "direction": i["direction"], "overdue": i["overdue"]} for i in active if i["next_date"] and i["next_date"] <= today + timedelta(days=30) and i["category_kind"] != "internal"),
         key=lambda u: u["date"],
     )
     items.sort(key=lambda i: (i["status"] != "active", i["direction"] == "in", -i["monthly"]))

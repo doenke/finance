@@ -85,7 +85,7 @@ def test_detection_suggestions_and_overview(client):
         "Slimstock": "Gehalt & Lohn",
         "DSL Bank": "Kredit & Finanzierung",
         "HUK-COBURG": "Versicherungen",
-        "Sönke Jacobs": "Sparen & Umbuchungen",
+        "Sönke Jacobs": "Umbuchungen",
         "Interest Payout Collection": "Zinsen & Dividenden",
     }
     for name, cat in expect.items():
@@ -107,7 +107,7 @@ def test_detection_suggestions_and_overview(client):
     summary = {k: D(v) for k, v in res["summary"].items()}
     yearly_huk = D("412.50") * rec.monthly_factor("yearly")
     assert summary["costs"] == (D("17.99") + D("10.99") + D("890.12") + yearly_huk.quantize(D("0.01")))
-    assert summary["savings"] == D("500.00")
+    assert summary["savings"] == D("0")  # the transfer to the own account is an internal transfer: not counted
     assert summary["income"] > D("3500")
     assert res["by_category"][0]["name"] == "Kredit & Finanzierung"
 
@@ -181,3 +181,30 @@ def test_salary_and_expenses_from_same_payer(client):
     txs = client.get(f"/api/recurring/{item['id']}/transactions").json()
     assert txs and all("Reisekosten" not in t["purpose"] for t in txs)  # expenses stay out
     assert len(txs) == 12  # the monthly salaries; the bonus has its own purpose and is no regular payment
+
+
+
+def test_internal_transfers_are_not_counted(client):
+    login(client, "Sönke Jacobs")
+    with client.app.state.sessionmaker() as db:
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        db.add(giro)
+        db.flush()
+        for d in months_back(6, 2):
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-971.95"), counterparty="Herr Sönke Jacobs", purpose="Sparen"))
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-301.50"), counterparty="DKB AG", purpose="Depot 0504 Wertp.Abrechn. Ihr Wertpapier-Sparplan"))
+        db.commit()
+        data = overview(db, TODAY)
+        cats = {c.id: (c.name, c.kind) for c in db.query(Category).all()}
+    sugg = {s["name"]: s for s in data["suggestions"]}
+    assert cats[sugg["Herr Sönke Jacobs"]["category_id"]] == ("Umbuchungen", "internal")  # own name
+    plan = next(s for s in data["suggestions"] if s["match_key"].startswith("dkb"))
+    assert cats[plan["category_id"]] == ("Sparen & Anlegen", "transfer")
+    for s in data["suggestions"]:
+        body = {k: (str(v) if isinstance(v, D) else v) for k, v in s.items() if k in ("match_key", "direction", "interval", "amount_min", "amount_max", "category_id", "name")}
+        assert client.post("/api/recurring", json=body, headers=ORIGIN).status_code == 201
+    res = client.get("/api/recurring").json()
+    assert D(res["summary"]["savings"]) == D("301.50") and D(res["summary"]["costs"]) == 0
+    assert all("Sönke" not in u["name"] for u in res["upcoming"])
+    kinds = {c["kind"] for c in client.get("/api/categories").json()}
+    assert "internal" in kinds

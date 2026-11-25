@@ -96,7 +96,8 @@ def suggest_name(counterparty: str, purpose: str, key: str) -> str:
 
 RULES: list[tuple[str, str, tuple[str, ...]]] = [
     # (category name, direction or "", keywords)
-    ("Sparen & Umbuchungen", "", ("sparplan", "trade republic", "scalable", "bauspar", "vermögenswirksam", "vermoegenswirksam", "vwl", "umbuchung", "übertrag", "uebertrag", "depot")),
+    ("Umbuchungen", "", ("umbuchung", "übertrag", "uebertrag", "kontoübertrag")),
+    ("Sparen & Anlegen", "", ("sparplan", "trade republic", "scalable", "bauspar", "vermögenswirksam", "vermoegenswirksam", "vwl", "depot")),
     ("Steuern & Gebühren", "out", ("kontoführ", "kontofuehr", "finanzamt", "kfz-steuer", "steuer", "gebühr", "gebuehr", "rundfunk", "beitragsservice")),
     ("Sonstige Einnahmen", "in", ("spesen", "reisekosten", "auslagen", "erstattung")),
     ("Gehalt & Lohn", "in", ("gehalt", "lohn", "bezüge", "bezuege", "salary", "besoldung")),
@@ -116,12 +117,21 @@ RULES: list[tuple[str, str, tuple[str, ...]]] = [
 ]
 
 
-def suggest_category(db: Session, counterparty: str, purpose: str, direction: str, own_ibans: set[str]) -> int | None:
+def own_names(db: Session) -> list[str]:
+    """Full names of the household's users (e.g. "Sönke Jacobs"): money to or from them is an internal transfer."""
+    from ..models import User
+
+    return [n.lower() for n in (u.name.strip() for u in db.scalars(select(User)).all()) if len(n.split()) >= 2]
+
+
+def suggest_category(db: Session, counterparty: str, purpose: str, direction: str, own_ibans: set[str], names_own: list[str] | None = None) -> int | None:
     text = f"{counterparty} {purpose}".lower()
     compact = re.sub(r"\s", "", text).upper()
-    names = {c.name: c.id for c in db.scalars(select(Category)).all()}
-    if any(iban in compact for iban in own_ibans):
-        return names.get("Sparen & Umbuchungen")
+    categories = db.scalars(select(Category)).all()
+    names = {c.name: c.id for c in categories}
+    internal = next((c.id for c in categories if c.kind == "internal"), None)
+    if any(iban in compact for iban in own_ibans) or any(n in (counterparty or "").lower() for n in (names_own or [])):
+        return internal or names.get("Sparen & Anlegen")
     for name, dirn, words in RULES:
         if dirn and dirn != direction:
             continue

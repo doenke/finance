@@ -29,7 +29,7 @@
     note: string;
     category_id: number | null;
     category: string | null;
-    category_kind: 'expense' | 'income' | 'transfer';
+    category_kind: 'expense' | 'income' | 'transfer' | 'internal';
   }
   interface Suggestion extends Info {
     match_key: string;
@@ -42,7 +42,7 @@
   interface Category {
     id: number;
     name: string;
-    kind: 'expense' | 'income' | 'transfer';
+    kind: 'expense' | 'income' | 'transfer' | 'internal';
   }
   interface Overview {
     summary: { income: string; costs: string; savings: string; free: string };
@@ -159,12 +159,12 @@
     }
   }
 
-  const kindLabel: Record<string, string> = { expense: 'Ausgaben', income: 'Einnahmen', transfer: 'Sparen & Umbuchungen' };
+  const kindLabel: Record<string, string> = { expense: 'Ausgaben', income: 'Einnahmen', transfer: 'Sparen & Anlegen', internal: 'Umbuchungen' };
   const active = $derived((data?.items ?? []).filter((i) => i.status === 'active'));
   const ended = $derived((data?.items ?? []).filter((i) => i.status !== 'active'));
   const groups = $derived.by(() => {
     const out: { title: string; items: Item[]; monthly: number }[] = [];
-    const expense = active.filter((i) => i.direction === 'out' && i.category_kind !== 'transfer');
+    const expense = active.filter((i) => i.direction === 'out' && i.category_kind !== 'transfer' && i.category_kind !== 'internal');
     const cats = [...new Set(expense.map((i) => i.category ?? 'Ohne Kategorie'))];
     for (const c of cats) {
       const items = expense.filter((i) => (i.category ?? 'Ohne Kategorie') === c);
@@ -173,13 +173,15 @@
     out.sort((a, b) => b.monthly - a.monthly);
     const savings = active.filter((i) => i.category_kind === 'transfer');
     if (savings.length) out.push({ title: kindLabel.transfer, items: savings, monthly: savings.reduce((s, i) => s + toNumber(i.monthly), 0) });
-    const income = active.filter((i) => i.direction === 'in' && i.category_kind !== 'transfer');
+    const income = active.filter((i) => i.direction === 'in' && i.category_kind !== 'transfer' && i.category_kind !== 'internal');
     if (income.length) out.push({ title: kindLabel.income, items: income, monthly: income.reduce((s, i) => s + toNumber(i.monthly), 0) });
     return out;
   });
+  const internal = $derived(active.filter((i) => i.category_kind === 'internal'));
+  let showInternal = $state(false);
   const catItems = $derived((data?.by_category ?? []).map((c) => ({ key: c.name, label: c.name, value: toNumber(c.monthly) })));
   const kindOf = (dir: string): Category['kind'] => (dir === 'in' ? 'income' : 'expense');
-  const categoriesFor = (dir: string) => (data?.categories ?? []).filter((c) => c.kind === kindOf(dir) || c.kind === 'transfer');
+  const categoriesFor = (dir: string) => (data?.categories ?? []).filter((c) => c.kind === kindOf(dir) || c.kind === 'transfer' || c.kind === 'internal');
 </script>
 
 <svelte:head><title>Verträge – Finanzen</title></svelte:head>
@@ -273,6 +275,21 @@
       </ul>
     </section>
   {/each}
+
+  {#if internal.length}
+    <section class="card stack">
+      <div class="row head">
+        <button class="link" onclick={() => (showInternal = !showInternal)}>{showInternal ? 'Umbuchungen ausblenden' : `${internal.length} Umbuchungen`}</button>
+        <span class="muted small">zählen nicht mit</span>
+      </div>
+      {#if showInternal}
+        <p class="muted small">Geld zwischen euren eigenen Konten – weder Einnahme noch Ausgabe noch Sparrate.</p>
+        <ul class="items">
+          {#each internal as i (i.id)}{@render row(i)}{/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
 
   {#if ended.length}
     <section class="card stack">
