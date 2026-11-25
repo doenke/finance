@@ -59,6 +59,11 @@ def test_monthly_cashflow_with_roles(client):
     phone = next(e for e in data["detail"]["expenses"] if e["name"] == "Telefon & Internet")
     assert sum(D(b["amount"]) for b in phone["bookings"]) == -D("58.98")  # the single bookings behind the sum
     assert all(b["account"] and str(b["date"]).startswith(data["month"]) for b in phone["bookings"])
+    every = data["detail"]["all"]
+    assert len(every) >= len(phone["bookings"]) + len(data["detail"]["income"])
+    assert any(b["counts_as"] == "Ausgabe" for b in every) and any(b["counts_as"].startswith("Gespart") for b in every)
+    assert all(not b["assignable"] for b in every if b["counts_as"] == "Gespart (zwischen Konten)")
+    assert [b["date"] for b in every] == sorted((b["date"] for b in every), reverse=True)
     route = next(e for e in data["detail"]["savings"] if e["name"] == "DKB Giro → DKB Tagesgeld")
     assert len(route["bookings"]) == 2
     assert {a["name"] for a in data["accounts"]} == {"Sparkasse Giro", "DKB Giro", "DKB Tagesgeld", "DKB Depot"}

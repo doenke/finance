@@ -9,6 +9,7 @@
     category_id: number | null;
     category_source: 'fixed' | 'rule' | 'keyword' | null;
     assignable: boolean;
+    counts_as?: string;
   }
   export interface CategoryOption {
     id: number;
@@ -26,8 +27,9 @@
   let {
     bookings,
     categories,
-    onchanged
-  }: { bookings: Booking[]; categories: CategoryOption[]; onchanged: () => Promise<void> | void } = $props();
+    onchanged,
+    showCountsAs = false
+  }: { bookings: Booking[]; categories: CategoryOption[]; onchanged: () => Promise<void> | void; showCountsAs?: boolean } = $props();
 
   const KIND_LABEL: Record<string, string> = { expense: 'Ausgaben', income: 'Einnahmen', transfer: 'Sparen & Anlegen', internal: 'Umbuchungen' };
   const SOURCE_HINT: Record<string, string> = { rule: 'per Regel', keyword: 'automatisch erkannt' };
@@ -62,7 +64,7 @@
           <td class="nowrap">{formatDate(b.date)}</td>
           <td class="r nowrap"><Money value={b.amount} /></td>
           <td>{b.counterparty || '–'}<div class="muted purpose">{b.purpose}</div></td>
-          <td class="muted">{b.account}</td>
+          <td class="muted">{b.account}{#if showCountsAs && b.counts_as}<div class="counts">{b.counts_as}</div>{/if}</td>
           <td class="cat">
             {#if b.assignable}
               <select
@@ -114,6 +116,9 @@
   .cat select {
     max-width: 220px;
     font-size: 0.85rem;
+  }
+  .counts {
+    font-size: 0.75rem;
   }
   .hint {
     font-size: 0.75rem;

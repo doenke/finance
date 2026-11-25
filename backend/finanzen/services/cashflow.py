@@ -122,6 +122,11 @@ def cashflow(
     previous: dict[str, dict[str, Decimal]] = {"income": defaultdict(lambda: ZERO), "expenses": defaultdict(lambda: ZERO), "savings": defaultdict(lambda: ZERO)}
 
     routed: set[int] = set()  # bookings counted by account pair – a category does not change them
+    month_all: list[tuple[rec.Tx, str]] = []  # single-month view: every booking with where it counts
+
+    def note(t: rec.Tx, m: str, where: str) -> None:
+        if detail_months is None and m in detail_set:
+            month_all.append((t, where))
 
     def add(section: str, label: str, amount: Decimal, t: rec.Tx, m: str) -> None:
         """Sum per label for the detail months and keep the single bookings behind it."""
@@ -147,23 +152,30 @@ def cashflow(
                 # net per pair of accounts, always seen from the everyday account
                 add("savings", f"{names[t.account_id]} → {names[other]}", -t.amount, t, m)
                 routed.add(t.id)
+                note(t, m, "Gespart (zwischen Konten)")
             else:
                 s["internal"] += abs(t.amount)
+                routed.add(t.id)
+                note(t, m, "Umbuchung zwischen Haushaltskonten")
             continue
         if cat is not None and cat.kind == "internal":
             s["internal"] += abs(t.amount)
+            note(t, m, "Umbuchung (zählt nicht)")
             continue
         if cat is not None and cat.kind == "transfer":
             s["savings"] -= t.amount
             add("savings", f"{cat.name}: {rec.suggest_name(t.counterparty, t.purpose, t.key or '')}", -t.amount, t, m)
+            note(t, m, "Gespart")
             continue
         label = cat.name if cat is not None else "Ohne Kategorie"
         if t.amount > 0:
             s["income"] += t.amount
             add("income", label, t.amount, t, m)
+            note(t, m, "Einnahme")
         else:
             s["expenses"] -= t.amount
             add("expenses", label, -t.amount, t, m)
+            note(t, m, "Ausgabe")
             if cat is None and m in detail_set:
                 detail["uncategorized"].append(t)
             if cat is None:
@@ -228,6 +240,8 @@ def cashflow(
             "expenses": sorted_items("expenses"),
             "savings": sorted_items("savings"),
             "uncategorized": [booking(t) for t in top_unknown],
+            # single-month view only: all bookings of the household accounts, newest first
+            "all": [booking(t) | {"counts_as": where} for t, where in sorted(month_all, key=lambda x: (x[0].date, x[0].id), reverse=True)],
         },
         "unknown_groups": sorted(unknown.values(), key=lambda g: g["total"], reverse=True)[:20],
         "accounts": [

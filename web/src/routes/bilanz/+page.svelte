@@ -38,6 +38,7 @@
       expenses: Entry[];
       savings: Entry[];
       uncategorized: Booking[];
+      all: Booking[];
     };
     accounts: FlowAccount[];
     unknown_groups: { pattern: string; count: number; total: string; example: string; purpose: string; last: string }[];
@@ -61,6 +62,24 @@
   const openEntry = $derived(opened && data ? (data.detail[opened.section].find((e) => e.name === opened!.name) ?? null) : null);
   const toggle = (section: Section, name: string) =>
     (opened = opened?.section === section && opened.name === name ? null : { section, name });
+  // all bookings of the month: filter by text and by where they count
+  let query = $state('');
+  let filter = $state('alle');
+  const FILTERS = [
+    { key: 'alle', label: 'Alle' },
+    { key: 'Ausgabe', label: 'Ausgaben' },
+    { key: 'Einnahme', label: 'Einnahmen' },
+    { key: 'Gespart', label: 'Gespart' },
+    { key: 'Umbuchung', label: 'Umbuchungen' },
+    { key: 'ohne', label: 'Ohne Kategorie' }
+  ];
+  const allBookings = $derived.by(() => {
+    const q = query.trim().toLowerCase();
+    return (data?.detail.all ?? []).filter((b) => {
+      if (filter === 'ohne' ? b.category_id !== null || !b.assignable : filter !== 'alle' && !b.counts_as?.startsWith(filter)) return false;
+      return !q || `${b.counterparty} ${b.purpose} ${b.account}`.toLowerCase().includes(q);
+    });
+  });
   const SECTION_LABEL: Record<Section, string> = { expenses: 'Ausgaben', savings: 'Gespart', income: 'Einnahmen' };
 
   async function load(month: string | null = selected) {
@@ -311,6 +330,24 @@
         </ul>
       {/if}
     </section>
+
+    <section class="card stack">
+      <div class="row head">
+        <h2>Alle Buchungen <span class="muted small">· {monthLabel(data.month, true)}</span></h2>
+        <input class="search" type="search" placeholder="Suchen …" aria-label="Buchungen durchsuchen" bind:value={query} />
+      </div>
+      <div class="filters" role="group" aria-label="Filter">
+        {#each FILTERS as f (f.key)}
+          <button class:active={filter === f.key} onclick={() => (filter = f.key)}>{f.label}</button>
+        {/each}
+      </div>
+      {#if allBookings.length}
+        <BookingTable bookings={allBookings} {categories} onchanged={() => load(selected)} showCountsAs />
+        <p class="muted small">{allBookings.length} von {data.detail.all.length} Buchungen der Haushaltskonten. Den Monat wählst du oben im Diagramm.</p>
+      {:else}
+        <p class="muted small">Keine passenden Buchungen.</p>
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -407,6 +444,30 @@
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+  .search {
+    max-width: 220px;
+  }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .filters button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .filters button.active {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    border-color: var(--accent);
+    font-weight: 600;
   }
   .entry {
     background: none;

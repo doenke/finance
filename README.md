@@ -287,7 +287,10 @@ Tagesgeld“). Ein Klick auf eine Kategorie, eine Einnahme oder ein Sparziel
 zeigt die einzelnen Buchungen dahinter – mit Empfänger, Verwendungszweck und
 Konto. Passt eine Kategorie nicht, wählst du direkt in der Zeile eine andere;
 das gilt nur für diese Buchung und schlägt Regeln und die automatische
-Erkennung. „Automatisch“ nimmt die Festlegung wieder zurück. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
+Erkennung. „Automatisch“ nimmt die Festlegung wieder zurück. Ganz unten stehen
+**alle Buchungen** des gewählten Monats – durchsuchbar, filterbar nach
+Ausgaben, Einnahmen, Gespartem, Umbuchungen oder „Ohne Kategorie“ und mit
+derselben Kategorie-Auswahl je Zeile. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
 Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
 Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester

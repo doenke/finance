@@ -298,6 +298,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Einzelbuchungen in der Monatsbilanz | Klick auf Kategorie, Einnahme oder Sparroute zeigt die Buchungen des gewählten Monats (Datum, Betrag, Empfänger, Verwendungszweck, Konto); die Auswahl bleibt beim Monatswechsel erhalten |
 | Kategorie je Buchung | In den Buchungslisten der Monatsbilanz lässt sich jede Buchung direkt einer Kategorie zuweisen (`PUT /api/transactions/{id}/category`); das schlägt Regeln und Stichwörter, „Automatisch“ setzt zurück. Umbuchungen zwischen eigenen Konten zählen über die Kontenrollen und bekommen keine Auswahl |
 | Jahresbilanz | Eigene Seite `/jahresbilanz` (Tab neben Monatsbilanz): Zeiträume „Seit Jahresbeginn“ (bis heute, Vergleich mit denselben Tagen im Vorjahr), „Letzte 12 Monate“ (zwölf abgeschlossene Monate), vergangene Kalenderjahre; Summen, Ø pro Monat, Vorjahresvergleich, Monatstabelle, Kategorien mit Einzelbuchungen. API `GET /api/cashflow/year?period=ytd|12m|JJJJ`. Monatsbilanz ohne Erklärtext oben; `?monat=JJJJ-MM` öffnet einen Monat |
+| Alle Buchungen des Monats | Unten in der Monatsbilanz: alle Buchungen der Haushaltskonten im gewählten Monat (neueste zuerst) mit „zählt als“ (Ausgabe, Einnahme, Gespart, Umbuchung), Suche, Filter und Kategorie-Auswahl je Buchung; API liefert sie als `detail.all` nur in der Monatsansicht |
 
 ## 9. Offene Fragen
 
