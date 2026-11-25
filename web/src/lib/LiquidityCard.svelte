@@ -18,6 +18,7 @@
   interface Item {
     account_id: number;
     name: string;
+    kind: string;
     kind_label: string;
     value: string;
     bucket: 'available' | 'bound' | 'liability';
@@ -41,7 +42,8 @@
   let { personId = null }: { personId?: number | null } = $props();
   let data = $state<Liquidity | null>(null);
   let open = $state<Record<number, boolean>>({});
-  const expandable = (i: Item) => (i.positions?.length ?? 0) > 0;
+  // STAK shares are a single holding: shown directly, not as an expandable depot
+  const expandable = (i: Item) => i.kind !== 'stak' && (i.positions?.length ?? 0) > 0;
 
   $effect(() => {
     const person = personId;

@@ -188,7 +188,8 @@ Passt die Einteilung bei einem Konto nicht, stellst du sie unter
 „Bearbeiten“ → Verfügbarkeit um. Jede Spalte trägt ihre Summe oben; darunter
 stehen die Schulden, was nach Abzug der Schulden verfügbar bliebe, und das
 Vermögen netto. Depots und Krypto klappst du auch hier auf
-und siehst jede Position mit Stückzahl, aktuellem Wert und Gewinn in Prozent.
+und siehst jede Position mit Stückzahl, aktuellem Wert und Gewinn in Prozent;
+STAK-Anteile stehen direkt als eine Zeile da.
 
 Unter **Anlagen** zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
 nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure
