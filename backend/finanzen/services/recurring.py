@@ -64,11 +64,27 @@ def match_key(counterparty: str, purpose: str) -> str:
 LEGAL_FORMS = re.compile(r"(?<!\w)(GmbH|mbH|AG|KG|SE|e\.\s?V\.?|eG|UG|Ltd\.?|Inc\.?|B\.\s?V\.?|S\.\s?A\.?|S\.a\.r\.l\.?|& Co\.?)(?!\w)", re.I)
 
 
+def purpose_key(counterparty: str, purpose: str) -> str | None:
+    """Payee plus the words of the purpose: separates e.g. salary and expenses from the same employer."""
+    cp = " ".join(_words(counterparty or "")[:5])
+    if not cp or any(p in cp for p in PROCESSORS):
+        return None
+    words = _words(purpose or "", min_len=3)[:3]
+    return f"{cp}|{' '.join(words)}"[:200] if words else None
+
+
 def suggest_name(counterparty: str, purpose: str, key: str) -> str:
     cp = (counterparty or "").strip()
     if cp and not any(p in cp.lower() for p in PROCESSORS):
-        cleaned = re.sub(r"\s{2,}", " ", LEGAL_FORMS.sub("", cp)).strip(" ,.-")
-        return cleaned[:120] or cp[:120]
+        cleaned = re.sub(r"\s{2,}", " ", LEGAL_FORMS.sub("", cp)).strip(" ,.-") or cp
+        if "|" in key:  # split by purpose: say which one (e.g. "Slimstock – Lohn Gehalt")
+            words: list[str] = []
+            for w in key.split("|", 1)[1].split():
+                if w not in words:
+                    words.append(w)
+            if words:
+                cleaned = f"{cleaned} – {' '.join(w.capitalize() for w in words)}"
+        return cleaned[:120]
     words: list[str] = []
     for w in key.split("|", 1)[-1].removeprefix("zweck:").split():
         if w not in words:
@@ -82,6 +98,7 @@ RULES: list[tuple[str, str, tuple[str, ...]]] = [
     # (category name, direction or "", keywords)
     ("Sparen & Umbuchungen", "", ("sparplan", "trade republic", "scalable", "bauspar", "vermögenswirksam", "vermoegenswirksam", "vwl", "umbuchung", "übertrag", "uebertrag", "depot")),
     ("Steuern & Gebühren", "out", ("kontoführ", "kontofuehr", "finanzamt", "kfz-steuer", "steuer", "gebühr", "gebuehr", "rundfunk", "beitragsservice")),
+    ("Sonstige Einnahmen", "in", ("spesen", "reisekosten", "auslagen", "erstattung")),
     ("Gehalt & Lohn", "in", ("gehalt", "lohn", "bezüge", "bezuege", "salary", "besoldung")),
     ("Kindergeld & Zuschüsse", "in", ("kindergeld", "familienkasse", "elterngeld", "zuschuss")),
     ("Zinsen & Dividenden", "in", ("zins", "interest", "dividende", "ausschüttung", "ausschuettung", "ertrag")),
@@ -126,6 +143,7 @@ class Tx:
     purpose: str
     key: str
     category_id: int | None = None
+    key2: str | None = None  # payee + purpose words, see purpose_key()
 
     @property
     def direction(self) -> str:
@@ -157,7 +175,7 @@ def load_transactions(db: Session, since: date) -> list[Tx]:
     for t in rows:
         key = match_key(t.counterparty or "", t.purpose or "")
         if key:
-            out.append(Tx(t.id, t.account_id, t.booking_date, t.amount, t.counterparty or "", t.purpose or "", key, t.category_id))
+            out.append(Tx(t.id, t.account_id, t.booking_date, t.amount, t.counterparty or "", t.purpose or "", key, t.category_id, purpose_key(t.counterparty or "", t.purpose or "")))
     return out
 
 
@@ -186,7 +204,8 @@ def classify_interval(dates: list[date]) -> str | None:
     for name, (base, tol, _) in INTERVALS.items():
         single = sum(1 for g in gaps if abs(g - base) <= tol)
         double = sum(1 for g in gaps if abs(g - 2 * base) <= tol * 1.5)
-        if single + double < len(gaps) or single == 0:
+        # one stray payment (e.g. a bonus) per six gaps is fine
+        if single + double < len(gaps) - len(gaps) // 6 or single == 0:
             continue
         need_occurrences = 2 if name in ("yearly", "halfyearly") else 3
         if len(dates) < need_occurrences or single < max(1, round(0.6 * len(gaps))):
@@ -229,7 +248,23 @@ def detect(txs: list[Tx], today: date) -> list[Candidate]:
             if _is_active(dates[-1], interval, today):
                 result.append(Candidate(key, direction, interval, items))
             continue
-        for cluster in _clusters(items):
+        # Mixed payee (salary and expenses from the employer, several contracts at one insurer): split by purpose.
+        by_purpose: dict[str, list[Tx]] = defaultdict(list)
+        for t in items:
+            if t.key2:
+                by_purpose[t.key2].append(t)
+        used: set[int] = set()
+        if len(by_purpose) >= 2:
+            for key2, sub in by_purpose.items():
+                sd = [t.date for t in sub]
+                if len(sub) < 2 or len(set(sd)) != len(sd):
+                    continue
+                interval = classify_interval(sd)
+                if interval and _is_active(sd[-1], interval, today):
+                    result.append(Candidate(key2, direction, interval, sub))
+                    used |= {t.id for t in sub}
+        rest = [t for t in items if t.id not in used]
+        for cluster in _clusters(rest):
             cd = [t.date for t in cluster]
             if len(set(cd)) != len(cd):
                 continue
@@ -245,7 +280,7 @@ def detect(txs: list[Tx], today: date) -> list[Candidate]:
 
 
 def matches(rule: RecurringPayment, t: Tx) -> bool:
-    if rule.match_key != t.key or rule.direction != t.direction:
+    if rule.direction != t.direction or rule.match_key not in (t.key, t.key2):
         return False
     a = abs(t.amount)
     if rule.amount_min is not None and a < rule.amount_min:

@@ -101,7 +101,8 @@ def delete_category(category_id: int, db: Session = Depends(get_db)) -> Response
 
 def _assign(rules: list[RecurringPayment], txs: list[rec.Tx]) -> tuple[dict[int, list[rec.Tx]], list[rec.Tx]]:
     # Rules with an amount range are more specific and win.
-    ordered = sorted(rules, key=lambda r: (r.amount_min is None, r.id))
+    # Specific rules win: with an amount range, then payee + purpose, then payee only.
+    ordered = sorted(rules, key=lambda r: (r.amount_min is None, "|" not in r.match_key, r.id))
     by_rule: dict[int, list[rec.Tx]] = {r.id: [] for r in rules}
     free: list[rec.Tx] = []
     for t in txs:

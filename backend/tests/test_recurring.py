@@ -150,3 +150,34 @@ def test_validation(client):
     assert client.post("/api/categories", json={"name": "X", "kind": "nope"}, headers=ORIGIN).status_code == 422
     empty = client.get("/api/recurring").json()
     assert empty["has_transactions"] is False and empty["items"] == []
+
+
+def test_salary_and_expenses_from_same_payer(client):
+    login(client)
+    rnd = random.Random(11)
+    with client.app.state.sessionmaker() as db:
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        db.add(giro)
+        db.flush()
+        for i, d in enumerate(months_back(12, 20)):
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D(str(4000 + rnd.randint(0, 300))), counterparty="Slimstock GmbH", purpose=f"LOHN / GEHALT {d:%m/%y}"))
+            if i in (1, 2, 6, 7, 10):  # irregular expenses, sometimes on the salary day
+                db.add(Transaction(account_id=giro.id, booking_date=d + timedelta(days=rnd.choice([0, 3, 9])), amount=D(str(rnd.randint(80, 900))), counterparty="Slimstock GmbH", purpose=f"Reisekosten {d:%m/%y}"))
+        # Christmas bonus as an extra payment
+        db.add(Transaction(account_id=giro.id, booking_date=date(2025, 12, 1), amount=D("2100"), counterparty="Slimstock GmbH", purpose="LOHN / GEHALT Sonderzahlung"))
+        db.commit()
+        data = overview(db, TODAY)
+        cats = {c.id: c.name for c in db.query(Category).all()}
+    salary = [s for s in data["suggestions"] if s["name"].startswith("Slimstock")]
+    assert len(salary) == 1, [s["name"] for s in data["suggestions"]]
+    s = salary[0]
+    assert s["name"] == "Slimstock – Lohn Gehalt" and s["interval"] == "monthly" and s["direction"] == "in"
+    assert cats[s["category_id"]] == "Gehalt & Lohn"
+    assert s["match_key"] == "slimstock|lohn gehalt"
+    body = {k: s[k] for k in ("match_key", "direction", "interval", "category_id")} | {"name": s["name"], "amount_min": None, "amount_max": None}
+    assert client.post("/api/recurring", json=body, headers=ORIGIN).status_code == 201
+    res = client.get("/api/recurring").json()
+    item = next(i for i in res["items"] if i["name"] == "Slimstock – Lohn Gehalt")
+    txs = client.get(f"/api/recurring/{item['id']}/transactions").json()
+    assert txs and all("Reisekosten" not in t["purpose"] for t in txs)  # expenses stay out
+    assert len(txs) == 12  # the monthly salaries; the bonus has its own purpose and is no regular payment

@@ -256,7 +256,8 @@ die Datei auf der Importseite aus.)
 Unter **Verträge** sucht Finanzen in euren Umsätzen nach Zahlungen, die
 regelmäßig wiederkommen – Miete, Strom, Versicherungen, Netflix, der Kredit,
 das Gehalt, die Sparrate. Es erkennt wöchentliche bis jährliche Zahlungen,
-auch wenn mal ein Monat fehlt, und trennt Abos, die über PayPal laufen.
+auch wenn mal ein Monat fehlt, und trennt Abos, die über PayPal laufen,
+ebenso Gehalt und Spesen vom selben Arbeitgeber.
 Jeder Vorschlag kommt mit einer Kategorie; du übernimmst ihn, änderst Name
 oder Kategorie oder ignorierst ihn.
 
