@@ -58,6 +58,7 @@
   const assets = $derived(data ? toNumber(data.available) + toNumber(data.bound) : 0);
   const shareOf = (v: string | undefined) => (assets > 0 && v !== undefined ? Math.max(0, toNumber(v)) / assets : 0);
   const bound = $derived((data?.items ?? []).filter((i) => i.bucket === 'bound'));
+  const debts = $derived((data?.items ?? []).filter((i) => i.bucket === 'liability'));
   const LIMIT = 5;
   const yearsUntil = (d: string) => {
     const years = (new Date(d).getTime() - Date.now()) / (365.25 * 864e5);
@@ -96,34 +97,6 @@
 {#if data && (available.length || bound.length)}
   <section class="card stack">
     <h2>Verfügbar und gebunden</h2>
-    <div class="tiles">
-      <div>
-        <span class="muted">Verfügbar</span>
-        <strong class="big"><Money value={data.available} cents={false} /></strong>
-        {#if share !== null}<span class="muted small">{Math.round(share * 100)} % des Vermögens</span>{/if}
-      </div>
-      <div>
-        <span class="muted"><i class="dot cur"></i>Haushaltskonten</span>
-        <strong><Money value={data.current} cents={false} /></strong>
-        <span class="muted small">sofort nutzbar</span>
-      </div>
-      <div>
-        <span class="muted"><i class="dot inv"></i>Angelegt</span>
-        <strong><Money value={data.invested} cents={false} /></strong>
-        <span class="muted small">Tagesgeld, Depots, Krypto</span>
-      </div>
-      <div>
-        <span class="muted"><i class="dot bound"></i>Gebunden</span>
-        <strong><Money value={data.bound} cents={false} /></strong>
-        {#if share !== null}<span class="muted small">{100 - Math.round(share * 100)} %</span>{/if}
-      </div>
-      {#if toNumber(data.liabilities) !== 0}
-        <div>
-          <span class="muted">Schulden</span>
-          <strong><Money value={data.liabilities} cents={false} /></strong>
-        </div>
-      {/if}
-    </div>
     {#if assets > 0}
       <div
         class="bar"
@@ -136,55 +109,95 @@
       </div>
     {/if}
 
-    <div class="lists">
-      {#each [{ title: 'Haushaltskonten', items: current }, { title: 'Angelegt', items: invested }] as col (col.title)}
+    <div class="groups">
+      <div class="group avail">
+        <div class="ghead">
+          <span class="glabel">Verfügbar</span>
+          <strong class="gsum"><Money value={data.available} cents={false} /></strong>
+          {#if share !== null}<span class="muted small">{Math.round(share * 100)} % des Vermögens</span>{/if}
+        </div>
+        <div class="cols">
+          {#each [{ title: 'Haushaltskonten', hint: 'sofort nutzbar', dot: 'cur', sum: data.current, items: current }, { title: 'Angelegt', hint: 'in wenigen Tagen', dot: 'inv', sum: data.invested, items: invested }] as col (col.title)}
+            <div>
+              <div class="chead">
+                <span class="ctitle"><i class="dot {col.dot}"></i>{col.title}</span>
+                <strong><Money value={col.sum} cents={false} /></strong>
+              </div>
+              <div class="muted small csub">{col.hint}</div>
+              <ul>
+                {#each showAll ? col.items : col.items.slice(0, LIMIT) as i (i.account_id)}
+                  <li>
+                    {#if expandable(i)}
+                      <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
+                        <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
+                        <span class="ellipsis">{i.name}</span>
+                        <span class="muted small count">{i.positions!.length}</span>
+                      </button>
+                    {:else}
+                      <a href="/konten/{i.account_id}" class="name" class:indent={col.items.some(expandable)}>{i.name}</a>
+                    {/if}
+                    <Money value={i.value} cents={false} colored={toNumber(i.value) < 0} />
+                  </li>
+                  {#if open[i.account_id] && i.positions}{@render positionList(i)}{/if}
+                {/each}
+                {#if !col.items.length}<li class="muted small">–</li>{/if}
+              </ul>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <div class="group bnd">
+        <div class="ghead">
+          <span class="glabel">Gebunden</span>
+          <strong class="gsum"><Money value={data.bound} cents={false} /></strong>
+          {#if share !== null}<span class="muted small">{100 - Math.round(share * 100)} % des Vermögens</span>{/if}
+        </div>
         <div>
-          <h3>{col.title}</h3>
+          <div class="chead">
+            <span class="ctitle"><i class="dot bound"></i>Frei ab</span>
+          </div>
+          <div class="muted small csub">Altersvorsorge, Festgeld, Beteiligungen</div>
           <ul>
-            {#each showAll ? col.items : col.items.slice(0, LIMIT) as i (i.account_id)}
+            {#each showAll ? bound : bound.slice(0, LIMIT) as i (i.account_id)}
               <li>
-                {#if expandable(i)}
-                  <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
-                    <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
-                    <span class="ellipsis">{i.name}</span>
-                    <span class="muted small count">{i.positions!.length}</span>
-                  </button>
-                {:else}
-                  <a href="/konten/{i.account_id}" class="name" class:indent={col.items.some(expandable)}>{i.name}</a>
-                {/if}
-                <Money value={i.value} cents={false} colored={toNumber(i.value) < 0} />
+                <span class="name" class:indent={!expandable(i) && bound.some(expandable)}>
+                  {#if expandable(i)}
+                    <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
+                      <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
+                      <span class="ellipsis">{i.name}</span>
+                    </button>
+                  {:else}
+                    <a href="/konten/{i.account_id}">{i.name}</a>
+                  {/if}
+                  <span class="muted small" class:indent={expandable(i)}>
+                    {#if i.free_from}{formatDate(i.free_from)} · {yearsUntil(i.free_from)}{i.free_reason && i.free_reason !== 'frei ab' ? ` (${i.free_reason})` : ''}{:else}{i.kind_label}{/if}
+                  </span>
+                </span>
+                <Money value={i.value} cents={false} />
               </li>
               {#if open[i.account_id] && i.positions}{@render positionList(i)}{/if}
             {/each}
-            {#if !col.items.length}<li class="muted small">–</li>{/if}
+            {#if !bound.length}<li class="muted small">–</li>{/if}
           </ul>
         </div>
-      {/each}
-      <div>
-        <h3>Gebunden <span class="muted small">– frei ab</span></h3>
-        <ul>
-          {#each showAll ? bound : bound.slice(0, LIMIT) as i (i.account_id)}
-            <li>
-              <span class="name" class:indent={!expandable(i) && bound.some(expandable)}>
-                {#if expandable(i)}
-                  <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
-                    <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
-                    <span class="ellipsis">{i.name}</span>
-                  </button>
-                {:else}
-                  <a href="/konten/{i.account_id}">{i.name}</a>
-                {/if}
-                <span class="muted small" class:indent={expandable(i)}>
-                  {#if i.free_from}{formatDate(i.free_from)} · {yearsUntil(i.free_from)}{i.free_reason && i.free_reason !== 'frei ab' ? ` (${i.free_reason})` : ''}{:else}{i.kind_label}{/if}
-                </span>
-              </span>
-              <Money value={i.value} cents={false} />
-            </li>
-            {#if open[i.account_id] && i.positions}{@render positionList(i)}{/if}
-          {/each}
-        </ul>
       </div>
     </div>
+
+    {#if debts.length}
+      <div class="debts">
+        <div class="dline">
+          <span class="glabel">Schulden</span>
+          {#each debts as d (d.account_id)}
+            <a href="/konten/{d.account_id}" class="debt">{d.name} <Money value={d.value} cents={false} /></a>
+          {/each}
+        </div>
+        <div class="dline net">
+          <span>Verfügbar nach Schulden <strong><Money value={toNumber(data.available) + toNumber(data.liabilities)} cents={false} colored /></strong></span>
+          <span>Vermögen netto <strong><Money value={data.net} cents={false} /></strong></span>
+        </div>
+      </div>
+    {/if}
     {#if current.length > LIMIT || invested.length > LIMIT || bound.length > LIMIT}
       <button class="link small" onclick={() => (showAll = !showAll)}>{showAll ? 'Weniger anzeigen' : 'Alle anzeigen'}</button>
     {/if}
@@ -197,36 +210,14 @@
 {/if}
 
 <style>
-  h2,
-  h3 {
+  h2 {
     margin: 0;
-  }
-  h3 {
-    font-size: 0.95rem;
-    margin-bottom: 4px;
   }
   .small {
     font-size: 0.8rem;
   }
   p.small {
     margin: 0;
-  }
-  .tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-    gap: 16px;
-    align-items: end;
-  }
-  .tiles div {
-    display: grid;
-  }
-  .tiles strong {
-    font-size: 1.15rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .tiles .big {
-    font-size: 1.8rem;
-    line-height: 1.1;
   }
   .bar {
     display: flex;
@@ -264,10 +255,89 @@
   .dot.bound {
     background: var(--series-1);
   }
-  .lists {
+  /* Verfügbar (two columns) and Gebunden (one column), each headed by its sum */
+  .groups {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    grid-template-columns: 2fr 1fr;
     gap: 16px 24px;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+  }
+  .ghead {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    border-bottom: 2px solid var(--muted);
+  }
+  .avail .ghead {
+    border-image: linear-gradient(90deg, var(--series-3), var(--series-4)) 1;
+  }
+  .bnd .ghead {
+    border-bottom-color: var(--series-1);
+  }
+  .glabel {
+    font-weight: 600;
+  }
+  .gsum {
+    font-size: 1.5rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .chead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .ctitle {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  .chead strong {
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .csub {
+    margin-bottom: 4px;
+  }
+  .debts {
+    display: grid;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .dline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 20px;
+  }
+  .debt {
+    white-space: nowrap;
+  }
+  .net {
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .net strong {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 900px) {
+    .groups {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 560px) {
+    .cols {
+      grid-template-columns: 1fr;
+    }
   }
   ul {
     list-style: none;
