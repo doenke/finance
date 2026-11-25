@@ -101,7 +101,13 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
     stats = {m: {"income": ZERO, "expenses": ZERO, "savings": ZERO, "internal": ZERO} for m in month_keys}
     # default: the last complete month (the current one usually lacks the salary yet)
     detail_month = month if month in stats else (month_keys[-2] if len(month_keys) > 1 else month_keys[-1])
-    detail = {"income": defaultdict(lambda: ZERO), "expenses": defaultdict(lambda: ZERO), "savings": defaultdict(lambda: ZERO), "uncategorized": []}
+    detail = {"income": {}, "expenses": {}, "savings": {}, "uncategorized": []}
+
+    def add(section: str, label: str, amount: Decimal, t: rec.Tx) -> None:
+        """Sum per label for the detail month and keep the single bookings behind it."""
+        e = detail[section].setdefault(label, {"amount": ZERO, "bookings": []})
+        e["amount"] += amount
+        e["bookings"].append(t)
 
     for t in txs:
         m = _month(t.date)
@@ -116,7 +122,7 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
                 s["savings"] -= t.amount  # out = saved, in = taken from savings
                 if m == detail_month:
                     # net per pair of accounts, always seen from the everyday account
-                    detail["savings"][f"{names[t.account_id]} → {names[other]}"] -= t.amount
+                    add("savings", f"{names[t.account_id]} → {names[other]}", -t.amount, t)
             else:
                 s["internal"] += abs(t.amount)
             continue
@@ -126,17 +132,17 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
         if cat is not None and cat.kind == "transfer":
             s["savings"] -= t.amount
             if m == detail_month:
-                detail["savings"][f"{cat.name}: {rec.suggest_name(t.counterparty, t.purpose, t.key or '')}"] -= t.amount
+                add("savings", f"{cat.name}: {rec.suggest_name(t.counterparty, t.purpose, t.key or '')}", -t.amount, t)
             continue
         label = cat.name if cat is not None else "Ohne Kategorie"
         if t.amount > 0:
             s["income"] += t.amount
             if m == detail_month:
-                detail["income"][label] += t.amount
+                add("income", label, t.amount, t)
         else:
             s["expenses"] -= t.amount
             if m == detail_month:
-                detail["expenses"][label] -= t.amount
+                add("expenses", label, -t.amount, t)
                 if cat is None:
                     detail["uncategorized"].append(t)
             if cat is None:
@@ -162,8 +168,15 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             }
         )
 
+    def booking(t: rec.Tx) -> dict:
+        return {"id": t.id, "date": t.date, "amount": t.amount, "counterparty": t.counterparty, "purpose": t.purpose[:200], "account": names[t.account_id]}
+
     def sorted_items(d: dict) -> list[dict]:
-        return [{"name": k, "amount": v} for k, v in sorted(d.items(), key=lambda kv: kv[1], reverse=True) if v != 0]
+        return [
+            {"name": k, "amount": v["amount"], "bookings": [booking(t) for t in sorted(v["bookings"], key=lambda t: (t.amount, t.date))]}
+            for k, v in sorted(d.items(), key=lambda kv: kv[1]["amount"], reverse=True)
+            if v["amount"] != 0
+        ]
 
     top_unknown = sorted(detail["uncategorized"], key=lambda t: t.amount)[:10]
     return {
@@ -173,7 +186,7 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             "income": sorted_items(detail["income"]),
             "expenses": sorted_items(detail["expenses"]),
             "savings": sorted_items(detail["savings"]),
-            "uncategorized": [{"date": t.date, "amount": t.amount, "counterparty": t.counterparty, "purpose": t.purpose[:120], "account": names[t.account_id]} for t in top_unknown],
+            "uncategorized": [booking(t) for t in top_unknown],
         },
         "unknown_groups": sorted(unknown.values(), key=lambda g: g["total"], reverse=True)[:20],
         "accounts": [

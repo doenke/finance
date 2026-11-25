@@ -4,23 +4,40 @@
     items,
     format,
     total = null,
-    money = false
-  }: { items: { key: string; label: string; value: number; color?: string }[]; format: (v: number) => string; total?: number | null; money?: boolean } = $props();
+    money = false,
+    selected = null,
+    onselect
+  }: {
+    items: { key: string; label: string; value: number; color?: string }[];
+    format: (v: number) => string;
+    total?: number | null;
+    money?: boolean;
+    selected?: string | null;
+    onselect?: (key: string) => void;
+  } = $props();
   const max = $derived(Math.max(...items.map((i) => Math.abs(i.value)), 1));
   const sum = $derived(total ?? items.reduce((s, i) => s + Math.max(i.value, 0), 0));
   let hover = $state<string | null>(null);
 </script>
 
+{#snippet bar(item: { key: string; label: string; value: number; color?: string })}
+  <div class="row">
+    <span class="label">{item.label}</span>
+    <span class="value"><span class:money>{format(item.value)}</span>{#if sum > 0 && item.value > 0}<span class="pct"> · {Math.round((item.value / sum) * 100)} %</span>{/if}</span>
+  </div>
+  <div class="track">
+    <div class="bar" style:width="{(Math.abs(item.value) / max) * 100}%" style:background={item.color ?? 'var(--bar)'}></div>
+  </div>
+{/snippet}
+
 <ul class="bars">
   {#each items as item (item.key)}
-    <li onpointerenter={() => (hover = item.key)} onpointerleave={() => (hover = null)} class:active={hover === item.key}>
-      <div class="row">
-        <span class="label">{item.label}</span>
-        <span class="value"><span class:money>{format(item.value)}</span>{#if sum > 0 && item.value > 0}<span class="pct"> · {Math.round((item.value / sum) * 100)} %</span>{/if}</span>
-      </div>
-      <div class="track">
-        <div class="bar" style:width="{(Math.abs(item.value) / max) * 100}%" style:background={item.color ?? 'var(--bar)'}></div>
-      </div>
+    <li onpointerenter={() => (hover = item.key)} onpointerleave={() => (hover = null)} class:active={hover === item.key} class:selected={selected === item.key}>
+      {#if onselect}
+        <button class="hit" aria-pressed={selected === item.key} onclick={() => onselect(item.key)}>{@render bar(item)}</button>
+      {:else}
+        {@render bar(item)}
+      {/if}
     </li>
   {/each}
 </ul>
@@ -62,5 +79,23 @@
   }
   li.active .bar {
     filter: brightness(1.1);
+  }
+  .hit {
+    display: block;
+    width: 100%;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .hit:hover .label,
+  li.selected .label {
+    text-decoration: underline;
+  }
+  li.selected .label {
+    font-weight: 600;
   }
 </style>

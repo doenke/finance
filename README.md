@@ -282,7 +282,9 @@ findet Finanzen auch die jährlichen Zahlungen.
 echten Buchungen, was jeden Monat reinkam, rausging und gespart wurde – als
 Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
 Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB
-Tagesgeld“). Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
+Tagesgeld“). Ein Klick auf eine Kategorie, eine Einnahme oder ein Sparziel
+zeigt die einzelnen Buchungen dahinter – mit Empfänger, Verwendungszweck und
+Konto. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
 Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
 Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester

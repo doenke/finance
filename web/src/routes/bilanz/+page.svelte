@@ -19,13 +19,23 @@
   interface Entry {
     name: string;
     amount: string;
+    bookings: Booking[];
   }
+  type Section = 'expenses' | 'savings' | 'income';
   interface FlowAccount {
     id: number;
     name: string;
     kind: string;
     role: 'spending' | 'saving';
     automatic: boolean;
+  }
+  interface Booking {
+    id: number;
+    date: string;
+    amount: string;
+    counterparty: string;
+    purpose: string;
+    account: string;
   }
   interface Cashflow {
     months: MonthRow[];
@@ -34,7 +44,7 @@
       income: Entry[];
       expenses: Entry[];
       savings: Entry[];
-      uncategorized: { date: string; amount: string; counterparty: string; purpose: string; account: string }[];
+      uncategorized: Booking[];
     };
     accounts: FlowAccount[];
     unknown_groups: { pattern: string; count: number; total: string; example: string; purpose: string; last: string }[];
@@ -58,6 +68,12 @@
   let showRules = $state(false);
   let selected = $state<string | null>(null);
   let error = $state('');
+  // category (or savings route) whose single bookings are shown; kept by name when the month changes
+  let opened = $state<{ section: Section; name: string } | null>(null);
+  const openEntry = $derived(opened && data ? (data.detail[opened.section].find((e) => e.name === opened!.name) ?? null) : null);
+  const toggle = (section: Section, name: string) =>
+    (opened = opened?.section === section && opened.name === name ? null : { section, name });
+  const SECTION_LABEL: Record<Section, string> = { expenses: 'Ausgaben', savings: 'Gespart', income: 'Einnahmen' };
 
   async function load(month: string | null = selected) {
     try {
@@ -198,26 +214,71 @@
           <div>
             <h3>Ausgaben nach Kategorie</h3>
             {#if data.detail.expenses.length}
-              <BarList items={data.detail.expenses.map((e) => ({ key: e.name, label: e.name, value: toNumber(e.amount) }))} format={eur} money />
+              <BarList
+                items={data.detail.expenses.map((e) => ({ key: e.name, label: e.name, value: toNumber(e.amount) }))}
+                format={eur}
+                money
+                selected={opened?.section === 'expenses' ? opened.name : null}
+                onselect={(k) => toggle('expenses', k)}
+              />
             {:else}<p class="muted small">Keine Ausgaben.</p>{/if}
           </div>
           <div class="stack">
             <div>
               <h3>Gespart</h3>
               <ul class="list">
-                {#each data.detail.savings as s (s.name)}<li><span>{s.name}</span><Money value={s.amount} cents={false} colored /></li>{/each}
+                {#each data.detail.savings as s (s.name)}
+                  <li>
+                    <button class="entry" class:on={opened?.section === 'savings' && opened.name === s.name} onclick={() => toggle('savings', s.name)}>{s.name}</button>
+                    <Money value={s.amount} cents={false} colored />
+                  </li>
+                {/each}
                 {#if !data.detail.savings.length}<li class="muted">Nichts gespart.</li>{/if}
               </ul>
             </div>
             <div>
               <h3>Einnahmen</h3>
               <ul class="list">
-                {#each data.detail.income as s (s.name)}<li><span>{s.name}</span><Money value={s.amount} cents={false} /></li>{/each}
+                {#each data.detail.income as s (s.name)}
+                  <li>
+                    <button class="entry" class:on={opened?.section === 'income' && opened.name === s.name} onclick={() => toggle('income', s.name)}>{s.name}</button>
+                    <Money value={s.amount} cents={false} />
+                  </li>
+                {/each}
                 {#if !data.detail.income.length}<li class="muted">Keine Einnahmen.</li>{/if}
               </ul>
             </div>
           </div>
         </div>
+        {#if opened}
+          <div class="bookings stack">
+            <div class="row head">
+              <h3>
+                {opened.name} <span class="muted small">· {SECTION_LABEL[opened.section]} {monthLabel(data.month, true)}</span>
+              </h3>
+              <button class="link small" onclick={() => (opened = null)}>Schließen</button>
+            </div>
+            {#if openEntry}
+              <div class="table-wrap">
+                <table class="small">
+                  <tbody>
+                    {#each openEntry.bookings as b, i (`${b.id}-${i}`)}
+                      <tr>
+                        <td class="nowrap">{formatDate(b.date)}</td>
+                        <td class="r nowrap"><Money value={b.amount} /></td>
+                        <td>{b.counterparty || '–'}<div class="muted purpose-cell">{b.purpose}</div></td>
+                        <td class="muted">{b.account}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+              <p class="muted small">{openEntry.bookings.length} Buchung{openEntry.bookings.length === 1 ? '' : 'en'} · Summe <Money value={openEntry.amount} /></p>
+            {:else}
+              <p class="muted small">In diesem Monat keine Buchungen.</p>
+            {/if}
+          </div>
+        {/if}
         {#if data.detail.uncategorized.length}
           <details>
             <summary class="small">Größte Ausgaben ohne Kategorie</summary>
@@ -389,6 +450,32 @@
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+  .entry {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .entry:hover,
+  .entry.on {
+    text-decoration: underline;
+  }
+  .entry.on {
+    font-weight: 600;
+  }
+  .bookings {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .bookings h3 {
+    margin: 0;
+  }
+  .nowrap {
+    white-space: nowrap;
   }
   .list li {
     display: flex;

@@ -295,6 +295,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Kategorie-Regeln | Tabelle `category_rules` (Muster als Teilzeichenkette, Feld any/Empfänger/Zweck, Richtung, optional Konto, Kategorie). Reihenfolge: Kategorie aus „Verträge“ > eigene Regel (sort, längeres Muster zuerst) > eingebaute Stichwörter (u. a. neue Kategorien Lebensmittel & Drogerie, Restaurant & Lieferdienst, Einkaufen, Bargeld). Regeln wirken beim Auswerten, nicht gespeichert an der Buchung. Monatsbilanz zeigt die häufigsten Ausgaben ohne Kategorie mit Regel-Editor und Vorschau |
 | Haushaltskonten | Kontenrollen heißen Haushaltskonto/Sparkonto und werden auf der Kontenseite eingestellt; „Verfügbar“ in der Übersicht teilt sich in Haushaltskonten und Angelegt |
 | Positionen in der Übersicht | Depots, Krypto (alle Konten mit Positionen) lassen sich in „Verfügbar und gebunden“ aufklappen: Stückzahl, Wert, Gewinn in % je Position |
+| Einzelbuchungen in der Monatsbilanz | Klick auf Kategorie, Einnahme oder Sparroute zeigt die Buchungen des gewählten Monats (Datum, Betrag, Empfänger, Verwendungszweck, Konto); die Auswahl bleibt beim Monatswechsel erhalten |
 
 ## 9. Offene Fragen
 
