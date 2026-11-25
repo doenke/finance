@@ -296,6 +296,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Haushaltskonten | Kontenrollen heißen Haushaltskonto/Sparkonto und werden auf der Kontenseite eingestellt; „Verfügbar“ in der Übersicht teilt sich in Haushaltskonten und Angelegt |
 | Positionen in der Übersicht | Depots, Krypto (alle Konten mit Positionen) lassen sich in „Verfügbar und gebunden“ aufklappen: Stückzahl, Wert, Gewinn in % je Position |
 | Einzelbuchungen in der Monatsbilanz | Klick auf Kategorie, Einnahme oder Sparroute zeigt die Buchungen des gewählten Monats (Datum, Betrag, Empfänger, Verwendungszweck, Konto); die Auswahl bleibt beim Monatswechsel erhalten |
+| Kategorie je Buchung | In den Buchungslisten der Monatsbilanz lässt sich jede Buchung direkt einer Kategorie zuweisen (`PUT /api/transactions/{id}/category`); das schlägt Regeln und Stichwörter, „Automatisch“ setzt zurück. Umbuchungen zwischen eigenen Konten zählen über die Kontenrollen und bekommen keine Auswahl |
 
 ## 9. Offene Fragen
 

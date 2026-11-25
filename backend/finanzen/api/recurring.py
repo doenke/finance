@@ -227,6 +227,23 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     }
 
 
+class TransactionCategoryIn(BaseModel):
+    category_id: int | None = None  # None: back to automatic (Verträge, rules, keywords)
+
+
+@router.put("/transactions/{transaction_id}/category")
+def set_transaction_category(transaction_id: int, data: TransactionCategoryIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Assigns a single booking to a category; this wins over rules and keywords."""
+    t = db.get(Transaction, transaction_id)
+    if t is None:
+        raise HTTPException(404, "Buchung nicht gefunden")
+    if data.category_id is not None and db.get(Category, data.category_id) is None:
+        raise HTTPException(422, "Unbekannte Kategorie")
+    t.category_id = data.category_id
+    db.commit()
+    return {"id": t.id, "category_id": t.category_id}
+
+
 class RuleIn(BaseModel):
     pattern: str = Field(min_length=2, max_length=120)
     field: str = "any"

@@ -123,6 +123,23 @@ def test_category_rules(client):
     assert len(client.get("/api/category-rules").json()) == 1
 
 
+    # a single booking assigned by hand beats rules and keywords; null goes back to automatic
+    with client.app.state.sessionmaker() as db:
+        data = cashflow(db, months=1, month="2026-10", end=date(2026, 10, 31))
+    food = next(e for e in data["detail"]["expenses"] if e["name"] == "Lebensmittel & Drogerie")
+    b = food["bookings"][0]
+    assert b["category_source"] == "keyword" and b["assignable"] is True
+    res = client.put(f"/api/transactions/{b['id']}/category", json={"category_id": cats["Bargeld"]}, headers=ORIGIN)
+    assert res.status_code == 200
+    with client.app.state.sessionmaker() as db:
+        data = cashflow(db, months=1, month="2026-10", end=date(2026, 10, 31))
+    cash = next(e for e in data["detail"]["expenses"] if e["name"] == "Bargeld")
+    assert cash["bookings"][0]["id"] == b["id"] and cash["bookings"][0]["category_source"] == "fixed"
+    assert client.put(f"/api/transactions/{b['id']}/category", json={"category_id": None}, headers=ORIGIN).json()["category_id"] is None
+    assert client.put(f"/api/transactions/{b['id']}/category", json={"category_id": 99999}, headers=ORIGIN).status_code == 422
+    assert client.put("/api/transactions/99999/category", json={"category_id": None}, headers=ORIGIN).status_code == 404
+
+
 def test_mcp_category_tools(client):
     from finanzen.mcp.server import t_create_category, t_create_category_rule, t_list_categories, t_set_recurring_category
     from finanzen.models import RecurringPayment

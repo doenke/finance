@@ -36,6 +36,9 @@
     counterparty: string;
     purpose: string;
     account: string;
+    category_id: number | null;
+    category_source: 'fixed' | 'rule' | 'keyword' | null;
+    assignable: boolean;
   }
   interface Cashflow {
     months: MonthRow[];
@@ -73,6 +76,25 @@
   const openEntry = $derived(opened && data ? (data.detail[opened.section].find((e) => e.name === opened!.name) ?? null) : null);
   const toggle = (section: Section, name: string) =>
     (opened = opened?.section === section && opened.name === name ? null : { section, name });
+  const KIND_LABEL: Record<string, string> = { expense: 'Ausgaben', income: 'Einnahmen', transfer: 'Sparen & Anlegen', internal: 'Umbuchungen' };
+  const categoryGroups = $derived(
+    Object.entries(KIND_LABEL)
+      .map(([kind, label]) => ({ label, items: categories.filter((c) => c.kind === kind) }))
+      .filter((g) => g.items.length)
+  );
+  let saving = $state<number | null>(null);
+  async function assign(b: Booking, value: string) {
+    saving = b.id;
+    try {
+      await api.put(`/api/transactions/${b.id}/category`, { category_id: value === '' ? null : Number(value) });
+      await load(selected);
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      saving = null;
+    }
+  }
+  const SOURCE_HINT: Record<string, string> = { rule: 'per Regel', keyword: 'automatisch erkannt' };
   const SECTION_LABEL: Record<Section, string> = { expenses: 'Ausgaben', savings: 'Gespart', income: 'Einnahmen' };
 
   async function load(month: string | null = selected) {
@@ -148,6 +170,29 @@
   const groupW = $derived((W - pad.l - pad.r) / Math.max(1, data?.months.length ?? 1));
   const barW = $derived(Math.max(3, Math.min(16, (groupW - 10) / 3 - 2)));
 </script>
+
+{#snippet categoryCell(b: Booking)}
+  <td class="cat">
+    {#if b.assignable}
+      <select
+        aria-label="Kategorie für {b.counterparty || b.purpose}"
+        value={b.category_source === 'fixed' ? String(b.category_id) : ''}
+        disabled={saving === b.id}
+        onchange={(e) => assign(b, (e.currentTarget as HTMLSelectElement).value)}
+      >
+        <option value="">Automatisch{b.category_source && b.category_source !== 'fixed' ? ` (${categories.find((c) => c.id === b.category_id)?.name ?? '?'})` : ''}</option>
+        {#each categoryGroups as g (g.label)}
+          <optgroup label={g.label}>
+            {#each g.items as c (c.id)}<option value={String(c.id)}>{c.name}</option>{/each}
+          </optgroup>
+        {/each}
+      </select>
+      {#if b.category_source && b.category_source !== 'fixed'}<div class="muted hint">{SOURCE_HINT[b.category_source] ?? ''}</div>{/if}
+    {:else}
+      <span class="muted" title="Zählt über die Kontenrollen, nicht über die Kategorie">Umbuchung zwischen Konten</span>
+    {/if}
+  </td>
+{/snippet}
 
 <svelte:head><title>Monatsbilanz – Finanzen</title></svelte:head>
 
@@ -268,6 +313,7 @@
                         <td class="r nowrap"><Money value={b.amount} /></td>
                         <td>{b.counterparty || '–'}<div class="muted purpose-cell">{b.purpose}</div></td>
                         <td class="muted">{b.account}</td>
+                        {@render categoryCell(b)}
                       </tr>
                     {/each}
                   </tbody>
@@ -291,6 +337,7 @@
                       <td class="r"><Money value={u.amount} /></td>
                       <td>{u.counterparty}<div class="muted purpose-cell">{u.purpose}</div></td>
                       <td class="muted">{u.account}</td>
+                      {@render categoryCell(u)}
                     </tr>
                   {/each}
                 </tbody>
@@ -473,6 +520,13 @@
   }
   .bookings h3 {
     margin: 0;
+  }
+  .cat select {
+    max-width: 220px;
+    font-size: 0.85rem;
+  }
+  .hint {
+    font-size: 0.75rem;
   }
   .nowrap {
     white-space: nowrap;

@@ -284,7 +284,9 @@ Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
 Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB
 Tagesgeld“). Ein Klick auf eine Kategorie, eine Einnahme oder ein Sparziel
 zeigt die einzelnen Buchungen dahinter – mit Empfänger, Verwendungszweck und
-Konto. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
+Konto. Passt eine Kategorie nicht, wählst du direkt in der Zeile eine andere;
+das gilt nur für diese Buchung und schlägt Regeln und die automatische
+Erkennung. „Automatisch“ nimmt die Festlegung wieder zurück. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
 Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
 Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester

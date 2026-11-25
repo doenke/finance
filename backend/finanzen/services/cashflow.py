@@ -93,8 +93,11 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
         mirror = [u for u in by_amount[abs(t.amount)] if u.account_id != t.account_id and u.amount == -t.amount and abs((u.date - t.date).days) <= 4]
         return min(mirror, key=lambda u: abs((u.date - t.date).days)).account_id if mirror else None
 
+    how: dict[int, tuple[Category | None, str | None]] = {}  # per booking: category and where it came from
+
     def guess_category(t: rec.Tx) -> Category | None:
-        return categorize(t)[0]
+        how[t.id] = categorize(t)
+        return how[t.id][0]
 
     unknown: dict[str, dict] = {}  # spending without a category over the whole period, grouped by pattern
 
@@ -102,6 +105,8 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
     # default: the last complete month (the current one usually lacks the salary yet)
     detail_month = month if month in stats else (month_keys[-2] if len(month_keys) > 1 else month_keys[-1])
     detail = {"income": {}, "expenses": {}, "savings": {}, "uncategorized": []}
+
+    routed: set[int] = set()  # bookings counted by account pair – a category does not change them
 
     def add(section: str, label: str, amount: Decimal, t: rec.Tx) -> None:
         """Sum per label for the detail month and keep the single bookings behind it."""
@@ -123,6 +128,7 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
                 if m == detail_month:
                     # net per pair of accounts, always seen from the everyday account
                     add("savings", f"{names[t.account_id]} → {names[other]}", -t.amount, t)
+                    routed.add(t.id)
             else:
                 s["internal"] += abs(t.amount)
             continue
@@ -169,7 +175,18 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
         )
 
     def booking(t: rec.Tx) -> dict:
-        return {"id": t.id, "date": t.date, "amount": t.amount, "counterparty": t.counterparty, "purpose": t.purpose[:200], "account": names[t.account_id]}
+        cat, source = how.get(t.id, (None, None))
+        return {
+            "id": t.id,
+            "date": t.date,
+            "amount": t.amount,
+            "counterparty": t.counterparty,
+            "purpose": t.purpose[:200],
+            "account": names[t.account_id],
+            "category_id": cat.id if cat is not None else None,
+            "category_source": source,  # fixed (set on the booking), rule, keyword or None
+            "assignable": t.id not in routed,
+        }
 
     def sorted_items(d: dict) -> list[dict]:
         return [
