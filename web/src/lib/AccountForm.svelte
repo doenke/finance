@@ -225,6 +225,7 @@
         <label>
           Produkt
           <select bind:value={details.product}>
+            <option value="gesetzlich">Gesetzliche Rente (DRV)</option>
             <option value="riester">Riester</option>
             <option value="ruerup">Rürup / Basisrente</option>
             <option value="bav">Betriebliche Altersvorsorge</option>
@@ -237,6 +238,10 @@
         <label>Vertragsnummer <input bind:value={details.contract_no} /></label>
         <label>Prognostizierte Rente / Monat <DecimalInput bind:value={details.expected_pension} suffix="€" /></label>
         <label>Rentenbeginn <input type="date" bind:value={details.payout_start} /></label>
+        {#if details.product === 'gesetzlich'}
+          <label>Bisher erreichte Rente / Monat <DecimalInput bind:value={details.current_pension} suffix="€" /></label>
+          <label>Stand der Renteninformation <input type="date" bind:value={details.info_date} /></label>
+        {/if}
       </div>
     </section>
   {:else if mode === 'holdings'}

@@ -16,6 +16,7 @@
     { href: '/konten', label: 'Konten', icon: 'wallet' },
     // Contracts and the yearly balance are tabs on the balance page (BudgetTabs).
     { href: '/bilanz', label: 'Bilanz', icon: 'bars', also: ['/jahresbilanz', '/vertraege'] },
+    { href: '/vorsorge', label: 'Vorsorge', icon: 'hourglass', desktopOnly: true },
     { href: '/banken', label: 'Banken', icon: 'bank' },
     { href: '/haushalt', label: 'Haushalt', icon: 'people', desktopOnly: true },
     { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings' }

@@ -213,6 +213,19 @@ größter Rückgang) und eine Korrelations-Matrix, die zeigt, wie gut die
 Positionen das Risiko streuen. Kurse lädt Finanzen dafür mindestens fünf
 Jahre zurück – auch wenn du ein Wertpapier erst seit Kurzem hast.
 
+**Altersvorsorge:** Unter **Vorsorge** rechnet Finanzen hoch, was du im Alter
+monatlich zur Verfügung hast – in heutiger Kaufkraft und in drei Szenarien
+(vorsichtig, mittel, optimistisch). Dazu zählen die gesetzliche Rente aus
+deiner Renteninformation, alle Vorsorge-Verträge mit Rentenprognose und eine
+Entnahme aus deinem Kapital (Depots, Krypto, Tagesgeld, Festgeld,
+Beteiligungen), das bis zum Rentenbeginn mit Rendite und Sparrate wächst.
+Rentenbeginn, Sparrate, Inflation, Renditen und Entnahmedauer stellst du
+selbst ein. Netto ist grob geschätzt: Kranken- und Pflegeversicherung der
+Rentner, Einkommensteuer nach Grundtarif und Abgeltungsteuer auf Gewinne. Die
+Renteninformation der Deutschen Rentenversicherung lädst du als PDF bei
+Claude hoch; der Assistent trägt sie über die MCP-Anbindung als Vertrag
+„Gesetzliche Rente“ ein und behält jede Renteninformation im Verlauf.
+
 ### 5. Bank verbinden (FinTS)
 
 Unter **Banken** legst du mit „+ Bank“ Sparkasse, DKB, OLB & Co. an:
@@ -351,8 +364,9 @@ an (über „Zum Home-Bildschirm“).
 
 Finanzen hat einen eingebauten MCP-Server. Damit kann Claude (oder ein
 anderer Assistent mit MCP) deine Konten lesen und für dich Dinge eintragen –
-zum Beispiel einen Rentenvertrag aus dem PDF-Kontoauszug anlegen, Stände
-nachtragen oder Käufe buchen. Löschen kann der Assistent nichts.
+zum Beispiel einen Rentenvertrag aus dem PDF-Kontoauszug anlegen, deine
+Renteninformation eintragen, Stände nachtragen, Käufe buchen, die
+Wertpapier-Buchungen eines Depots prüfen oder die Altersvorsorge hochrechnen. Löschen kann der Assistent nichts.
 
 1. In Claude unter **Einstellungen → Connectors → Eigenen Connector
    hinzufügen** die Adresse `https://finanzen.kanonenwiese.de/mcp`

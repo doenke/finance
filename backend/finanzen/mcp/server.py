@@ -346,6 +346,89 @@ def t_list_trades(db: Session, user: User, args: dict) -> Any:
     }
 
 
+def t_add_pension_statement(db: Session, user: User, args: dict) -> Any:
+    """Stores a pension statement (e.g. the yearly Renteninformation) and keeps the history in details.statements."""
+    person = _person_id(db, user, args["person"]) if args.get("person") else None
+    if args.get("account_id"):
+        account = db.get(Account, int(args["account_id"]))
+        if account is None or account.kind != "altersvorsorge":
+            raise ToolError("Vorsorge-Vertrag nicht gefunden.")
+    else:
+        if person is None:
+            raise ToolError("Bitte person oder account_id angeben.")
+        product = args.get("product") or "gesetzlich"
+        account = next(
+            (
+                a
+                for a in db.scalars(select(Account).where(Account.kind == "altersvorsorge", Account.closed.is_(False))).all()
+                if (a.details or {}).get("product") == product and any(o.person_id == person for o in a.owners)
+            ),
+            None,
+        )
+        if account is None:
+            name = db.get(Person, person).name
+            out = acc_api.create_account(
+                acc_api.AccountIn(
+                    name=args.get("name") or (f"Gesetzliche Rente {name}" if product == "gesetzlich" else f"Rente {name}"),
+                    kind="altersvorsorge",
+                    institution=args.get("institution") or ("Deutsche Rentenversicherung" if product == "gesetzlich" else ""),
+                    details={"product": product},
+                    owners=[acc_api.OwnerIn(person_id=person, share=Decimal(1))],
+                ),
+                db,
+                user,
+            )
+            account = db.get(Account, out.id)
+    on = date.fromisoformat(args["date"])
+    entry = {"date": on.isoformat()}
+    for key in ("projected", "current", "reduced_earning_capacity"):
+        if args.get(key) not in (None, ""):
+            entry[key] = str(Decimal(str(args[key])).quantize(Decimal("0.01")))
+    if args.get("payout_start"):
+        entry["payout_start"] = date.fromisoformat(args["payout_start"]).isoformat()
+    if args.get("note"):
+        entry["note"] = str(args["note"])[:500]
+    details = dict(account.details or {})
+    history = [h for h in details.get("statements", []) if h.get("date") != entry["date"]] + [entry]
+    history.sort(key=lambda h: h["date"])
+    details["statements"] = history
+    latest = history[-1]
+    if latest is entry:  # only the newest statement sets the current figures
+        if "projected" in entry:
+            details["expected_pension"] = entry["projected"]
+        if "current" in entry:
+            details["current_pension"] = entry["current"]
+        if "payout_start" in entry:
+            details["payout_start"] = entry["payout_start"]
+        details["info_date"] = entry["date"]
+    account.details = details
+    db.commit()
+    cache.bump()
+    return {"account_id": account.id, "name": account.name, "statements": len(history), "current": {k: details.get(k) for k in ("expected_pension", "current_pension", "payout_start", "info_date")}}
+
+
+def t_get_retirement_projection(db: Session, user: User, args: dict) -> Any:
+    from ..services.retirement import Params, projection
+
+    if args.get("person"):
+        person = _person_id(db, user, args["person"])
+    else:
+        p = db.scalar(select(Person).where(Person.user_id == user.id))
+        if p is None:
+            raise ToolError("Bitte person angeben.")
+        person = p.id
+    params = Params(
+        retire_on=date.fromisoformat(args["retire_on"]) if args.get("retire_on") else None,
+        savings=float(args["savings"]) if args.get("savings") is not None else None,
+        inflation=float(args.get("inflation", 0.02)),
+        years=int(args.get("years", 25)),
+    )
+    data = projection(db, person, params)
+    for sc in data["scenarios"]:
+        sc.pop("series", None)
+    return data
+
+
 def _category_id(db: Session, value: Any) -> int:
     from ..models import Category
 
@@ -464,6 +547,33 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         ),
         False,
         "Wertpapier-Buchungen eines Depots (Käufe, Verkäufe, Einlieferungen, Dividenden …), neueste zuerst; filterbar nach ISIN, Art und Zeitraum.",
+    ),
+    "add_pension_statement": (
+        t_add_pension_statement,
+        _schema(
+            {
+                "person": {"type": ["string", "integer"]},
+                "account_id": {"type": "integer"},
+                "product": {"type": "string", "enum": ["gesetzlich", "riester", "ruerup", "bav", "rente", "leben", "bauspar", "other"]},
+                "date": DATE,
+                "projected": {"type": ["number", "string"], "description": "Hochgerechnete monatliche Rente (bei der gesetzlichen Rente: ohne künftige Rentenanpassungen)"},
+                "current": {"type": ["number", "string"], "description": "Bisher erreichte monatliche Rente"},
+                "reduced_earning_capacity": {"type": ["number", "string"], "description": "Rente wegen voller Erwerbsminderung"},
+                "payout_start": DATE,
+                "name": {"type": "string"},
+                "institution": {"type": "string"},
+                "note": {"type": "string"},
+            },
+            ["date"],
+        ),
+        True,
+        "Renteninformation bzw. Standmitteilung mit Rentenprognose speichern (Verlauf bleibt erhalten). Ohne account_id wird der Vertrag der Person mit diesem Produkt genommen oder angelegt (Standard: gesetzliche Rente).",
+    ),
+    "get_retirement_projection": (
+        t_get_retirement_projection,
+        _schema({"person": {"type": ["string", "integer"]}, "retire_on": DATE, "savings": {"type": ["number", "string"]}, "inflation": {"type": "number"}, "years": {"type": "integer"}}),
+        False,
+        "Altersvorsorge-Projektion einer Person in heutiger Kaufkraft: Renten, Kapital bei Rentenbeginn und monatliches Einkommen (brutto, grob netto) in drei Szenarien.",
     ),
     "list_categories": (t_list_categories, _schema({}), False, "Kategorien für Ausgaben, Einnahmen, Sparen (transfer) und Umbuchungen (internal)."),
     "create_category": (
