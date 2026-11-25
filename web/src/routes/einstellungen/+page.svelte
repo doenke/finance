@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { api } from '#lib/api.ts';
-  import { formatDate } from '#lib/format.ts';
+  import { formatDate, formatDateTime } from '#lib/format.ts';
   import Avatar from '#lib/Avatar.svelte';
   import Icon from '#lib/Icon.svelte';
   import NotificationSettings from '#lib/NotificationSettings.svelte';
@@ -43,7 +43,7 @@
 
   interface McpInfo {
     url: string;
-    clients: { id: string; name: string; users: string[]; connected_at: string; last_used_at: string | null }[];
+    clients: { id: string; name: string; hosts: string[]; users: string[]; connected_at: string; last_used_at: string | null }[];
   }
   let mcp = $state<McpInfo | null>(null);
   let copied = $state(false);
@@ -66,6 +66,79 @@
       setTimeout(() => (copied = false), 2000);
     } catch {
       /* clipboard not available */
+    }
+  }
+
+  interface Device {
+    id: number;
+    user_agent: string;
+    created_at: string;
+    last_seen_at: string;
+    current: boolean;
+  }
+  let devices = $state<Device[]>([]);
+
+  async function loadDevices() {
+    devices = await api.get<Device[]>('/api/sessions');
+  }
+
+  async function endDevice(d: Device) {
+    if (!confirm(`${deviceName(d.user_agent)} abmelden?`)) return;
+    await api.del(`/api/sessions/${d.id}`);
+    await loadDevices();
+  }
+
+  async function endOthers() {
+    if (!confirm('Alle anderen Geräte abmelden? Dort musst du dich danach neu anmelden.')) return;
+    await api.post('/api/sessions/revoke-others');
+    await loadDevices();
+  }
+
+  function deviceName(ua: string): string {
+    const os = /iPhone|iPad/.test(ua) ? (ua.includes('iPad') ? 'iPad' : 'iPhone') : /Android/.test(ua) ? 'Android' : /Mac OS X/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
+    const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+    return [browser, os].filter(Boolean).join(' auf ') || 'Unbekanntes Gerät';
+  }
+
+  interface AdminUser {
+    id: number;
+    name: string;
+    email: string;
+    is_admin: boolean;
+    disabled: boolean;
+    last_login_at: string | null;
+    sessions: number;
+    assistants: number;
+  }
+  let users = $state<AdminUser[]>([]);
+  let userError = $state('');
+
+  async function loadUsers() {
+    if (session.me?.is_admin) users = await api.get<AdminUser[]>('/api/admin/users');
+  }
+
+  async function logoutUser(u: AdminUser) {
+    if (!confirm(`${u.name} auf allen Geräten abmelden und verbundene Assistenten trennen?`)) return;
+    userError = '';
+    try {
+      await api.post(`/api/admin/users/${u.id}/logout`);
+      await loadUsers();
+    } catch (e) {
+      userError = (e as Error).message;
+    }
+  }
+
+  async function toggleLock(u: AdminUser) {
+    const question = u.disabled
+      ? `${u.name} wieder freischalten?`
+      : `${u.name} sperren? Alle Sitzungen und Assistenten-Zugänge enden sofort, eine neue Anmeldung ist nicht mehr möglich.`;
+    if (!confirm(question)) return;
+    userError = '';
+    try {
+      await api.put(`/api/admin/users/${u.id}/disabled`, { disabled: !u.disabled });
+      await loadUsers();
+    } catch (e) {
+      userError = (e as Error).message;
     }
   }
 
@@ -99,6 +172,8 @@
     loadSync();
     loadBackups();
     loadMcp();
+    loadDevices();
+    loadUsers();
   });
 
   const finished = $derived(sync?.finished_at ? new Date(sync.finished_at) : null);
@@ -139,6 +214,14 @@
       <div class="grow">
         <strong>Haushalt</strong>
         <div class="muted small">Personen und wem welche Konten gehören</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
+    <a class="card row navlink" href="/protokoll">
+      <Icon name="history" />
+      <div class="grow">
+        <strong>Änderungsprotokoll</strong>
+        <div class="muted small">Wer hat wann was geändert – in der App und über KI-Assistenten</div>
       </div>
       <span class="muted">›</span>
     </a>
@@ -203,7 +286,7 @@
             <li class="row wrap">
               <span class="grow">
                 <strong>{c.name}</strong>
-                <span class="muted">· {c.users.join(', ')} · verbunden {formatDate(c.connected_at)}{c.last_used_at ? ` · zuletzt ${formatDate(c.last_used_at)}` : ''}</span>
+                <span class="muted">· {c.hosts.join(', ')} · {c.users.join(', ')} · verbunden {formatDate(c.connected_at)}{c.last_used_at ? ` · zuletzt ${formatDate(c.last_used_at)}` : ''}</span>
               </span>
               <button class="btn" onclick={() => disconnect(c.id, c.name)}>Trennen</button>
             </li>
@@ -215,9 +298,61 @@
     </section>
   {/if}
 
+  {#if devices.length}
+    <section class="card stack">
+      <h2>Angemeldete Geräte</h2>
+      <p class="muted small">Hier bist du gerade angemeldet. Kennst du ein Gerät nicht, melde es ab.</p>
+      <ul class="files small">
+        {#each devices as d (d.id)}
+          <li class="row wrap">
+            <span class="grow">
+              <strong>{deviceName(d.user_agent)}</strong>
+              <span class="muted">· {d.current ? 'dieses Gerät' : `zuletzt ${formatDateTime(d.last_seen_at)}`} · angemeldet {formatDate(d.created_at.slice(0, 10))}</span>
+            </span>
+            {#if !d.current}<button class="btn" onclick={() => endDevice(d)}>Abmelden</button>{/if}
+          </li>
+        {/each}
+      </ul>
+      {#if devices.length > 1}
+        <div><button class="btn" onclick={endOthers}>Alle anderen Geräte abmelden</button></div>
+      {/if}
+    </section>
+  {/if}
+
+  {#if session.me?.is_admin && users.length}
+    <section class="card stack">
+      <h2>Benutzer</h2>
+      <p class="muted small">
+        Wer sich angemeldet hat. Wer den Haushalt verlässt oder ein Gerät verloren hat: überall abmelden oder sperren. Admin-Rechte kommen aus der Gruppe im Anmeldedienst und
+        gelten ab der nächsten Anmeldung.
+      </p>
+      {#if userError}<p class="error small">{userError}</p>{/if}
+      <ul class="files small">
+        {#each users as u (u.id)}
+          <li class="row wrap">
+            <span class="grow">
+              <strong>{u.name}</strong>
+              <span class="muted">
+                {u.is_admin ? '· Admin ' : ''}· {u.disabled ? 'gesperrt' : `${u.sessions} ${u.sessions === 1 ? 'Gerät' : 'Geräte'}${u.assistants ? `, ${u.assistants} ${u.assistants === 1 ? 'Assistent' : 'Assistenten'}` : ''}`}
+                · zuletzt angemeldet {u.last_login_at ? formatDateTime(u.last_login_at) : '–'}
+              </span>
+            </span>
+            {#if u.id !== session.me?.id}
+              {#if !u.disabled && (u.sessions || u.assistants)}<button class="btn" onclick={() => logoutUser(u)}>Überall abmelden</button>{/if}
+              <button class="btn" onclick={() => toggleLock(u)}>{u.disabled ? 'Entsperren' : 'Sperren'}</button>
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
   <section class="card stack">
     <h2>Daten exportieren</h2>
-    <p class="muted small">Alles als JSON (vollständig, lässt sich wiederherstellen) oder Buchungen und Depot-Transaktionen als CSV für Excel.</p>
+    <p class="muted small">
+      Alles als JSON – ohne Anmeldesitzungen, Assistenten-Zugänge und Bank-Zugangsdaten (PINs, Anmeldenamen anderer Personen) – oder Buchungen und Depot-Transaktionen als CSV
+      für Excel. Eine vollständige Sicherung zum Wiederherstellen gibt es für Admins unter „Sicherungen“.
+    </p>
     <div class="row">
       <a class="btn" href="/api/export/json" download>Alles (JSON)</a>
       <a class="btn" href="/api/export/transactions.csv" download>Buchungen (CSV)</a>
@@ -289,6 +424,9 @@
     padding: 0;
     display: grid;
     gap: 4px;
+  }
+  .error {
+    color: var(--warn);
   }
   .errors {
     color: var(--warn);

@@ -17,18 +17,23 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from itsdangerous import BadSignature
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.orm import Session
 
-from ..auth.session import serializer, session_user_id
+from ..auth.session import serializer, session_user
 from ..db import get_db
 from ..models import OAuthClient, OAuthCode, OAuthToken, User
+from ..services import audit
 
 router = APIRouter()
 
 ACCESS_TTL = timedelta(hours=1)
 REFRESH_TTL = timedelta(days=60)
 CODE_TTL = timedelta(minutes=5)
+MAX_REDIRECT_URIS = 5
+MAX_URI_LENGTH = 500
+UNUSED_CLIENT_TTL = timedelta(days=1)
+MAX_REGISTRATIONS_PER_HOUR = 20
 NO_STORE = {"Cache-Control": "no-store"}
 
 
@@ -45,10 +50,24 @@ def _now() -> datetime:
 
 
 def _valid_redirect(uri: str) -> bool:
+    if len(uri) > MAX_URI_LENGTH or any(c.isspace() for c in uri):
+        return False
     parsed = urlparse(uri)
-    if parsed.scheme == "https" and parsed.netloc:
+    if parsed.fragment or parsed.username or parsed.password:
+        return False
+    if parsed.scheme == "https" and parsed.hostname:
         return True
     return parsed.scheme == "http" and parsed.hostname in ("localhost", "127.0.0.1")
+
+
+def redirect_trust(uri: str, trusted_hosts: tuple[str, ...]) -> tuple[str, str]:
+    """(host, trust) for a redirect URI; trust is 'known' (configured assistant), 'local' (this device) or 'unknown'."""
+    host = (urlparse(uri).hostname or "").lower()
+    if host in ("localhost", "127.0.0.1"):
+        return host, "local"
+    if any(host == h or host.endswith("." + h) for h in trusted_hosts):
+        return host, "known"
+    return host, "unknown"
 
 
 # --- Discovery ------------------------------------------------------------------------------------
@@ -89,10 +108,20 @@ async def register(request: Request, db: Session = Depends(get_db)) -> JSONRespo
         body = await request.json()
     except ValueError:
         return JSONResponse({"error": "invalid_client_metadata"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "invalid_client_metadata"}, status_code=400)
     uris = body.get("redirect_uris") or []
-    if not isinstance(uris, list) or not uris or not all(isinstance(u, str) and _valid_redirect(u) for u in uris):
+    if not isinstance(uris, list) or not uris or len(uris) > MAX_REDIRECT_URIS or not all(isinstance(u, str) and _valid_redirect(u) for u in uris):
         return JSONResponse({"error": "invalid_redirect_uri"}, status_code=400)
-    client = OAuthClient(id=secrets.token_urlsafe(24), name=str(body.get("client_name") or "MCP-Client")[:200], redirect_uris=uris)
+    # Registration is open (DCR), so clean up clients that never got connected and cap the rate.
+    unused = ~exists().where(OAuthToken.client_id == OAuthClient.id) & ~exists().where(OAuthCode.client_id == OAuthClient.id)
+    db.execute(delete(OAuthClient).where(OAuthClient.created_at < _now() - UNUSED_CLIENT_TTL, unused).execution_options(synchronize_session=False))
+    recent = db.scalar(select(func.count()).select_from(OAuthClient).where(OAuthClient.created_at > _now() - timedelta(hours=1))) or 0
+    if recent >= MAX_REGISTRATIONS_PER_HOUR:
+        db.commit()
+        return JSONResponse({"error": "temporarily_unavailable", "error_description": "Zu viele Registrierungen, bitte später erneut versuchen."}, status_code=429, headers={"Retry-After": "3600"})
+    name = " ".join(str(body.get("client_name") or "MCP-Client").split())[:100] or "MCP-Client"
+    client = OAuthClient(id=secrets.token_urlsafe(24), name=name, redirect_uris=uris)
     db.add(client)
     db.commit()
     return JSONResponse(
@@ -122,9 +151,10 @@ def _page(title: str, body: str, status: int = 200) -> HTMLResponse:
 body{{font:16px/1.5 system-ui,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:#f4f5f1;color:#1c1f1a}}
 .card{{background:#fff;border:1px solid #dde1d8;border-radius:14px;padding:28px 24px;max-width:26rem;width:100%}}
 h1{{font-size:1.3rem;margin:0 0 8px}} p{{color:#5d6459}} ul{{padding-left:20px;color:#1c1f1a}}
-.row{{display:flex;gap:12px;margin-top:20px}} button{{font:inherit;font-weight:500;min-height:42px;padding:0 18px;border-radius:10px;border:1px solid #dde1d8;background:#fff;cursor:pointer}}
+.row{{display:flex;gap:12px;margin-top:20px}} .warn{{border:1px solid #d97706;background:#fffbeb;color:#78350f;border-radius:10px;padding:10px 12px;margin:12px 0}}
+.warn p{{color:inherit;margin:4px 0}} label{{display:flex;gap:8px;align-items:flex-start;margin-top:8px}} .host{{font-family:ui-monospace,monospace;overflow-wrap:anywhere}} button{{font:inherit;font-weight:500;min-height:42px;padding:0 18px;border-radius:10px;border:1px solid #dde1d8;background:#fff;cursor:pointer}}
 button.primary{{background:#15803d;border-color:#15803d;color:#fff}}
-@media(prefers-color-scheme:dark){{body{{background:#101310;color:#e8ece6}}.card{{background:#181d18;border-color:#2d342c}}p{{color:#9aa396}}ul{{color:#e8ece6}}button{{background:#181d18;color:#e8ece6;border-color:#2d342c}}button.primary{{background:#4ade80;border-color:#4ade80;color:#0b1a10}}}}
+@media(prefers-color-scheme:dark){{body{{background:#101310;color:#e8ece6}}.card{{background:#181d18;border-color:#2d342c}}p{{color:#9aa396}}ul{{color:#e8ece6}}button{{background:#181d18;color:#e8ece6;border-color:#2d342c}}button.primary{{background:#4ade80;border-color:#4ade80;color:#0b1a10}}.warn{{background:#2a1f0a;color:#fde68a;border-color:#b45309}}}}
 </style></head><body><div class="card">{body}</div></body></html>""",
         status_code=status,
         headers=NO_STORE,
@@ -159,15 +189,25 @@ def authorize(request: Request, db: Session = Depends(get_db)) -> Response:
     checked = _check_request(db, params)
     if isinstance(checked, HTMLResponse):
         return checked
-    uid = session_user_id(request)
-    user = db.get(User, uid) if uid else None
+    user = session_user(request, db)
     if user is None:
         # Log in with the normal app login and come back here.
         return_to = request.url.path + "?" + request.url.query
         return RedirectResponse("/auth/login?" + urlencode({"return_to": return_to}), status_code=302)
     csrf = serializer(request.app.state.settings, "oauth-consent").dumps({"uid": user.id, "client": checked.id})
-    hidden = "".join(f'<input type="hidden" name="{html.escape(k)}" value="{html.escape(v)}">' for k, v in params.items())
+    hidden = "".join(f'<input type="hidden" name="{html.escape(k)}" value="{html.escape(v)}">' for k, v in params.items() if k not in ("csrf", "decision", "confirm"))
+    host, trust = redirect_trust(params["redirect_uri"], request.app.state.settings.mcp_trusted_hosts)
+    if trust == "unknown":
+        where = f"""<div class="warn"><p><strong>Achtung: unbekanntes Ziel.</strong> Der Zugriff geht an <span class="host">{html.escape(host)}</span>.
+Diese Adresse gehört zu keinem bekannten Assistenten. Den Namen „{html.escape(checked.name)}“ hat der Client selbst angegeben.</p>
+<p>Erlaube nur, wenn du diese Verbindung gerade selbst eingerichtet hast – sonst versucht vielleicht jemand, an eure Finanzdaten zu kommen.</p>
+<label><input type="checkbox" name="confirm" value="yes"> Ja, ich habe die Verbindung zu {html.escape(host)} gerade selbst gestartet.</label></div>"""
+    elif trust == "local":
+        where = '<p>Der Zugriff geht an ein Programm <strong>auf diesem Gerät</strong> (localhost).</p>'
+    else:
+        where = f'<p>Der Zugriff geht an <strong class="host">{html.escape(host)}</strong>.</p>'
     body = f"""<h1>{html.escape(checked.name)} mit Finanzen verbinden?</h1>
+{where}
 <p>Angemeldet als <strong>{html.escape(user.name)}</strong>. Der Assistent darf dann in eurem Haushalt:</p>
 <ul><li>Konten, Depots, Anlagen und Auswertungen lesen</li><li>Konten anlegen sowie Bewertungen, Buchungen, Kontostände und Depot-Transaktionen eintragen</li></ul>
 <p>Löschen kann er nichts. Du kannst die Verbindung jederzeit in den Einstellungen trennen.</p>
@@ -187,7 +227,8 @@ async def authorize_decision(request: Request, db: Session = Depends(get_db)) ->
     checked = _check_request(db, params)
     if isinstance(checked, HTMLResponse):
         return checked
-    uid = session_user_id(request)
+    user = session_user(request, db)
+    uid = user.id if user else None
     try:
         data = serializer(request.app.state.settings, "oauth-consent").loads(params.get("csrf", ""), max_age=900)
     except BadSignature:
@@ -197,7 +238,11 @@ async def authorize_decision(request: Request, db: Session = Depends(get_db)) ->
     state = {"state": params["state"]} if params.get("state") else {}
     if params.get("decision") != "allow":
         return _redirect_with(params["redirect_uri"], {"error": "access_denied", **state})
+    host, trust = redirect_trust(params["redirect_uri"], request.app.state.settings.mcp_trusted_hosts)
+    if trust == "unknown" and params.get("confirm") != "yes":
+        return _error("Bitte bestätige, dass du die Verbindung zu dieser unbekannten Adresse selbst gestartet hast.")
     code = secrets.token_urlsafe(32)
+    audit.record(db, user_id=uid, actor=user.name if user else "", action="Assistent verbunden", target=f"Assistent {checked.name}", detail=host)
     db.add(
         OAuthCode(
             code_hash=_hash(code),
@@ -276,7 +321,7 @@ def bearer_user(request: Request, db: Session) -> tuple[User, str] | None:
     if row is None or row.expires_at < _now():
         return None
     user = db.get(User, row.user_id)
-    if user is None:
+    if user is None or user.disabled:
         return None
     row.last_used_at = _now()
     db.commit()
@@ -312,7 +357,8 @@ def list_clients(request: Request, db: Session = Depends(get_db)) -> dict[str, A
     ).all()
     clients: dict[str, dict] = {}
     for client, tok, user in rows:
-        entry = clients.setdefault(client.id, {"id": client.id, "name": client.name, "users": set(), "connected_at": tok.created_at, "last_used_at": None})
+        hosts = sorted({redirect_trust(u, ())[0] for u in client.redirect_uris or []})
+        entry = clients.setdefault(client.id, {"id": client.id, "name": client.name, "hosts": hosts, "users": set(), "connected_at": tok.created_at, "last_used_at": None})
         entry["users"].add(user.name)
         entry["connected_at"] = min(entry["connected_at"], tok.created_at)
     for client_id, entry in clients.items():

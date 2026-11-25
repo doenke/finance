@@ -9,15 +9,15 @@ Entscheidungen dort mitpflegen.
 - `backend/` – Python 3.13, FastAPI (`finanzen/`), Tests unter `tests/` (pytest).
   Start: `python -m finanzen`. Konfiguration nur über Env (`finanzen/config.py`).
 - `backend/finanzen/` – `main.py` (App-Factory `create_app`, SPA-Auslieferung,
-  CSRF-Origin-Prüfung), `auth/` (OIDC mit PKCE, Session-Cookie, Avatare,
-  `DEV_LOGIN`), `api/` (JSON-API unter `/api`), `models.py` + `migrations/`
+  CSRF-Origin-Prüfung), `auth/` (OIDC mit PKCE, serverseitige Sitzungen in `sessions` hinter signiertem Cookie, gesperrte User, Avatare,
+  `DEV_LOGIN`), `api/` (JSON-API unter `/api`; `api/security.py`: eigene Geräte, Benutzer abmelden/sperren, Änderungsprotokoll), `models.py` + `migrations/`
   (Alembic, laufen beim Start). Neue Tabellen immer per neuer Migration.
   `services/`: `valuation.py` (Wert zum Stichtag), `series.py` (tägliche
   Wertreihen und Zahlungsströme je Kontoart), `returns.py` (TTWROR mit
   Zahlungen am Tagesende, XIRR), `performance.py` (Aggregation, Cache über
   `cache.py`, jede schreibende API-Anfrage verwirft ihn), `prices/`
   (Kursquellen-Adapter: onvista als Standard, Yahoo; Fallback auf onvista per ISIN in `sync.py`), `fx.py` (EZB), `sync.py`, `loan.py`,
-  `csvimport.py`, `backup.py` (JSON-Sicherung/-Wiederherstellung, auch CLI
+  `csvimport.py`, `audit.py` (Änderungsprotokoll: Middleware in `main.py` für schreibende `/api`-Anfragen, MCP-Werkzeuge selbst; nur Allowlist-Felder, nie Secrets – neue schreibende Routen in `_ROUTES` benennen), `backup.py` (JSON-Sicherung/-Wiederherstellung; Export für Nutzer mit `for_user_id` ohne Secrets, auch CLI
   `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
   Benachrichtigungen: `notify.py` (Ereignisse, Einstellungen je User, tägliche
   Prüfungen, Monatsbericht; in Tests `push_sender`/`mail_sender` ersetzen),

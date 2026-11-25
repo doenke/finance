@@ -19,6 +19,11 @@ log = logging.getLogger("finanzen.backup")
 FORMAT = "finanzen-backup"
 FORMAT_VERSION = 1
 SKIP_TABLES = {"alembic_version"}
+# Left out of the data export for household members (the admin backup keeps everything):
+# login sessions, assistant tokens and push keys, and the secrets of bank logins.
+PRIVATE_TABLES = {"sessions", "oauth_clients", "oauth_codes", "oauth_tokens", "push_subscriptions"}
+BANK_SECRETS = ("pin_encrypted", "client_state")
+BANK_OWNER_ONLY = ("username", "customer_id", "tan_medium")
 
 
 def _encode(value: Any) -> Any:
@@ -47,12 +52,23 @@ def _decode(value: Any) -> Any:
     return value
 
 
-def export_data(db: Session, version: str = "dev") -> dict:
+def _redact_bank_login(row: dict, user_id: int) -> dict:
+    row = {**row, **{k: None for k in BANK_SECRETS}}
+    if row.get("user_id") != user_id:
+        row.update({k: ("" if k != "tan_medium" else None) for k in BANK_OWNER_ONLY})
+    return row
+
+
+def export_data(db: Session, version: str = "dev", for_user_id: int | None = None) -> dict:
+    """All tables as JSON. With `for_user_id` (the data export in the app) private tables are left out and bank
+    logins lose their secrets; access data of other people's logins is blanked. Without it: the full backup."""
     tables: dict[str, list[dict]] = {}
     for table in Base.metadata.sorted_tables:
-        if table.name in SKIP_TABLES:
+        if table.name in SKIP_TABLES or (for_user_id is not None and table.name in PRIVATE_TABLES):
             continue
-        rows = db.execute(select(table)).mappings().all()
+        rows = [dict(row) for row in db.execute(select(table)).mappings().all()]
+        if for_user_id is not None and table.name == "bank_logins":
+            rows = [_redact_bank_login(row, for_user_id) for row in rows]
         tables[table.name] = [{k: _encode(v) for k, v in row.items()} for row in rows]
     revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
     return {
@@ -61,6 +77,7 @@ def export_data(db: Session, version: str = "dev") -> dict:
         "app_version": version,
         "schema_revision": revision,
         "created_at": datetime.now(UTC).isoformat(),
+        "scope": "export" if for_user_id is not None else "backup",
         "tables": tables,
     }
 
