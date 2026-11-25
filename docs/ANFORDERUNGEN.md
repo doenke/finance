@@ -294,6 +294,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Monatsbilanz | Seite `/bilanz` (Reiter neben „Verträge“): je Monat aus echten Buchungen Einnahmen, Ausgaben, Gespartes, Sparquote, Übrig. Konten haben eine Rolle (`details.flow_role`: spending/saving; Vorgabe: Giro/Kreditkarte = Alltag, Tagesgeld/Verrechnung/Festgeld/Depots = Sparen). Gespart = Nettofluss Alltag → Sparen (Gegenkonto per IBAN oder gespiegelter Buchung) + Buchungen der Kategorie-Art „transfer“; Bewegungen innerhalb einer Rolle und Kategorie „Umbuchungen“ zählen nicht; Kategorien ohne Zuordnung werden per Stichwortregel geschätzt. Standardmonat ist der letzte vollständige |
 | Kategorie-Regeln | Tabelle `category_rules` (Muster als Teilzeichenkette, Feld any/Empfänger/Zweck, Richtung, optional Konto, Kategorie). Reihenfolge: Kategorie aus „Verträge“ > eigene Regel (sort, längeres Muster zuerst) > eingebaute Stichwörter (u. a. neue Kategorien Lebensmittel & Drogerie, Restaurant & Lieferdienst, Einkaufen, Bargeld). Regeln wirken beim Auswerten, nicht gespeichert an der Buchung. Monatsbilanz zeigt die häufigsten Ausgaben ohne Kategorie mit Regel-Editor und Vorschau |
 | Haushaltskonten | Kontenrollen heißen Haushaltskonto/Sparkonto und werden auf der Kontenseite eingestellt; „Verfügbar“ in der Übersicht teilt sich in Haushaltskonten und Angelegt |
+| Positionen in der Übersicht | Depots, Krypto (alle Konten mit Positionen) lassen sich in „Verfügbar und gebunden“ aufklappen: Stückzahl, Wert, Gewinn in % je Position |
 
 ## 9. Offene Fragen
 

@@ -172,7 +172,9 @@ dem, was festliegt (Festgeld, Altersvorsorge, Immobilien, Beteiligungen,
 sonstige Anlagen) – mit dem Datum, ab dem es frei wird: Fälligkeit beim
 Festgeld, Rentenbeginn bei der Altersvorsorge oder ein eigenes „frei ab“.
 Passt die Einteilung bei einem Konto nicht, stellst du sie unter
-„Bearbeiten“ → Verfügbarkeit um.
+„Bearbeiten“ → Verfügbarkeit um. Depots und Krypto klappst du per Klick auf:
+Dann siehst du jede Position mit Stückzahl, aktuellem Wert und Gewinn in
+Prozent.
 
 Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
 nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure

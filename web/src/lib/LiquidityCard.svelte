@@ -1,9 +1,19 @@
 <script lang="ts">
   // Available vs. bound assets (and debts) with the date bound assets become free.
   import { api } from './api.ts';
-  import { formatDate, formatMoney, toNumber } from './format.ts';
+  import { formatDate, formatMoney, formatNumber, formatPercent, toNumber } from './format.ts';
   import Money from './Money.svelte';
 
+  interface Pos {
+    instrument_id: number;
+    name: string;
+    quantity: string;
+    value: string;
+    cost: string;
+    gain: string;
+    gain_pct: string | null;
+    price_missing: boolean;
+  }
   interface Item {
     account_id: number;
     name: string;
@@ -14,6 +24,7 @@
     automatic: boolean;
     free_from: string | null;
     free_reason: string | null;
+    positions: Pos[] | null;
   }
   interface Liquidity {
     available: string;
@@ -29,6 +40,8 @@
   let { personId = null }: { personId?: number | null } = $props();
   let data = $state<Liquidity | null>(null);
   let showAll = $state(false);
+  let open = $state<Record<number, boolean>>({});
+  const expandable = (i: Item) => (i.positions?.length ?? 0) > 0;
 
   $effect(() => {
     const person = personId;
@@ -55,6 +68,30 @@
     return `in ${Math.round(years)} Jahr${Math.round(years) === 1 ? '' : 'en'}`;
   };
 </script>
+
+{#snippet positionList(i: Item)}
+  <li class="positions">
+    <ul>
+      {#each i.positions! as p (p.instrument_id)}
+        <li>
+          <span class="name">
+            <span class="ellipsis" title={p.name}>{p.name}</span>
+            <span class="muted small">
+              <span class="money">{formatNumber(p.quantity)}</span> Stk.{#if p.price_missing} · ohne Kurs{/if}
+            </span>
+          </span>
+          <span class="val">
+            <Money value={p.value} cents={false} />
+            {#if p.gain_pct !== null}
+              <span class="small" class:pos={toNumber(p.gain) >= 0} class:neg={toNumber(p.gain) < 0}>{formatPercent(toNumber(p.gain_pct) * 100)}</span>
+            {/if}
+          </span>
+        </li>
+      {/each}
+      <li class="small"><a href="/konten/{i.account_id}" class="more">Zum Konto</a></li>
+    </ul>
+  </li>
+{/snippet}
 
 {#if data && (available.length || bound.length)}
   <section class="card stack">
@@ -106,9 +143,18 @@
           <ul>
             {#each showAll ? col.items : col.items.slice(0, LIMIT) as i (i.account_id)}
               <li>
-                <a href="/konten/{i.account_id}" class="name">{i.name}</a>
+                {#if expandable(i)}
+                  <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
+                    <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
+                    <span class="ellipsis">{i.name}</span>
+                    <span class="muted small count">{i.positions!.length}</span>
+                  </button>
+                {:else}
+                  <a href="/konten/{i.account_id}" class="name">{i.name}</a>
+                {/if}
                 <Money value={i.value} cents={false} colored={toNumber(i.value) < 0} />
               </li>
+              {#if open[i.account_id] && i.positions}{@render positionList(i)}{/if}
             {/each}
             {#if !col.items.length}<li class="muted small">–</li>{/if}
           </ul>
@@ -120,13 +166,21 @@
           {#each showAll ? bound : bound.slice(0, LIMIT) as i (i.account_id)}
             <li>
               <span class="name">
-                <a href="/konten/{i.account_id}">{i.name}</a>
+                {#if expandable(i)}
+                  <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
+                    <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
+                    <span class="ellipsis">{i.name}</span>
+                  </button>
+                {:else}
+                  <a href="/konten/{i.account_id}">{i.name}</a>
+                {/if}
                 <span class="muted small">
                   {#if i.free_from}{formatDate(i.free_from)} · {yearsUntil(i.free_from)}{i.free_reason && i.free_reason !== 'frei ab' ? ` (${i.free_reason})` : ''}{:else}{i.kind_label}{/if}
                 </span>
               </span>
               <Money value={i.value} cents={false} />
             </li>
+            {#if open[i.account_id] && i.positions}{@render positionList(i)}{/if}
           {/each}
         </ul>
       </div>
@@ -241,6 +295,62 @@
   }
   a:hover {
     text-decoration: underline;
+  }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+  .toggle:hover .ellipsis {
+    text-decoration: underline;
+  }
+  .ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chev {
+    display: inline-block;
+    width: 1em;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+  .chev.rot {
+    transform: rotate(90deg);
+  }
+  .count {
+    flex: none;
+  }
+  li.positions {
+    display: block;
+    padding: 0 0 6px 1.4em;
+    border-top: 0;
+  }
+  li.positions li {
+    padding: 4px 0;
+    font-size: 0.9rem;
+  }
+  .val {
+    display: grid;
+    justify-items: end;
+    flex: none;
+  }
+  .pos {
+    color: var(--pos);
+  }
+  .neg {
+    color: var(--neg);
+  }
+  .more {
+    color: var(--accent-strong);
   }
   .link {
     background: none;
