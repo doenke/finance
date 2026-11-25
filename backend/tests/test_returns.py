@@ -225,3 +225,22 @@ def test_position_compare(client):
     every = client.get("/api/positions/compare", params={"period": "ALL", "to": end.isoformat()}).json()
     assert Dec(every["items"][0]["quantity"]) == 15  # both depots together
     assert every["from"] < "2024-06-01"
+
+
+def test_purchase_costs_do_not_explode_ttwror(client):
+    from datetime import date, timedelta
+    from decimal import Decimal as Dec
+
+    from tests.conftest import login as do_login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    do_login(client)
+    today = date.today()
+    giro = client.post("/api/accounts", json={"name": "Tagesgeld", "kind": "tagesgeld"}, headers=origin).json()["id"]
+    client.post(f"/api/accounts/{giro}/balances", json={"date": (today - timedelta(days=60)).isoformat(), "amount": "10000"}, headers=origin)
+    flat = {"purchase_date": (today - timedelta(days=30)).isoformat(), "purchase_price": "300000", "purchase_costs": "30000"}
+    client.post("/api/accounts", json={"name": "Wohnung", "kind": "immobilie", "details": flat}, headers=origin)
+    s = client.get("/api/performance", params={"period": "ALL"}).json()["summary"]
+    assert Dec(s["gain"]) == Dec("-30000.00")  # the purchase costs are lost
+    # ... but measured against the whole investment (~ -10 %), not against the 10k from the day before (-300 %)
+    assert Dec("-0.11") < Dec(s["ttwror"]) < Dec("-0.08")

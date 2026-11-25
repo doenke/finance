@@ -1,5 +1,6 @@
 <script lang="ts">
   // Positions side by side: indexed price chart, weights, risk vs. return, key figures and correlations.
+  import Info from './Info.svelte';
   import { api } from './api.ts';
   import BarList from './charts/BarList.svelte';
   import LineChart, { type Series } from './charts/LineChart.svelte';
@@ -33,8 +34,13 @@
     correlation: (number | null)[][];
   }
 
-  let { accountId = null, personId = null, title = 'Positionen im Vergleich' }: { accountId?: number | null; personId?: number | null; title?: string } = $props();
-  let period = $state('1Y');
+  let {
+    accountId = null,
+    personId = null,
+    title = 'Positionen im Vergleich',
+    period = $bindable('1Y'),
+    showPeriod = true
+  }: { accountId?: number | null; personId?: number | null; title?: string; period?: string; showPeriod?: boolean } = $props();
   let data = $state<Compare | null>(null);
   let error = $state('');
 
@@ -107,7 +113,7 @@
   <section class="card stack">
     <div class="row head">
       <h2>{title}</h2>
-      <PeriodPicker bind:value={period} />
+      {#if showPeriod}<PeriodPicker bind:value={period} />{/if}
     </div>
 
     <div>
@@ -122,7 +128,7 @@
         <BarList items={weights} format={eur} money />
       </div>
       <div>
-        <h3>Rendite und Schwankung</h3>
+        <h3>Rendite und Schwankung<Info>Oben links ist gut: viel Rendite bei wenig Schwankung. Schwankung = annualisierte Standardabweichung der Tagesrenditen im gewählten Zeitraum.</Info></h3>
         {#if dots.length >= 2}
           <svg viewBox="0 0 {W} {H}" class="scatter" role="img" aria-label="Rendite im Zeitraum gegen Schwankung pro Jahr">
             {#each ticks(0, xMax) as t, ti (ti)}
@@ -147,7 +153,6 @@
               </g>
             {/each}
           </svg>
-          <p class="muted small">Oben links ist gut: viel Rendite bei wenig Schwankung. Schwankung = annualisierte Standardabweichung der Tagesrenditen im letzten Jahr.</p>
         {:else}
           <p class="muted small">Für dieses Diagramm fehlen noch Kurse – sie werden nach dem nächsten Kursabruf nachgeladen.</p>
         {/if}
@@ -155,7 +160,7 @@
     </div>
 
     <div>
-      <h3>Kennzahlen</h3>
+      <h3>Kennzahlen<Info>Renditen hier sind reine Kursentwicklung (ohne Ausschüttungen) – gut für den Vergleich der Wertpapiere untereinander. „–“ heißt: so weit reichen die Kurse nicht zurück.</Info></h3>
       <div class="table-wrap">
         <table>
           <thead>
@@ -190,7 +195,6 @@
           </tbody>
         </table>
       </div>
-      <p class="muted small">Renditen hier sind reine Kursentwicklung (ohne Ausschüttungen) – gut für den Vergleich der Wertpapiere untereinander. „–“ heißt: so weit reichen die Kurse nicht zurück.</p>
     </div>
 
     {#if data.items.length >= 2}

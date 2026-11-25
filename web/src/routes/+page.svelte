@@ -99,7 +99,7 @@
       {/if}
     </section>
 
-    <ReturnSummary />
+    <ReturnSummary bind:period showPeriod={false} />
   {:else if !error}
     <p class="muted">Lädt …</p>
   {/if}

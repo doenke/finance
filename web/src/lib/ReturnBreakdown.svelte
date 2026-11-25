@@ -1,13 +1,17 @@
 <script lang="ts">
   // Return per account (ranked by IRR) and how each account adds up to the household's total return.
+  import Info from './Info.svelte';
   import { api } from './api.ts';
   import { flattenBreakdown, rankByIrr, type Breakdown } from './returns.ts';
   import { formatPercent, toNumber } from './format.ts';
   import Money from './Money.svelte';
   import PeriodPicker from './PeriodPicker.svelte';
 
-  let { personId = null }: { personId?: number | null } = $props();
-  let period = $state('1Y');
+  let {
+    personId = null,
+    period = $bindable('1Y'),
+    showPeriod = true
+  }: { personId?: number | null; period?: string; showPeriod?: boolean } = $props();
   let data = $state<Breakdown | null>(null);
   let error = $state('');
   let loading = $state(true);
@@ -73,8 +77,9 @@
 {:else if data && data.items.length}
   <section class="card stack" aria-busy={loading}>
     <div class="row head">
-      <h2>Rendite je Anlage</h2>
-      <PeriodPicker bind:value={period} />
+      <h2>Rendite je Anlage<Info>Sortiert nach IZF pro Jahr – eurer persönlichen Rendite inklusive des Zeitpunkts der Ein- und Auszahlungen. Depots und Krypto erscheinen
+      mit ihren einzelnen Positionen; Kosten und Steuern ohne Position stehen unten in der Zusammensetzung.</Info></h2>
+      {#if showPeriod}<PeriodPicker bind:value={period} />{/if}
     </div>
 
     <ul class="ranking">
@@ -98,13 +103,12 @@
         </li>
       {/each}
     </ul>
-    <p class="muted small">
-      Sortiert nach IZF pro Jahr – eurer persönlichen Rendite inklusive des Zeitpunkts der Ein- und Auszahlungen. Depots und Krypto erscheinen
-      mit ihren einzelnen Positionen; Kosten und Steuern ohne Position stehen unten in der Zusammensetzung.
-    </p>
 
     {#if steps.length && data.total}
-      <h3>Woraus sich die Gesamtrendite zusammensetzt</h3>
+      <h3>Woraus sich die Gesamtrendite zusammensetzt<Info>Beitrag in Prozentpunkten (Pp) = Gewinn der Anlage geteilt durch das im Zeitraum durchschnittlich eingesetzte Kapital des Haushalts
+        (<Money value={data.total.avg_capital} cents={false} />). Zusammen ergeben sie die Gesamtrendite des Zeitraums. TTWROR
+        ({pctText(data.total.ttwror)}) und IZF ({pctText(data.total.irr)} p. a.) in der Renditekarte gewichten Ein- und Auszahlungen anders und
+        weichen deshalb etwas ab. Kredite zählen nicht mit.</Info></h3>
       <ul class="waterfall">
         {#each steps as s (s.item.key)}
           <li>
@@ -131,12 +135,6 @@
           </span>
         </li>
       </ul>
-      <p class="muted small">
-        Beitrag in Prozentpunkten (Pp) = Gewinn der Anlage geteilt durch das im Zeitraum durchschnittlich eingesetzte Kapital des Haushalts
-        (<Money value={data.total.avg_capital} cents={false} />). Zusammen ergeben sie die Gesamtrendite des Zeitraums. TTWROR
-        ({pctText(data.total.ttwror)}) und IZF ({pctText(data.total.irr)} p. a.) in der Renditekarte gewichten Ein- und Auszahlungen anders und
-        weichen deshalb etwas ab. Kredite zählen nicht mit.
-      </p>
     {/if}
   </section>
 {/if}
@@ -157,9 +155,6 @@
   }
   .small {
     font-size: 0.8rem;
-  }
-  p.small {
-    margin: 0;
   }
   .ellipsis {
     overflow: hidden;

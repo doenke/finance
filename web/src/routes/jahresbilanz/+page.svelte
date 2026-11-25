@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Info from '#lib/Info.svelte';
   import { api } from '#lib/api.ts';
   import BookingTable, { type Booking, type CategoryOption } from '#lib/BookingTable.svelte';
   import BudgetTabs from '#lib/BudgetTabs.svelte';
@@ -152,7 +153,8 @@
     {@const t = data.totals}
     <section class="card stack" aria-busy={loading}>
       <div class="row head">
-        <h2>{data.label}</h2>
+        <h2>{data.label}<Info>„Seit Jahresbeginn“ vergleicht mit denselben Tagen im Vorjahr, „Letzte 12 Monate“ zählt die zwölf abgeschlossenen Monate vor dem laufenden.
+      Ein Klick auf eine Zeile zeigt die Buchungen dahinter; dort kannst du die Kategorie einzelner Buchungen ändern.</Info></h2>
         <span class="muted small">
           {formatDate(data.from)} – {formatDate(data.to)}{#if data.previous}{' · '}verglichen mit {formatDate(data.compare_from)} – {formatDate(data.compare_to)}{/if}
         </span>
@@ -233,10 +235,6 @@
         {@render entries('savings', 1)}
       </section>
     </div>
-    <p class="muted small">
-      „Seit Jahresbeginn“ vergleicht mit denselben Tagen im Vorjahr, „Letzte 12 Monate“ zählt die zwölf abgeschlossenen Monate vor dem laufenden.
-      Ein Klick auf eine Zeile zeigt die Buchungen dahinter; dort kannst du die Kategorie einzelner Buchungen ändern.
-    </p>
   {:else if !error}
     <p class="muted">Lädt …</p>
   {/if}

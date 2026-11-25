@@ -7,9 +7,14 @@
   import Money from './Money.svelte';
   import PeriodPicker from './PeriodPicker.svelte';
 
-  let { title = 'Rendite', params = {}, showTable = true }: { title?: string; params?: Record<string, string | number | null>; showTable?: boolean } = $props();
+  let {
+    title = 'Rendite',
+    params = {},
+    showTable = true,
+    period = $bindable('1Y'),
+    showPeriod = true
+  }: { title?: string; params?: Record<string, string | number | null>; showTable?: boolean; period?: string; showPeriod?: boolean } = $props();
 
-  let period = $state('1Y');
   let mode = $state<'return' | 'value'>('return');
   let data = $state<PerformanceData | null>(null);
   let bench = $state<{ date: string; ttwror: string | null }[]>([]);
@@ -89,7 +94,7 @@
 <section class="card stack">
   <div class="row head">
     <h2>{title}</h2>
-    <PeriodPicker bind:value={period} />
+    {#if showPeriod}<PeriodPicker bind:value={period} />{/if}
   </div>
   {#if error}
     <p class="error">{error}</p>

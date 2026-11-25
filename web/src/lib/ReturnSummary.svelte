@@ -6,8 +6,11 @@
   import PeriodPicker from './PeriodPicker.svelte';
   import { flattenBreakdown, rankByIrr, type Breakdown } from './returns.ts';
 
-  let { personId = null }: { personId?: number | null } = $props();
-  let period = $state('1Y');
+  let {
+    personId = null,
+    period = $bindable('1Y'),
+    showPeriod = true
+  }: { personId?: number | null; period?: string; showPeriod?: boolean } = $props();
   let data = $state<Breakdown | null>(null);
 
   $effect(() => {
@@ -34,7 +37,7 @@
   <section class="card stack">
     <div class="row head">
       <h2><a href="/anlagen">Rendite eurer Anlagen</a></h2>
-      <PeriodPicker bind:value={period} />
+      {#if showPeriod}<PeriodPicker bind:value={period} />{/if}
     </div>
     <div class="kpis">
       <div><span class="muted">Gewinn</span><strong><Money value={t.gain} cents={false} colored /></strong></div>

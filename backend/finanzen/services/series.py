@@ -287,6 +287,10 @@ def _valuation_series(ctx: Context, account: Account, days: list[date]) -> tuple
         else:
             since += capital_by_day.get(day, ZERO)
         value = base + since if has_valuation else since
+        if day == purchase_date and purchase_costs and vals.get(day) == purchase_price:
+            # Purchase costs are lost the day after: measured against the whole investment, not against
+            # yesterday's (much smaller) capital, which would distort the time-weighted return.
+            value += purchase_costs
         values.append(max(value, ZERO))
         flow = flow_by_day.get(day, ZERO)
         if first_valuation_without_flows and day == min(vals):

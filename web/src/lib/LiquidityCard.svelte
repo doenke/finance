@@ -1,5 +1,6 @@
 <script lang="ts">
   // Available vs. bound assets (and debts) with the date bound assets become free.
+  import Info from './Info.svelte';
   import { api } from './api.ts';
   import { formatDate, formatMoney, formatNumber, formatPercent, toNumber } from './format.ts';
   import Money from './Money.svelte';
@@ -94,7 +95,9 @@
 
 {#if data && (available.length || bound.length)}
   <section class="card stack">
-    <h2>Verfügbar und gebunden</h2>
+    <h2>Verfügbar und gebunden<Info>Verfügbar ist, was ihr kurzfristig nutzen könntet: auf den Haushaltskonten sofort (abzüglich Kreditkarten), angelegt in Tagesgeld, Depots, Krypto und
+      Edelmetallen innerhalb weniger Tage. Welche Konten Haushaltskonten sind, legst du unter Konten fest. Gebunden sind Festgeld,
+      Altersvorsorge, Immobilien, Beteiligungen und sonstige Anlagen. Je Konto änderst du das unter „Bearbeiten“ → Verfügbarkeit.</Info></h2>
     {#if assets > 0}
       <div
         class="bar"
@@ -196,11 +199,6 @@
         </div>
       </div>
     {/if}
-    <p class="muted small">
-      Verfügbar ist, was ihr kurzfristig nutzen könntet: auf den Haushaltskonten sofort (abzüglich Kreditkarten), angelegt in Tagesgeld, Depots, Krypto und
-      Edelmetallen innerhalb weniger Tage. Welche Konten Haushaltskonten sind, legst du unter Konten fest. Gebunden sind Festgeld,
-      Altersvorsorge, Immobilien, Beteiligungen und sonstige Anlagen. Je Konto änderst du das unter „Bearbeiten“ → Verfügbarkeit.
-    </p>
   </section>
 {/if}
 
@@ -210,9 +208,6 @@
   }
   .small {
     font-size: 0.8rem;
-  }
-  p.small {
-    margin: 0;
   }
   .bar {
     display: flex;

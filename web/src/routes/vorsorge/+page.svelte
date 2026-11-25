@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Info from '#lib/Info.svelte';
   import { onMount } from 'svelte';
   import { api } from '#lib/api.ts';
   import LineChart from '#lib/charts/LineChart.svelte';
@@ -142,8 +143,13 @@
   {#if data}
     <section class="card stack" aria-busy={loading}>
       <div class="row head">
-        <h2>Monatliches Einkommen ab {formatDate(data.retire_on)}</h2>
-        <span class="muted small">in heutiger Kaufkraft · in {data.years_to_retirement.toLocaleString('de-DE')} Jahren</span>
+        <h2>Monatliches Einkommen ab {formatDate(data.retire_on)}<Info label="So wird gerechnet">Grobe Hochrechnung, keine Beratung. Alle Beträge in heutiger Kaufkraft. Die gesetzliche Rente stammt aus der Renteninformation (ohne
+      künftige Rentenanpassungen, das entspricht etwa heutiger Kaufkraft); andere Renten sind nominal zugesagt und werden mit der Inflation abgezinst.
+      Kapital sind Depots, Krypto, Tagesgeld, Festgeld, Beteiligungen und Verträge ohne Rentenprognose – ohne Haushaltskonten und Immobilien. Es wächst
+      mit der Rendite des Szenarios und der Sparrate (Standard: euer Gespartes der letzten 12 Monate, anteilig) und wird ab Rentenbeginn über die gewählte Dauer verbraucht. Netto: Kranken- und
+      Pflegeversicherung der Rentner auf gesetzliche und Betriebsrenten, Einkommensteuer je Person nach Grundtarif 2025 mit Besteuerungs- bzw. Ertragsanteil,
+      Abgeltungsteuer auf den Gewinnanteil der Entnahmen. Ohne Splitting, Kirchensteuer und Freibeträge.</Info></h2>
+        <span class="muted small">grobe Hochrechnung in heutiger Kaufkraft · in {data.years_to_retirement.toLocaleString('de-DE')} Jahren</span>
       </div>
       <div class="scenarios">
         {#each data.scenarios as s (s.key)}
@@ -212,14 +218,6 @@
       {/if}
     </section>
 
-    <p class="muted small">
-      Grobe Hochrechnung, keine Beratung. Alle Beträge in heutiger Kaufkraft. Die gesetzliche Rente stammt aus der Renteninformation (ohne
-      künftige Rentenanpassungen, das entspricht etwa heutiger Kaufkraft); andere Renten sind nominal zugesagt und werden mit der Inflation abgezinst.
-      Kapital sind Depots, Krypto, Tagesgeld, Festgeld, Beteiligungen und Verträge ohne Rentenprognose – ohne Haushaltskonten und Immobilien. Es wächst
-      mit der Rendite des Szenarios und der Sparrate (Standard: euer Gespartes der letzten 12 Monate, anteilig) und wird ab Rentenbeginn über die gewählte Dauer verbraucht. Netto: Kranken- und
-      Pflegeversicherung der Rentner auf gesetzliche und Betriebsrenten, Einkommensteuer je Person nach Grundtarif 2025 mit Besteuerungs- bzw. Ertragsanteil,
-      Abgeltungsteuer auf den Gewinnanteil der Entnahmen. Ohne Splitting, Kirchensteuer und Freibeträge.
-    </p>
   {:else if !error}
     <p class="muted">Lädt …</p>
   {/if}

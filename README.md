@@ -174,7 +174,8 @@ eingezahlt habt) und als **IZF** (eure persönliche Rendite pro Jahr, mit
 Timing), auf Wunsch mit einem Vergleichswert wie einem MSCI-World-ETF, dazu
 die Rendite je Anlage und der Vergleich der Wertpapiere. Dieselbe Auswertung
 gibt es für jedes einzelne Konto und Depot, mit allen Zeiträumen von einem
-Monat bis „seit Beginn“.
+Monat bis „seit Beginn“. Ein Zeitraum oben rechts gilt für die ganze Seite; Erklärungen
+zu den Zahlen findest du hinter dem kleinen ⓘ neben den Überschriften.
 
 **Verfügbar und gebunden** trennt, was ihr kurzfristig nutzen könntet –
 sofort auf den Haushaltskonten (abzüglich Kreditkarten) oder angelegt in
