@@ -60,7 +60,19 @@ def _mirror_ok(t: rec.Tx, names_own: list[str]) -> bool:
     return has_cents or a >= 500 or any(n in t.counterparty.lower() for n in names_own)
 
 
-def cashflow(db: Session, months: int = 12, month: str | None = None, end: date | None = None) -> dict:
+def cashflow(
+    db: Session,
+    months: int = 12,
+    month: str | None = None,
+    end: date | None = None,
+    detail_months: list[str] | None = None,
+    compare_months: list[str] | None = None,
+    compare_until: date | None = None,
+) -> dict:
+    """Monthly rows plus a breakdown by category for one month, or for `detail_months` (a year view).
+
+    With `compare_months` every breakdown entry also carries its sum over those months ("previous").
+    """
     end = end or date.today()
     month_keys = _months_back(end, months)
     first = date(int(month_keys[0][:4]), int(month_keys[0][5:]), 1)
@@ -104,12 +116,19 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
     stats = {m: {"income": ZERO, "expenses": ZERO, "savings": ZERO, "internal": ZERO} for m in month_keys}
     # default: the last complete month (the current one usually lacks the salary yet)
     detail_month = month if month in stats else (month_keys[-2] if len(month_keys) > 1 else month_keys[-1])
+    detail_set = set(detail_months) if detail_months else {detail_month}
+    compare_set = set(compare_months or [])
     detail = {"income": {}, "expenses": {}, "savings": {}, "uncategorized": []}
+    previous: dict[str, dict[str, Decimal]] = {"income": defaultdict(lambda: ZERO), "expenses": defaultdict(lambda: ZERO), "savings": defaultdict(lambda: ZERO)}
 
     routed: set[int] = set()  # bookings counted by account pair – a category does not change them
 
-    def add(section: str, label: str, amount: Decimal, t: rec.Tx) -> None:
-        """Sum per label for the detail month and keep the single bookings behind it."""
+    def add(section: str, label: str, amount: Decimal, t: rec.Tx, m: str) -> None:
+        """Sum per label for the detail months and keep the single bookings behind it."""
+        if m in compare_set and (compare_until is None or t.date <= compare_until):
+            previous[section][label] += amount
+        if m not in detail_set:
+            return
         e = detail[section].setdefault(label, {"amount": ZERO, "bookings": []})
         e["amount"] += amount
         e["bookings"].append(t)
@@ -125,10 +144,9 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             other_role = roles.get(other)
             if other_role == "saving":
                 s["savings"] -= t.amount  # out = saved, in = taken from savings
-                if m == detail_month:
-                    # net per pair of accounts, always seen from the everyday account
-                    add("savings", f"{names[t.account_id]} → {names[other]}", -t.amount, t)
-                    routed.add(t.id)
+                # net per pair of accounts, always seen from the everyday account
+                add("savings", f"{names[t.account_id]} → {names[other]}", -t.amount, t, m)
+                routed.add(t.id)
             else:
                 s["internal"] += abs(t.amount)
             continue
@@ -137,20 +155,17 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             continue
         if cat is not None and cat.kind == "transfer":
             s["savings"] -= t.amount
-            if m == detail_month:
-                add("savings", f"{cat.name}: {rec.suggest_name(t.counterparty, t.purpose, t.key or '')}", -t.amount, t)
+            add("savings", f"{cat.name}: {rec.suggest_name(t.counterparty, t.purpose, t.key or '')}", -t.amount, t, m)
             continue
         label = cat.name if cat is not None else "Ohne Kategorie"
         if t.amount > 0:
             s["income"] += t.amount
-            if m == detail_month:
-                add("income", label, t.amount, t)
+            add("income", label, t.amount, t, m)
         else:
             s["expenses"] -= t.amount
-            if m == detail_month:
-                add("expenses", label, -t.amount, t)
-                if cat is None:
-                    detail["uncategorized"].append(t)
+            add("expenses", label, -t.amount, t, m)
+            if cat is None and m in detail_set:
+                detail["uncategorized"].append(t)
             if cat is None:
                 pattern = suggest_pattern(t.counterparty, t.purpose) or "?"
                 g = unknown.setdefault(pattern, {"pattern": pattern, "count": 0, "total": ZERO, "example": t.counterparty or t.purpose, "purpose": t.purpose[:140], "last": t.date})
@@ -188,21 +203,30 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             "assignable": t.id not in routed,
         }
 
-    def sorted_items(d: dict) -> list[dict]:
-        return [
-            {"name": k, "amount": v["amount"], "bookings": [booking(t) for t in sorted(v["bookings"], key=lambda t: (t.amount, t.date))]}
+    def sorted_items(section: str) -> list[dict]:
+        d, prev = detail[section], previous[section]
+        items = [
+            {
+                "name": k,
+                "amount": v["amount"],
+                "previous": prev.get(k, ZERO) if compare_set else None,
+                "bookings": [booking(t) for t in sorted(v["bookings"], key=lambda t: (t.amount, t.date))],
+            }
             for k, v in sorted(d.items(), key=lambda kv: kv[1]["amount"], reverse=True)
             if v["amount"] != 0
         ]
+        # categories that only existed in the comparison period
+        items += [{"name": k, "amount": ZERO, "previous": v, "bookings": []} for k, v in sorted(prev.items(), key=lambda kv: -kv[1]) if v != 0 and k not in d]
+        return items
 
     top_unknown = sorted(detail["uncategorized"], key=lambda t: t.amount)[:10]
     return {
         "months": rows,
         "month": detail_month,
         "detail": {
-            "income": sorted_items(detail["income"]),
-            "expenses": sorted_items(detail["expenses"]),
-            "savings": sorted_items(detail["savings"]),
+            "income": sorted_items("income"),
+            "expenses": sorted_items("expenses"),
+            "savings": sorted_items("savings"),
             "uncategorized": [booking(t) for t in top_unknown],
         },
         "unknown_groups": sorted(unknown.values(), key=lambda g: g["total"], reverse=True)[:20],
@@ -211,4 +235,75 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             for a in sorted(accounts, key=lambda a: a.name)
             if roles[a.id] is not None and not a.closed
         ],
+    }
+
+
+def _shift_year(d: date, years: int) -> date:
+    try:
+        return d.replace(year=d.year + years)
+    except ValueError:  # 29 February
+        return d.replace(year=d.year + years, day=28)
+
+
+def _month_list(first: date, last: date) -> list[str]:
+    out, y, m = [], first.year, first.month
+    while (y, m) <= (last.year, last.month):
+        out.append(f"{y:04d}-{m:02d}")
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return out
+
+
+def year_balance(db: Session, period: str = "ytd", end: date | None = None) -> dict:
+    """Income, spending and savings over a year-like period compared with the same period a year earlier.
+
+    period: "ytd" (1 January to today), "12m" (the last twelve complete months) or a past calendar year ("2025").
+    """
+    end = end or date.today()
+    if period == "ytd":
+        start, stop, label = date(end.year, 1, 1), end, f"Seit Jahresbeginn {end.year}"
+    elif period == "12m":
+        stop = date(end.year, end.month, 1).replace(day=1)
+        stop = date.fromordinal(stop.toordinal() - 1)  # last day of the previous month
+        start = date(stop.year - 1, stop.month, 1)
+        start = date(start.year + 1, 1, 1) if start.month == 12 else date(start.year, start.month + 1, 1)
+        label = "Letzte 12 Monate"
+    elif period.isdigit() and len(period) == 4 and 1990 < int(period) < end.year:
+        year = int(period)
+        start, stop, label = date(year, 1, 1), date(year, 12, 31), str(year)
+    else:
+        raise ValueError("Unbekannter Zeitraum")
+    window = _month_list(start, stop)
+    prev_start, prev_stop = _shift_year(start, -1), _shift_year(stop, -1)
+    compare = _month_list(prev_start, prev_stop)
+    data = cashflow(db, months=len(window) + 12, end=stop, detail_months=window, compare_months=compare, compare_until=prev_stop)
+    rows = [r for r in data["months"] if r["month"] in set(window)]
+
+    def totals(income: Decimal, expenses: Decimal, savings: Decimal, internal: Decimal | None = None) -> dict:
+        return {
+            "income": income,
+            "expenses": expenses,
+            "savings": savings,
+            "rest": income - expenses - savings,
+            "savings_rate": float(savings / income) if income > 0 else None,
+            "internal": internal,
+        }
+
+    cur = totals(*(sum((r[k] for r in rows), ZERO) for k in ("income", "expenses", "savings", "internal")))
+    prev = totals(*(sum(((e["previous"] or ZERO) for e in data["detail"][k]), ZERO) for k in ("income", "expenses", "savings")))
+    has_previous = any(e["previous"] for k in ("income", "expenses", "savings") for e in data["detail"][k])
+    n = len(window)
+    first_tx = db.scalar(select(Transaction.booking_date).order_by(Transaction.booking_date).limit(1))
+    return {
+        "period": period,
+        "label": label,
+        "from": start,
+        "to": stop,
+        "compare_from": prev_start,
+        "compare_to": prev_stop,
+        "months": rows,
+        "totals": cur,
+        "previous": prev if has_previous else None,
+        "average": {k: cur[k] / n for k in ("income", "expenses", "savings", "rest")},
+        "detail": data["detail"],
+        "years": list(range(end.year - 1, first_tx.year - 1, -1)) if first_tx else [],
     }

@@ -2,7 +2,8 @@
   import { page } from '$app/state';
   const tabs = [
     { href: '/vertraege', label: 'Verträge & Abos' },
-    { href: '/bilanz', label: 'Monatsbilanz' }
+    { href: '/bilanz', label: 'Monatsbilanz' },
+    { href: '/jahresbilanz', label: 'Jahresbilanz' }
   ];
 </script>
 

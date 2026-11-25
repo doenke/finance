@@ -294,6 +294,14 @@ Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester
 oder Sparpläne. Geld zwischen Konten derselben Art zählt nicht. Welche Konten
 Haushaltskonten sind, stellst du unter **Konten** ganz unten um.
 
+**Jahresbilanz:** Daneben fasst die **Jahresbilanz** zusammen, was über einen
+längeren Zeitraum reinkam, rausging und gespart wurde – seit Jahresbeginn, für
+die letzten zwölf abgeschlossenen Monate oder für ein ganzes Kalenderjahr.
+Jede Summe steht mit dem Monatsdurchschnitt und im Vergleich zum selben
+Zeitraum ein Jahr vorher da (seit Jahresbeginn: bis zum selben Tag). Die
+Kategorien zeigen Summe, Ø pro Monat, Vorjahr und Veränderung; ein Klick
+öffnet die Buchungen dahinter, auch hier mit Kategorie-Auswahl je Buchung.
+
 **Kategorien per Regel:** Bekannte Händler (REWE, Aldi, dm, Lieferando,
 Amazon, Geldautomat …) ordnet Finanzen selbst zu. Für den Rest zeigt die
 Monatsbilanz die häufigsten Ausgaben ohne Kategorie – ein Tipp auf

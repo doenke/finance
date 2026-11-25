@@ -164,3 +164,34 @@ def test_mcp_category_tools(client):
         db.expire_all()
         assert {t.category_id for t in db.query(Transaction).all()} == {kk}
         assert any(c["name"] == "Kreditkarte" for c in t_list_categories(db, None, {}))
+
+
+def test_year_balance(client):
+    login(client)
+    with client.app.state.sessionmaker() as db:
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        db.add(giro)
+        db.flush()
+        for y in (2025, 2026):
+            for m in range(1, 13):
+                db.add(Transaction(account_id=giro.id, booking_date=date(y, m, 27), amount=D("3000") + (y - 2025) * 100, counterparty="Arbeitgeber", purpose="Gehalt"))
+                db.add(Transaction(account_id=giro.id, booking_date=date(y, m, 5), amount=D("-100"), counterparty="REWE Markt", purpose="Kartenzahlung"))
+        db.commit()
+    res = client.get("/api/cashflow/year", params={"period": "ytd"})
+    assert res.status_code == 200
+    with client.app.state.sessionmaker() as db:
+        from finanzen.services.cashflow import year_balance
+
+        ytd = year_balance(db, "ytd", end=date(2026, 11, 20))
+        r12 = year_balance(db, "12m", end=date(2026, 11, 20))
+        y25 = year_balance(db, "2025", end=date(2026, 11, 20))
+    # 1 Jan to 20 Nov: ten salaries (the November one comes on the 27th), eleven shop visits
+    assert ytd["totals"]["income"] == D("31000") and ytd["totals"]["expenses"] == D("1100")
+    assert ytd["previous"]["income"] == D("30000") and ytd["previous"]["expenses"] == D("1100")  # same days in 2025
+    assert [m["month"] for m in r12["months"]][0] == "2025-11" and r12["months"][-1]["month"] == "2026-10"
+    assert r12["totals"]["income"] == D("2") * D("3000") + D("10") * D("3100")
+    assert y25["totals"]["income"] == D("36000") and y25["previous"] is None and y25["average"]["expenses"] == D("100")
+    food = next(e for e in ytd["detail"]["expenses"] if e["name"] == "Lebensmittel & Drogerie")
+    assert food["amount"] == D("1100") and food["previous"] == D("1100") and len(food["bookings"]) == 11
+    assert 2025 in ytd["years"]
+    assert client.get("/api/cashflow/year", params={"period": "1800"}).status_code == 422

@@ -353,6 +353,16 @@ class FlowRoleIn(BaseModel):
     role: str | None = None  # spending | saving | None (automatic)
 
 
+@router.get("/cashflow/year")
+def get_year_balance(period: str = "ytd", db: Session = Depends(get_db)) -> dict[str, Any]:
+    from ..services.cashflow import year_balance
+
+    try:
+        return year_balance(db, period)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
 @router.get("/cashflow")
 def get_cashflow(months: int = 12, month: str | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
     from ..services.cashflow import cashflow
