@@ -150,7 +150,7 @@
                     <span class="muted small count">{i.positions!.length}</span>
                   </button>
                 {:else}
-                  <a href="/konten/{i.account_id}" class="name">{i.name}</a>
+                  <a href="/konten/{i.account_id}" class="name" class:indent={col.items.some(expandable)}>{i.name}</a>
                 {/if}
                 <Money value={i.value} cents={false} colored={toNumber(i.value) < 0} />
               </li>
@@ -165,7 +165,7 @@
         <ul>
           {#each showAll ? bound : bound.slice(0, LIMIT) as i (i.account_id)}
             <li>
-              <span class="name">
+              <span class="name" class:indent={!expandable(i) && bound.some(expandable)}>
                 {#if expandable(i)}
                   <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
                     <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
@@ -174,7 +174,7 @@
                 {:else}
                   <a href="/konten/{i.account_id}">{i.name}</a>
                 {/if}
-                <span class="muted small">
+                <span class="muted small" class:indent={expandable(i)}>
                   {#if i.free_from}{formatDate(i.free_from)} · {yearsUntil(i.free_from)}{i.free_reason && i.free_reason !== 'frei ab' ? ` (${i.free_reason})` : ''}{:else}{i.kind_label}{/if}
                 </span>
               </span>
@@ -328,6 +328,10 @@
   }
   .count {
     flex: none;
+  }
+  /* Aligns rows without a chevron with the names of expandable rows (chevron width + gap). */
+  .indent {
+    padding-left: calc(1em + 6px);
   }
   li.positions {
     display: block;
