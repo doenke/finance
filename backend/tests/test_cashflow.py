@@ -66,6 +66,19 @@ def test_monthly_cashflow_with_roles(client):
     assert [b["date"] for b in every] == sorted((b["date"] for b in every), reverse=True)
     route = next(e for e in data["detail"]["savings"] if e["name"] == "DKB Giro → DKB Tagesgeld")
     assert len(route["bookings"]) == 2
+    # a category left on a transfer between own accounts has no effect but can be removed
+    tid = route["bookings"][0]["id"]
+    assert route["bookings"][0]["stale_category"] is False
+    internal = next(c["id"] for c in client.get("/api/categories").json() if c["kind"] == "internal")
+    assert client.put(f"/api/transactions/{tid}/category", json={"category_id": internal}, headers=ORIGIN).status_code == 200
+    with client.app.state.sessionmaker() as db:
+        again = cashflow(db, months=2, month="2026-10", end=date(2026, 10, 31))
+    b = next(b for b in again["detail"]["all"] if b["id"] == tid)
+    assert b["assignable"] is False and b["stale_category"] is True and b["counts_as"] == "Gespart (zwischen Konten)"
+    client.put(f"/api/transactions/{tid}/category", json={"category_id": None}, headers=ORIGIN)
+    with client.app.state.sessionmaker() as db:
+        again = cashflow(db, months=2, month="2026-10", end=date(2026, 10, 31))
+    assert next(b for b in again["detail"]["all"] if b["id"] == tid)["stale_category"] is False
     assert {a["name"] for a in data["accounts"]} == {"Sparkasse Giro", "DKB Giro", "DKB Tagesgeld", "DKB Depot"}
 
 

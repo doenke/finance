@@ -10,6 +10,7 @@
     category_source: 'fixed' | 'rule' | 'keyword' | null;
     assignable: boolean;
     counts_as?: string;
+    stale_category?: boolean;
   }
   export interface CategoryOption {
     id: number;
@@ -83,6 +84,13 @@
               {#if b.category_source && b.category_source !== 'fixed'}<div class="muted hint">{SOURCE_HINT[b.category_source] ?? ''}</div>{/if}
             {:else}
               <span class="muted" title="Zählt über die Kontenrollen, nicht über die Kategorie">Umbuchung zwischen Konten</span>
+              {#if b.stale_category}
+                <div>
+                  <button class="reset" disabled={saving === b.id} onclick={() => assign(b, '')}>
+                    Kategorie „{categories.find((c) => c.id === b.category_id)?.name ?? '?'}“ entfernen
+                  </button>
+                </div>
+              {/if}
             {/if}
           </td>
         </tr>
@@ -116,6 +124,19 @@
   .cat select {
     max-width: 220px;
     font-size: 0.85rem;
+  }
+  .reset {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--accent-strong);
+    cursor: pointer;
+    text-align: left;
+  }
+  .reset:hover {
+    text-decoration: underline;
   }
   .counts {
     font-size: 0.75rem;
