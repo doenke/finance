@@ -379,8 +379,8 @@ def _csv_response(rows: list[list[Any]], filename: str) -> StreamingResponse:
 
 
 @router.get("/export/json")
-def export_json(request: Request, db: Session = Depends(get_db)) -> Response:
-    data = export_data(db, request.app.state.settings.version)
+def export_json(request: Request, db: Session = Depends(get_db), user: User = Depends(current_user)) -> Response:
+    data = export_data(db, request.app.state.settings.version, for_user_id=user.id)
     body = json.dumps(data, ensure_ascii=False)
     name = f"finanzen-export-{date.today().isoformat()}.json"
     return Response(body, media_type="application/json", headers={"Content-Disposition": f'attachment; filename="{name}"'})

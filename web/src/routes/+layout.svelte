@@ -14,14 +14,18 @@
   const nav = [
     { href: '/', label: 'Übersicht', icon: 'home' },
     { href: '/konten', label: 'Konten', icon: 'wallet' },
-    { href: '/vertraege', label: 'Verträge', icon: 'repeat' },
-    { href: '/bilanz', label: 'Monatsbilanz', icon: 'bars', desktopOnly: true },
+    // Contracts and the yearly balance are tabs on the balance page (BudgetTabs).
+    { href: '/bilanz', label: 'Bilanz', icon: 'bars', also: ['/jahresbilanz', '/vertraege'] },
     { href: '/banken', label: 'Banken', icon: 'bank' },
     { href: '/haushalt', label: 'Haushalt', icon: 'people', desktopOnly: true },
     { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings' }
   ];
 
-  const isActive = (href: string) => (href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href));
+  const isActive = (href: string) => {
+    if (href === '/') return page.url.pathname === '/';
+    const item = nav.find((n) => n.href === href);
+    return [href, ...(item?.also ?? [])].some((h) => page.url.pathname.startsWith(h));
+  };
 
   onMount(() => {
     initPrivacy();

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, Response
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,8 @@ from .api.accounts import router as accounts_router
 from .api.banks import router as banks_router
 from .api.notifications import router as notifications_router
 from .api.recurring import router as recurring_router
+from .api.security import admin as security_admin_router
+from .api.security import router as security_router
 from .mcp.oauth import api as mcp_api_router
 from .mcp.oauth import router as oauth_router
 from .mcp.server import router as mcp_router
@@ -26,6 +29,7 @@ from .auth.routes import router as auth_router
 from .config import Settings, load_settings
 from .db import get_db, make_engine, make_sessionmaker, run_migrations
 from .health import run_checks
+from .services import audit
 from .models import User
 
 log = logging.getLogger("finanzen")
@@ -79,9 +83,23 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
             origin = request.headers.get("origin")
             if origin and origin != settings.public_origin:
                 return JSONResponse({"detail": "Ungültige Herkunft"}, status_code=403)
+        action = None
+        if request.method in UNSAFE_METHODS and request.url.path.startswith("/api/") and hasattr(app.state, "sessionmaker"):
+            action = audit.label(request.method, request.url.path)
+        if action:
+            # Name the object before the request runs, so deleted objects keep their name in the log.
+            target = await run_in_threadpool(_audit_target, request.url.path)
+            body = b""
+            length = request.headers.get("content-length", "")
+            if "json" in request.headers.get("content-type", "") and length.isdigit() and int(length) <= audit.MAX_BODY:
+                body = await request.body()
         response = await call_next(request)
         if request.method in UNSAFE_METHODS and request.url.path.startswith("/api/") and response.status_code < 400:
             cache.bump()
+            who = getattr(request.state, "audit_user", None)
+            if action and who:
+                action = getattr(request.state, "audit_action", None) or action
+                await run_in_threadpool(_audit_record, who, action, target, audit.detail_from_body(body))
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "same-origin")
@@ -89,6 +107,22 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
         if request.url.path.startswith(("/api/", "/auth/")):
             response.headers.setdefault("Cache-Control", "no-store")
         return response
+
+    def _audit_target(path: str) -> str:
+        with app.state.sessionmaker() as db:
+            try:
+                return audit.target(db, path)
+            except Exception:  # noqa: BLE001 - the log must never break a request
+                log.warning("audit target lookup failed", exc_info=False)
+                return ""
+
+    def _audit_record(who: tuple[int, str], action: str, target: str, detail: str) -> None:
+        with app.state.sessionmaker() as db:
+            try:
+                audit.record(db, user_id=who[0], actor=who[1], action=action, target=target, detail=detail)
+                db.commit()
+            except Exception:  # noqa: BLE001
+                log.exception("writing the audit log failed")
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:
@@ -122,6 +156,8 @@ def create_app(settings: Settings | None = None, migrate: bool = True) -> FastAP
     app.include_router(banks_router)
     app.include_router(notifications_router)
     app.include_router(recurring_router)
+    app.include_router(security_router)
+    app.include_router(security_admin_router)
     app.include_router(oauth_router)
     app.include_router(mcp_router)
     app.include_router(mcp_api_router)

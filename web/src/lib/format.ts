@@ -35,6 +35,14 @@ export function formatDate(value: string | null | undefined): string {
   return `${d}.${m}.${y}`;
 }
 
+/** ISO timestamp -> "25.11.2026, 14:05" in local time. */
+export function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '–';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '–';
+  return d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 export function today(): string {
   const d = new Date();
   const off = d.getTimezoneOffset();

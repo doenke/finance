@@ -19,7 +19,8 @@ from sqlalchemy.orm import Session
 from .. import cache, kinds
 from ..api import accounts as acc_api
 from ..db import get_db
-from ..models import Account, Instrument, Person, Trade, Transaction, User, Valuation
+from ..models import Account, Instrument, OAuthClient, Person, Trade, Transaction, User, Valuation
+from ..services import audit
 from ..services.performance import PERIODS, Scope, net_worth, performance
 from .oauth import challenge_headers, require_bearer
 
@@ -579,6 +580,20 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
 }
 
 
+# German labels for the audit log of writing tools.
+TOOL_LABELS = {
+    "create_account": "Konto angelegt",
+    "update_account": "Konto geändert",
+    "add_valuation": "Bewertung eingetragen",
+    "add_balance": "Kontostand eingetragen",
+    "add_transaction": "Buchung angelegt",
+    "add_trade": "Depot-Transaktion angelegt",
+    "create_category": "Kategorie angelegt",
+    "create_category_rule": "Kategorieregel angelegt",
+    "set_recurring_category": "Kategorie eines Vertrags geändert",
+}
+
+
 def _tool_list() -> list[dict]:
     return [
         {
@@ -591,7 +606,18 @@ def _tool_list() -> list[dict]:
     ]
 
 
-def _call(db: Session, user: User, name: str, args: dict) -> dict:
+def _audit(db: Session, user: User, client_id: str | None, name: str, args: dict) -> None:
+    client = db.get(OAuthClient, client_id) if client_id else None
+    target = ""
+    account_id = args.get("account_id")
+    if isinstance(account_id, int) or (isinstance(account_id, str) and account_id.isdigit()):
+        account = db.get(Account, int(account_id))
+        target = f"Konto {account.name}" if account else f"Konto #{account_id}"
+    audit.record(db, user_id=user.id, actor=user.name, via="mcp", client=client.name if client else "", action=TOOL_LABELS.get(name, name), target=target, detail=audit.detail(args))
+    db.commit()
+
+
+def _call(db: Session, user: User, name: str, args: dict, client_id: str | None = None) -> dict:
     if name not in TOOLS:
         raise KeyError(name)
     fn, _, writes, _ = TOOLS[name]
@@ -599,6 +625,7 @@ def _call(db: Session, user: User, name: str, args: dict) -> dict:
         result = fn(db, user, args or {})
         if writes:
             cache.bump()
+            _audit(db, user, client_id, name, args or {})
         return {"content": [{"type": "text", "text": _json(result)}], "isError": False}
     except (ToolError, KeyError, ValueError, ValidationError) as exc:
         db.rollback()
@@ -608,7 +635,7 @@ def _call(db: Session, user: User, name: str, args: dict) -> dict:
         return {"content": [{"type": "text", "text": f"Fehler: {exc.detail}"}], "isError": True}
 
 
-def _handle(db: Session, user: User, msg: dict) -> dict | None:
+def _handle(db: Session, user: User, msg: dict, client_id: str | None = None) -> dict | None:
     method = msg.get("method")
     mid = msg.get("id")
     if mid is None:
@@ -624,7 +651,7 @@ def _handle(db: Session, user: User, msg: dict) -> dict | None:
         result = {"tools": _tool_list()}
     elif method == "tools/call":
         try:
-            result = _call(db, user, params.get("name", ""), params.get("arguments") or {})
+            result = _call(db, user, params.get("name", ""), params.get("arguments") or {}, client_id)
         except KeyError:
             return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": f"Unbekanntes Werkzeug: {params.get('name')}"}}
     elif method in ("resources/list", "prompts/list"):
@@ -642,7 +669,7 @@ async def mcp_post(request: Request, db: Session = Depends(get_db)) -> Response:
     except ValueError:
         return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}, status_code=400)
     messages = payload if isinstance(payload, list) else [payload]
-    replies = [r for r in (_handle(db, user, m) for m in messages if isinstance(m, dict)) if r is not None]
+    replies = [r for r in (_handle(db, user, m, client_id) for m in messages if isinstance(m, dict)) if r is not None]
     if not replies:
         return Response(status_code=202)
     return JSONResponse(replies if isinstance(payload, list) else replies[0], headers={"Cache-Control": "no-store"})

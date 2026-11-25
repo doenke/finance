@@ -14,7 +14,8 @@ from ..db import get_db
 from ..models import User
 from . import oidc
 from .avatar import fetch_avatar
-from .session import clear_session, serializer, set_session
+from ..services import audit
+from .session import clear_session, end_session, serializer, session_user, set_session
 from .users import upsert_user
 
 log = logging.getLogger("finanzen.auth")
@@ -97,21 +98,30 @@ def callback(request: Request, db: Session = Depends(get_db)) -> Response:
         merged["groups"] = userinfo["groups"]
 
     user = upsert_user(db, merged, settings.oidc_admin_group)
+    if user.disabled:
+        db.commit()
+        return _error_page("Dein Zugang ist gesperrt. Wende dich an einen Admin im Haushalt.", 403)
     picture = merged.get("picture")
     if isinstance(picture, str) and picture:
         result = fetch_avatar(picture, access_token, settings.oidc_issuer, settings.avatar_hosts)
         if result:
             user.avatar, user.avatar_hash = result
+    audit.record(db, user_id=user.id, actor=user.name, action="Angemeldet")
     db.commit()
 
     response = RedirectResponse(flow.get("return_to") or "/", status_code=302)
     response.delete_cookie(FLOW_COOKIE, path="/auth")
-    set_session(response, settings, user.id)
+    set_session(response, request, db, user)
     return response
 
 
 @router.post("/logout")
-def logout(request: Request) -> Response:
+def logout(request: Request, db: Session = Depends(get_db)) -> Response:
+    user = session_user(request, db)
+    if user is not None:
+        audit.record(db, user_id=user.id, actor=user.name, action="Abgemeldet")
+        db.commit()
+    end_session(request, db)
     response = Response(status_code=204)
     clear_session(response, _settings(request))
     return response
@@ -126,7 +136,11 @@ def dev_login(request: Request, name: str = "Entwickler", admin: bool = True, db
     slug = re.sub(r"[^\w]+", "-", name.lower()).strip("-") or "dev"
     claims = {"sub": f"dev:{slug}", "name": name, "email": f"{slug}@example.org", "groups": [settings.oidc_admin_group] if admin else []}
     user: User = upsert_user(db, claims, settings.oidc_admin_group)
+    if user.disabled:
+        db.commit()
+        return _error_page("Dein Zugang ist gesperrt.", 403)
+    audit.record(db, user_id=user.id, actor=user.name, action="Angemeldet (Entwicklung)")
     db.commit()
     response = RedirectResponse("/", status_code=302)
-    set_session(response, settings, user.id)
+    set_session(response, request, db, user)
     return response

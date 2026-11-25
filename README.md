@@ -39,6 +39,9 @@ besser läuft als der MSCI World.
 - **Für sich bleiben** – läuft auf eurem eigenen Server, keine Cloud, kein
   Tracking. Bank-PINs werden nur gespeichert, wenn du das willst, und dann
   verschlüsselt.
+- **Nachvollziehbar** – ein Änderungsprotokoll zeigt, wer wann was geändert
+  hat, auch über KI-Assistenten. Du siehst deine angemeldeten Geräte und
+  meldest fremde ab; Admins können Personen überall abmelden oder sperren.
 - **Als App installieren** – Finanzen ist eine PWA und funktioniert auf dem
   Handy wie eine App.
 
@@ -259,7 +262,7 @@ die Datei auf der Importseite aus.)
 
 ### 7. Verträge und Abos im Blick
 
-Unter **Verträge** sucht Finanzen in euren Umsätzen nach Zahlungen, die
+Unter **Bilanz → Verträge & Abos** sucht Finanzen in euren Umsätzen nach Zahlungen, die
 regelmäßig wiederkommen – Miete, Strom, Versicherungen, Netflix, der Kredit,
 das Gehalt, die Sparrate. Es erkennt wöchentliche bis jährliche Zahlungen,
 auch wenn mal ein Monat fehlt, und trennt Abos, die über PayPal laufen,
@@ -281,7 +284,7 @@ Die Kategorie landet auch an den einzelnen Umsätzen – die Grundlage für den
 späteren Budget-Planer. Am besten holst du vorher ein Jahr Umsätze ab, dann
 findet Finanzen auch die jährlichen Zahlungen.
 
-**Monatsbilanz:** Neben den Verträgen zeigt die **Monatsbilanz** aus euren
+**Monatsbilanz:** Im Menüpunkt **Bilanz** zeigt die **Monatsbilanz** aus euren
 echten Buchungen, was jeden Monat reinkam, rausging und gespart wurde – als
 Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
 Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB
@@ -358,7 +361,16 @@ nachtragen oder Käufe buchen. Löschen kann der Assistent nichts.
 2. Beim Verbinden meldest du dich wie gewohnt über Pocket ID an und
    bestätigst den Zugriff.
 3. Fertig – Claude arbeitet mit deinem Namen. Unter **Einstellungen** siehst
-   du, welche Assistenten verbunden sind, und kannst sie jederzeit trennen.
+   du, welche Assistenten verbunden sind (mit ihrer Adresse), und kannst sie
+   jederzeit trennen. Alles, was ein Assistent einträgt, steht im
+   **Änderungsprotokoll** mit seinem Namen.
+
+Pass beim Bestätigen auf, **wohin** der Zugriff geht: Die Seite zeigt die
+Adresse des Assistenten. Gehört sie nicht zu einem bekannten Assistenten
+(`MCP_TRUSTED_HOSTS`, vorbelegt mit `claude.ai` und `claude.com`), warnt
+Finanzen deutlich und du musst ausdrücklich bestätigen, dass du die Verbindung
+selbst gestartet hast. So bringt dich ein fremder Link nicht dazu, jemand
+anderem eure Finanzdaten freizugeben.
 
 Es braucht keine weitere Konfiguration: Anmeldung, Registrierung des
 Assistenten und Tokens (OAuth 2.1 mit PKCE) erledigt Finanzen selbst.
@@ -376,8 +388,16 @@ Finanzen hat keine eigenen Passwörter – angemeldet wird über Pocket ID.
 5. Client-ID in `OIDC_CLIENT_ID`, `https://id.kanonenwiese.de` in
    `OIDC_ISSUER`.
 
-Wer in der Gruppe `admins` ist (`OIDC_ADMIN_GROUP`), bekommt später die
-Admin-Funktionen wie Systemeinstellungen und Backup. Das Profilbild aus Pocket
+Wer in der Gruppe `admins` ist (`OIDC_ADMIN_GROUP`), bekommt die
+Admin-Funktionen wie Benutzerverwaltung und Backup. Die Gruppe wird bei jeder
+Anmeldung neu gelesen.
+
+Jede Anmeldung ist eine eigene Sitzung (30 Tage) und steht unter
+**Einstellungen → Angemeldete Geräte**. Abmelden beendet sie wirklich – ein
+kopiertes Cookie hilft dann nicht mehr. Unter **Einstellungen → Benutzer**
+können Admins jemanden auf allen Geräten abmelden (auch verbundene
+Assistenten) oder ganz sperren, etwa wenn ein Handy verloren ist. Wer gesperrt
+ist, kommt auch über Pocket ID nicht mehr hinein, bis ein Admin entsperrt. Das Profilbild aus Pocket
 ID wird beim Login einmal geladen und von Finanzen selbst ausgeliefert.
 
 ## Kleine Konfiguration, große Wirkung
@@ -386,9 +406,10 @@ ID wird beim Login einmal geladen und von Finanzen selbst ausgeliefert.
 | --- | --- |
 | `PUBLIC_URL` | Öffentliche Adresse, z. B. `https://finanzen.kanonenwiese.de` |
 | `POSTGRES_PASSWORD` | Passwort der Datenbank (nur Buchstaben und Ziffern) |
-| `SESSION_KEY` | Signiert die Anmeldung; ändern meldet alle ab |
+| `SESSION_KEY` | Signiert das Anmelde-Cookie; ändern meldet alle ab |
 | `SECRETS_KEY` | Verschlüsselt gespeicherte Bank-PINs – **nie ändern, gut aufheben** |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID` | Anmeldung über Pocket ID |
+| `MCP_TRUSTED_HOSTS` | Adressen bekannter KI-Assistenten; bei anderen warnt die Zustimmungsseite |
 | `FINTS_PRODUCT_ID` | Registrierungsnummer für FinTS (Deutsche Kreditwirtschaft) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Schlüssel für Push-Nachrichten, einmal erzeugen mit `docker compose run --rm app python -m finanzen vapid` |
 | `SMTP_HOST`, `SMTP_FROM`, … | E-Mail-Versand für Benachrichtigungen und Monatsbericht |
@@ -438,6 +459,10 @@ Port `43651`).
   oder das Paket in GitHub auf „public“ stellen.
 - **`SECRETS_KEY`** nach dem ersten Speichern einer PIN nie mehr ändern und
   getrennt vom Backup aufbewahren.
+- **Export vs. Sicherung:** Der JSON-Export unter Einstellungen (für alle)
+  lässt Anmeldesitzungen, Assistenten-Zugänge, Push-Schlüssel und
+  Bank-Zugangsdaten weg – die PIN, den FinTS-Zustand und die Anmeldenamen
+  anderer Personen. Vollständig ist nur die Sicherung der Admins.
 
 ## Lizenz
 

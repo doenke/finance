@@ -32,6 +32,7 @@ class Settings:
     oidc_admin_group: str = "admins"
     oidc_provider_name: str = "Kanonenwiese SSO"
     avatar_hosts: tuple[str, ...] = field(default_factory=tuple)
+    mcp_trusted_hosts: tuple[str, ...] = ("claude.ai", "claude.com")
     log_level: str = "info"
     price_sync_schedule: str = "30 23 * * 1-5"
     price_stale_days: int = 3
@@ -99,6 +100,7 @@ def load_settings() -> Settings:
         oidc_admin_group=env.get("OIDC_ADMIN_GROUP", "admins"),
         oidc_provider_name=env.get("OIDC_PROVIDER_NAME", "Kanonenwiese SSO"),
         avatar_hosts=hosts,
+        mcp_trusted_hosts=tuple(h.strip().lower() for h in env.get("MCP_TRUSTED_HOSTS", "claude.ai,claude.com").split(",") if h.strip()),
         log_level=env.get("LOG_LEVEL", "info"),
         price_sync_schedule=env.get("PRICE_SYNC_SCHEDULE", "30 23 * * 1-5"),
         price_stale_days=int(env.get("PRICE_STALE_DAYS", "3")),
