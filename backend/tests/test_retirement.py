@@ -95,7 +95,7 @@ def test_household_taxes_per_owner(client):
         db.commit()
         house = projection(db, None, Params(savings=0), today=today)
         single = projection(db, me.id, Params(savings=0), today=today)
-    assert house["retire_on"] == date(2048, 3, 1)  # when both receive their pension
+    assert house["retire_on"] == date(2047, 6, 1)  # average of 2046-10-01 and 2048-03-01
     assert single["retire_on"] == date(2046, 10, 1)
     mid = next(s for s in house["scenarios"] if s["key"] == "mittel")
     one = next(s for s in single["scenarios"] if s["key"] == "mittel")

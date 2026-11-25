@@ -120,7 +120,7 @@
       <label>
         Rentenbeginn
         <input type="date" bind:value={retireOn} />
-        {#if data && !retireOn}<span class="muted small">{formatDate(data.default_retire_on)} ({personId === null ? 'wenn alle in Rente sind' : 'aus den Verträgen'})</span>{/if}
+        {#if data && !retireOn}<span class="muted small">{formatDate(data.default_retire_on)} ({personId === null ? 'Mittel der Rentenbeginne' : 'aus den Verträgen'})</span>{/if}
       </label>
       <label>
         Sparrate / Monat

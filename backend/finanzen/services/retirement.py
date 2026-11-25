@@ -141,13 +141,24 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
                 cost = float(sum((p.cost for p in positions.values()), Decimal(0))) * share
             capital_items.append({"account_id": a.id, "name": a.name, "kind": a.kind, "value": round(value, 2), "cost": round(cost, 2)})
 
-    statutory = [p for p in pensions_raw if (p[2].get("product") == "gesetzlich")]
-    starts = [_date(p[2].get("payout_start")) for p in (statutory or pensions_raw)]
-    starts = [s for s in starts if s]
-    if person_id is None:  # household: when everyone receives their pension
-        default_retire = max(starts) if starts else date(today.year + 25, today.month, 1)
+    def own_start(items: list) -> date | None:
+        """A person's retirement: the statutory pension start, else the latest start of their contracts."""
+        statutory = [_date(p[2].get("payout_start")) for p in items if p[2].get("product") == "gesetzlich"]
+        statutory = [x for x in statutory if x]
+        others = [x for x in (_date(p[2].get("payout_start")) for p in items) if x]
+        return min(statutory) if statutory else (max(others) if others else None)
+
+    by_person: dict[int | None, list] = {}
+    for item in pensions_raw:
+        by_person.setdefault(item[0].owners[0].person_id if item[0].owners else None, []).append(item)
+    starts = [x for x in (own_start(items) for items in by_person.values()) if x]
+    if not starts:
+        default_retire = date(today.year + 25, today.month, 1)
+    elif person_id is None:  # household: the average of everyone's retirement, to the first of a month
+        mean = date.fromordinal(round(sum(x.toordinal() for x in starts) / len(starts)))
+        default_retire = date(mean.year, mean.month, 1)
     else:
-        default_retire = (min(starts) if statutory else max(starts)) if starts else date(today.year + 25, today.month, 1)
+        default_retire = own_start(pensions_raw)
     retire_on = params.retire_on or default_retire
     years_to = max(0.0, (retire_on - today).days / 365.25)
 
