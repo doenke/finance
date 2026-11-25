@@ -265,7 +265,10 @@ Einstand inklusive Gebühren und das Euro-Guthaben bei der Börse. Du siehst vor
 passt. Spaltenzuordnungen speicherst du als Vorlage, doppelte Buchungen
 werden übersprungen, und jeder Import lässt sich mit einem Klick komplett
 rückgängig machen. Beim Portfolio-Performance-Import werden fehlende
-Wertpapiere gleich mit angelegt – samt Kurshistorie ab dem ersten Kauf.
+Wertpapiere gleich mit angelegt – samt Kurshistorie ab dem ersten Kauf. Zinsgutschriften auf Tagesgeld- und
+Girokonten („Zinsen für Guthaben“, „Haben-Zins“, „Zinszahlung“ …) erkennt
+Finanzen beim Import und beim Bankabruf selbst und zählt sie als Rendite statt
+als Einzahlung.
 
 **Direkt teilen:** Ist Finanzen auf dem Android-Handy installiert, taucht es
 im Teilen-Menü auf. Teile die CSV aus der Banking-App, von BSDEX oder aus

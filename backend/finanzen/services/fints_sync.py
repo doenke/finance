@@ -24,6 +24,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from .txkind import guess_kind
 from .. import cache, kinds
 from ..config import Settings
 from ..models import Account, BalanceSnapshot, BankLogin, Instrument, Price, Trade, Transaction
@@ -601,7 +602,7 @@ def apply_transactions(db: Session, account: Account, txs: list[Any]) -> int:
     for ext, f in rows:
         if ext in existing:
             continue
-        kind = "interest" if "zins" in f["posting_text"].lower() and f["amount"] > 0 else "other"
+        kind = guess_kind(f["counterparty"], f["purpose"], f["amount"], f["posting_text"])
         db.add(
             Transaction(
                 account_id=account.id,

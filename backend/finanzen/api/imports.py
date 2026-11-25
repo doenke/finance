@@ -17,6 +17,7 @@ from .. import kinds
 from ..auth.session import admin_user, current_user
 from ..db import get_db
 from ..models import Account, AccountOwner, ImportBatch, Instrument, Trade, Transaction, User
+from ..services.txkind import guess_kind
 from ..services.backup import export_data, list_backups, write_backup
 from ..services.bsdex import COINS, parse_bsdex
 from ..services.csvimport import ImportError_, guess_mapping, header_index, parse_bookings, parse_portfolio_performance, sniff
@@ -104,7 +105,7 @@ def bookings_commit(data: BookingImportIn, db: Session = Depends(get_db), user: 
                 booking_date=r["booking_date"],
                 value_date=r["value_date"],
                 amount=r["amount"],
-                kind="other",
+                kind=guess_kind(r["counterparty"], r["purpose"], r["amount"]),
                 counterparty=r["counterparty"],
                 purpose=r["purpose"],
                 external_id=r["external_id"],
