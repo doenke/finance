@@ -43,8 +43,6 @@
   let data = $state<Breakdown | null>(null);
   let error = $state('');
   let loading = $state(true);
-  // holdings accounts opened into their positions (ranking and waterfall)
-  let open = $state<Record<number, boolean>>({});
   const hasPositions = (i: Item) => (i.positions?.length ?? 0) > 0;
 
   $effect(() => {
@@ -75,32 +73,57 @@
     return `${n > 0 ? '+' : ''}${n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Pp`;
   };
 
-  const ranked = $derived(data?.items ?? []);
-  const maxIrr = $derived(
-    Math.max(
-      0.0001,
-      ...ranked.flatMap((i) => [Math.abs(pc(i.irr) ?? 0), ...(open[i.account_id] ? (i.positions ?? []).map((p) => Math.abs(pc(p.irr) ?? 0)) : [])])
-    )
+  // Depots and crypto accounts are replaced by their single positions; fees and taxes that belong
+  // to no position stay as one line per account so that everything still adds up.
+  interface Row {
+    key: string;
+    name: string;
+    sub: string;
+    href: string;
+    irr: string | null;
+    ttwror: string | null;
+    ttwror_pa: string | null;
+    gain: string;
+    contribution: string | null;
+    rest: boolean;
+  }
+  const rows = $derived.by(() => {
+    const out: Row[] = [];
+    for (const i of data?.items ?? []) {
+      if (!hasPositions(i)) {
+        out.push({ key: `a${i.account_id}`, name: i.name, sub: i.kind_label, href: `/konten/${i.account_id}`, irr: i.irr, ttwror: i.ttwror, ttwror_pa: i.ttwror_pa, gain: i.gain, contribution: i.contribution, rest: false });
+        continue;
+      }
+      let gain = toNumber(i.gain);
+      let contribution = toNumber(i.contribution);
+      for (const p of i.positions!) {
+        out.push({
+          key: `p${i.account_id}-${p.instrument_id}`,
+          name: p.name,
+          sub: `${i.name}${p.sold ? ' · verkauft' : ''}`,
+          href: `/konten/${i.account_id}`,
+          irr: p.irr,
+          ttwror: p.ttwror,
+          ttwror_pa: p.ttwror_pa,
+          gain: p.gain,
+          contribution: p.contribution,
+          rest: false
+        });
+        gain -= toNumber(p.gain);
+        contribution -= toNumber(p.contribution);
+      }
+      if (Math.abs(gain) >= 0.5)
+        out.push({ key: `r${i.account_id}`, name: `${i.name}: Kosten & Steuern`, sub: 'ohne Position', href: `/konten/${i.account_id}`, irr: null, ttwror: null, ttwror_pa: null, gain: String(gain), contribution: String(contribution), rest: true });
+    }
+    return out;
+  });
+  const ranked = $derived(
+    rows.filter((r) => !r.rest).sort((a, b) => (a.irr === null ? 1 : 0) - (b.irr === null ? 1 : 0) || toNumber(b.irr) - toNumber(a.irr))
   );
+  const maxIrr = $derived(Math.max(0.0001, ...ranked.map((r) => Math.abs(pc(r.irr) ?? 0))));
 
   // Waterfall: positive contributions first (largest first), then negative ones.
-  // An opened depot is replaced by its positions; what is left over (fees and taxes without a position) stays as its own step.
   const steps = $derived.by(() => {
-    const rows: { key: string; name: string; gain: string; contribution: string | null }[] = [];
-    for (const i of data?.items ?? []) {
-      if (open[i.account_id] && hasPositions(i)) {
-        let gain = toNumber(i.gain);
-        let contribution = toNumber(i.contribution);
-        for (const p of i.positions!) {
-          rows.push({ key: `p${i.account_id}-${p.instrument_id}`, name: p.name, gain: p.gain, contribution: p.contribution });
-          gain -= toNumber(p.gain);
-          contribution -= toNumber(p.contribution);
-        }
-        if (Math.abs(gain) >= 0.5) rows.push({ key: `r${i.account_id}`, name: `${i.name}: Kosten & Steuern`, gain: String(gain), contribution: String(contribution) });
-      } else {
-        rows.push({ key: `a${i.account_id}`, name: i.name, gain: i.gain, contribution: i.contribution });
-      }
-    }
     const items = rows.filter((i) => i.contribution !== null && toNumber(i.contribution) !== 0);
     items.sort((a, b) => toNumber(b.contribution) - toNumber(a.contribution));
     let cum = 0;
@@ -131,20 +154,12 @@
     </div>
 
     <ul class="ranking">
-      {#each ranked as i (i.account_id)}
+      {#each ranked as i (i.key)}
         {@const v = pc(i.irr)}
         <li>
           <div class="label">
-            {#if hasPositions(i)}
-              <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
-                <span class="chev" class:rot={open[i.account_id]} aria-hidden="true">›</span>
-                <span class="ellipsis">{i.name}</span>
-              </button>
-              <span class="muted small">{i.kind_label} · {i.positions!.length} Positionen</span>
-            {:else}
-              <a href="/konten/{i.account_id}">{i.name}</a>
-              <span class="muted small">{i.kind_label}</span>
-            {/if}
+            <a href={i.href} title={i.name}>{i.name}</a>
+            <span class="muted small">{i.sub}</span>
           </div>
           <div class="bar-wrap" aria-hidden="true">
             <div class="axis"></div>
@@ -157,32 +172,11 @@
             TTWROR {pctText(i.ttwror_pa ?? i.ttwror)} · Gewinn <Money value={i.gain} cents={false} colored />
           </span>
         </li>
-        {#if open[i.account_id] && i.positions}
-          {#each i.positions as p (p.instrument_id)}
-            {@const pv = pc(p.irr)}
-            <li class="sub">
-              <div class="label">
-                <span class="ellipsis" title={p.name}>{p.name}</span>
-                {#if p.sold}<span class="muted small">verkauft</span>{/if}
-              </div>
-              <div class="bar-wrap" aria-hidden="true">
-                <div class="axis"></div>
-                {#if pv !== null}
-                  <div class="bar" class:neg={pv < 0} style:left="{pv < 0 ? 50 - (Math.abs(pv) / maxIrr) * 50 : 50}%" style:width="{(Math.abs(pv) / maxIrr) * 50}%"></div>
-                {/if}
-              </div>
-              <strong class="irr num" class:pos-text={(pv ?? 0) > 0} class:neg-text={(pv ?? 0) < 0}>{pv === null ? '–' : formatPercent(pv)}</strong>
-              <span class="details muted small">
-                TTWROR {pctText(p.ttwror_pa ?? p.ttwror)} · Gewinn <Money value={p.gain} cents={false} colored /> · {ppText(p.contribution)}
-              </span>
-            </li>
-          {/each}
-        {/if}
       {/each}
     </ul>
     <p class="muted small">
-      Sortiert nach IZF pro Jahr – eurer persönlichen Rendite inklusive des Zeitpunkts der Ein- und Auszahlungen. Depots und Krypto klappst du
-      auf, dann stehen auch in der Zusammensetzung unten die einzelnen Positionen statt des Depots.
+      Sortiert nach IZF pro Jahr – eurer persönlichen Rendite inklusive des Zeitpunkts der Ein- und Auszahlungen. Depots und Krypto erscheinen
+      mit ihren einzelnen Positionen; Kosten und Steuern ohne Position stehen unten in der Zusammensetzung.
     </p>
 
     {#if steps.length && data.total}
@@ -298,37 +292,6 @@
   }
   .label a:hover {
     text-decoration: underline;
-  }
-  .ranking li.sub {
-    padding: 6px 0 6px 1.4em;
-    border-top: 1px dashed var(--border);
-    font-size: 0.92rem;
-  }
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    background: none;
-    border: 0;
-    padding: 0;
-    font: inherit;
-    font-weight: 500;
-    color: inherit;
-    cursor: pointer;
-    text-align: left;
-  }
-  .toggle:hover .ellipsis {
-    text-decoration: underline;
-  }
-  .chev {
-    display: inline-block;
-    width: 1em;
-    color: var(--muted);
-    transition: transform 0.15s;
-  }
-  .chev.rot {
-    transform: rotate(90deg);
   }
   .bar-wrap {
     position: relative;

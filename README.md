@@ -184,9 +184,9 @@ Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
 nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure
 Gesamtrendite zusammensetzt: Jede Anlage steuert ihren Gewinn in Euro und in
 Prozentpunkten bei, die Balken addieren sich zur Gesamtrendite des gewählten
-Zeitraums (Standard: ein Jahr). Depots und Krypto klappst du auf: Dann
-siehst du die Rendite jeder einzelnen Position, und in der Zusammensetzung
-stehen die Positionen statt des Depots.
+Zeitraums (Standard: ein Jahr). Depots und Krypto stehen dort nicht als
+Ganzes, sondern mit jeder einzelnen Position; Kosten und Steuern ohne
+Position erscheinen in der Zusammensetzung als eigene Zeile.
 
 So rechnet Finanzen:
 
