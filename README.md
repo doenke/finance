@@ -172,7 +172,9 @@ dem, was festliegt (Festgeld, Altersvorsorge, Immobilien, Beteiligungen,
 sonstige Anlagen) – mit dem Datum, ab dem es frei wird: Fälligkeit beim
 Festgeld, Rentenbeginn bei der Altersvorsorge oder ein eigenes „frei ab“.
 Passt die Einteilung bei einem Konto nicht, stellst du sie unter
-„Bearbeiten“ → Verfügbarkeit um. Depots und Krypto klappst du auch hier auf
+„Bearbeiten“ → Verfügbarkeit um. Jede Spalte trägt ihre Summe oben; darunter
+stehen die Schulden, was nach Abzug der Schulden verfügbar bliebe, und das
+Vermögen netto. Depots und Krypto klappst du auch hier auf
 und siehst jede Position mit Stückzahl, aktuellem Wert und Gewinn in Prozent.
 
 Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
