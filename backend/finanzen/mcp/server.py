@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from .. import cache, kinds
 from ..api import accounts as acc_api
 from ..db import get_db
-from ..models import Account, Instrument, Person, Transaction, User, Valuation
+from ..models import Account, Instrument, Person, Trade, Transaction, User, Valuation
 from ..services.performance import PERIODS, Scope, net_worth, performance
 from .oauth import challenge_headers, require_bearer
 
@@ -295,6 +295,56 @@ def t_get_holding_period(db: Session, user: User, args: dict) -> Any:
     return data
 
 
+def t_list_trades(db: Session, user: User, args: dict) -> Any:
+    account = db.get(Account, int(args["account_id"]))
+    if account is None:
+        raise ToolError("Konto nicht gefunden.")
+    if kinds.KINDS[account.kind].mode != kinds.HOLDINGS:
+        raise ToolError("Wertpapier-Buchungen gibt es nur bei Depots, Krypto, Edelmetallen und Beteiligungen.")
+    stmt = select(Trade).where(Trade.account_id == account.id)
+    if args.get("from"):
+        stmt = stmt.where(Trade.date >= date.fromisoformat(args["from"]))
+    if args.get("to"):
+        stmt = stmt.where(Trade.date <= date.fromisoformat(args["to"]))
+    if args.get("type"):
+        stmt = stmt.where(Trade.type == args["type"])
+    if args.get("isin"):
+        stmt = stmt.join(Instrument, Trade.instrument_id == Instrument.id).where(Instrument.isin == str(args["isin"]).strip().upper())
+    limit = max(1, min(int(args.get("limit") or 200), 1000))
+    rows = db.scalars(stmt.order_by(Trade.date.desc(), Trade.id.desc()).limit(limit + 1)).all()
+    instruments: dict[int, Instrument | None] = {}
+
+    def inst(iid: int | None) -> dict | None:
+        if iid is None:
+            return None
+        if iid not in instruments:
+            instruments[iid] = db.get(Instrument, iid)
+        i = instruments[iid]
+        return {"id": iid, "name": i.name, "isin": i.isin} if i else {"id": iid}
+
+    return {
+        "account": account.name,
+        "count": min(len(rows), limit),
+        "more": len(rows) > limit,
+        "trades": [
+            {
+                "id": t.id,
+                "date": t.date,
+                "type": t.type,
+                "instrument": inst(t.instrument_id),
+                "quantity": t.quantity,
+                "price": t.price,
+                "amount": t.amount,
+                "fees": t.fees,
+                "taxes": t.taxes,
+                "note": t.note,
+                "imported": t.import_batch_id is not None or t.external_id is not None,
+            }
+            for t in rows[:limit]
+        ],
+    }
+
+
 def _category_id(db: Session, value: Any) -> int:
     from ..models import Category
 
@@ -397,6 +447,22 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         _schema({"account_id": {"type": "integer"}, "on": DATE}, ["account_id"]),
         False,
         "Haltefrist (§ 23 EStG) für Krypto- und Edelmetall-Konten: je Kaufposten frei ab, steuerfrei verkaufbare Menge, Gewinne nach Jahr.",
+    ),
+    "list_trades": (
+        t_list_trades,
+        _schema(
+            {
+                "account_id": {"type": "integer"},
+                "isin": {"type": "string"},
+                "type": {"type": "string", "enum": ["buy", "sell", "deliver_in", "deliver_out", "dividend", "interest", "tax", "tax_refund", "fee", "advance_tax", "split"]},
+                "from": DATE,
+                "to": DATE,
+                "limit": {"type": "integer"},
+            },
+            ["account_id"],
+        ),
+        False,
+        "Wertpapier-Buchungen eines Depots (Käufe, Verkäufe, Einlieferungen, Dividenden …), neueste zuerst; filterbar nach ISIN, Art und Zeitraum.",
     ),
     "list_categories": (t_list_categories, _schema({}), False, "Kategorien für Ausgaben, Einnahmen, Sparen (transfer) und Umbuchungen (internal)."),
     "create_category": (

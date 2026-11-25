@@ -93,6 +93,21 @@ def test_mcp_oauth_and_tools(client):
     err, nw = tool(client, access, "get_net_worth")
     assert D(nw["current"]["net"]) == D("11600.38")
     assert D(nw["bound"]) == D("11600.38") and D(nw["available"]) == 0 and nw["bound_items"][0]["name"] == "HDI Basisrente"
+    # trades of a depot
+    depot = client.post("/api/accounts", json={"name": "Depot", "kind": "depot"}, headers=ORIGIN).json()["id"]
+    etf = client.post("/api/instruments", json={"kind": "etf", "name": "World", "isin": "IE00B4L5Y983"}, headers=ORIGIN).json()["id"]
+    for body in [
+        {"date": "2024-01-10", "type": "buy", "instrument_id": etf, "quantity": "10", "price": "80"},
+        {"date": "2026-11-24", "type": "deliver_in", "instrument_id": etf, "quantity": "5", "amount": "500"},
+    ]:
+        assert client.post(f"/api/accounts/{depot}/trades", json=body, headers=ORIGIN).status_code == 201
+    err, trades = tool(client, access, "list_trades", {"account_id": depot})
+    assert not err and trades["count"] == 2 and trades["trades"][0]["type"] == "deliver_in"  # newest first
+    assert trades["trades"][1]["instrument"]["isin"] == "IE00B4L5Y983"
+    err, only = tool(client, access, "list_trades", {"account_id": depot, "type": "buy", "isin": "ie00b4l5y983"})
+    assert only["count"] == 1 and D(only["trades"][0]["quantity"]) == 10
+    err, msg = tool(client, access, "list_trades", {"account_id": aid})
+    assert err and "nur bei Depots" in msg
     unknown = rpc(client, access, "tools/call", {"name": "delete_everything"})
     assert unknown["error"]["code"] == -32602
 
