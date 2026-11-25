@@ -262,7 +262,7 @@ die Datei auf der Importseite aus.)
 
 ### 7. Verträge und Abos im Blick
 
-Unter **Verträge** sucht Finanzen in euren Umsätzen nach Zahlungen, die
+Unter **Bilanz → Verträge & Abos** sucht Finanzen in euren Umsätzen nach Zahlungen, die
 regelmäßig wiederkommen – Miete, Strom, Versicherungen, Netflix, der Kredit,
 das Gehalt, die Sparrate. Es erkennt wöchentliche bis jährliche Zahlungen,
 auch wenn mal ein Monat fehlt, und trennt Abos, die über PayPal laufen,
@@ -284,7 +284,7 @@ Die Kategorie landet auch an den einzelnen Umsätzen – die Grundlage für den
 späteren Budget-Planer. Am besten holst du vorher ein Jahr Umsätze ab, dann
 findet Finanzen auch die jährlichen Zahlungen.
 
-**Monatsbilanz:** Neben den Verträgen zeigt die **Monatsbilanz** aus euren
+**Monatsbilanz:** Im Menüpunkt **Bilanz** zeigt die **Monatsbilanz** aus euren
 echten Buchungen, was jeden Monat reinkam, rausging und gespart wurde – als
 Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
 Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB

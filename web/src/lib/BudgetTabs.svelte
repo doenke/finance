@@ -1,9 +1,9 @@
 <script lang="ts">
   import { page } from '$app/state';
   const tabs = [
-    { href: '/vertraege', label: 'Verträge & Abos' },
     { href: '/bilanz', label: 'Monatsbilanz' },
-    { href: '/jahresbilanz', label: 'Jahresbilanz' }
+    { href: '/jahresbilanz', label: 'Jahresbilanz' },
+    { href: '/vertraege', label: 'Verträge & Abos' }
   ];
 </script>
 
