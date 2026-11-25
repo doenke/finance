@@ -217,6 +217,14 @@
       </div>
       <span class="muted">›</span>
     </a>
+    <a class="card row navlink" href="/banken">
+      <Icon name="bank" />
+      <div class="grow">
+        <strong>Banken</strong>
+        <div class="muted small">Bankzugänge und automatischer Abruf (FinTS)</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
     <a class="card row navlink" href="/protokoll">
       <Icon name="history" />
       <div class="grow">

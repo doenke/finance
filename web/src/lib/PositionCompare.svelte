@@ -229,7 +229,7 @@
         </p>
       </div>
     {/if}
-    {#if accountId !== null}<a class="small" href="/wertpapiere">Alle Depots zusammen vergleichen →</a>{/if}
+    {#if accountId !== null}<a class="small" href="/anlagen">Alle Depots zusammen vergleichen →</a>{/if}
   </section>
 {/if}
 

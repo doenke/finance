@@ -159,14 +159,22 @@ jeweiligen Anteil.
 
 ### 4. Wissen, wo ihr steht
 
-Die **Übersicht** zeigt euer Nettovermögen, die Veränderung seit Vormonat und
-Jahresbeginn, den Verlauf und die Aufteilung nach Anlageklasse und Person.
-Darunter steht die Rendite eurer Anlagen – als **TTWROR** (wie gut die
-Anlagen selbst gelaufen sind, egal wann ihr Geld eingezahlt habt) und als
-**IZF** (eure persönliche Rendite pro Jahr, mit Timing). Wähl einen
-Vergleichswert, etwa einen MSCI-World-ETF, und Finanzen legt dessen Verlauf
-daneben. Dieselbe Auswertung gibt es für jedes einzelne Konto und Depot, mit
-allen Zeiträumen von einem Monat bis „seit Beginn“.
+Das Menü hat sechs Punkte: **Übersicht, Konten, Anlagen, Budget, Vorsorge**
+und **Einstellungen** (dort findest du auch Haushalt, Banken und das
+Änderungsprotokoll).
+
+Die **Übersicht** beantwortet „Wo stehen wir?“: Nettovermögen mit der
+Veränderung seit Vormonat und Jahresbeginn, verfügbar und gebunden, der
+Verlauf und kurz die Rendite – Gewinn, IZF und TTWROR mit euren drei besten
+und schwächsten Anlagen.
+
+Alles Weitere zur Rendite steht unter **Anlagen**: die Rendite eurer Anlagen
+als **TTWROR** (wie gut die Anlagen selbst gelaufen sind, egal wann ihr Geld
+eingezahlt habt) und als **IZF** (eure persönliche Rendite pro Jahr, mit
+Timing), auf Wunsch mit einem Vergleichswert wie einem MSCI-World-ETF, dazu
+die Rendite je Anlage und der Vergleich der Wertpapiere. Dieselbe Auswertung
+gibt es für jedes einzelne Konto und Depot, mit allen Zeiträumen von einem
+Monat bis „seit Beginn“.
 
 **Verfügbar und gebunden** trennt, was ihr kurzfristig nutzen könntet –
 sofort auf den Haushaltskonten (abzüglich Kreditkarten) oder angelegt in
@@ -180,13 +188,14 @@ stehen die Schulden, was nach Abzug der Schulden verfügbar bliebe, und das
 Vermögen netto. Depots und Krypto klappst du auch hier auf
 und siehst jede Position mit Stückzahl, aktuellem Wert und Gewinn in Prozent.
 
-Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
+Unter **Anlagen** zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
 nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure
 Gesamtrendite zusammensetzt: Jede Anlage steuert ihren Gewinn in Euro und in
 Prozentpunkten bei, die Balken addieren sich zur Gesamtrendite des gewählten
 Zeitraums (Standard: ein Jahr). Depots und Krypto stehen dort nicht als
 Ganzes, sondern mit jeder einzelnen Position; Kosten und Steuern ohne
-Position erscheinen in der Zusammensetzung als eigene Zeile.
+Position erscheinen in der Zusammensetzung als eigene Zeile. Konten ohne
+Gewinn im Zeitraum (etwa das Girokonto) lässt die Rangliste weg.
 
 So rechnet Finanzen:
 
@@ -205,8 +214,8 @@ Kaufposten frei wird. Gerechnet wird nach FIFO. Dazu kommen deine Verkäufe
 nach Jahr – getrennt in steuerpflichtig und steuerfrei, mit Hinweis auf die
 Freigrenze von 1.000 €.
 
-**Positionen im Vergleich:** In jedem Depot (und unter `/wertpapiere` für
-alle Depots zusammen) vergleichst du die einzelnen Wertpapiere: Kursverlauf
+**Positionen im Vergleich:** In jedem Depot (und unter **Anlagen** für alle
+Depots zusammen) vergleichst du die einzelnen Wertpapiere: Kursverlauf
 aller Positionen ab gleichem Start, Gewichtung, Rendite gegen Schwankung als
 Streudiagramm, eine Kennzahlentabelle (1 Monat bis 5 Jahre, Schwankung,
 größter Rückgang) und eine Korrelations-Matrix, die zeigt, wie gut die
@@ -302,7 +311,7 @@ Die Kategorie landet auch an den einzelnen Umsätzen – die Grundlage für den
 späteren Budget-Planer. Am besten holst du vorher ein Jahr Umsätze ab, dann
 findet Finanzen auch die jährlichen Zahlungen.
 
-**Monatsbilanz:** Im Menüpunkt **Bilanz** zeigt die **Monatsbilanz** aus euren
+**Monatsbilanz:** Im Menüpunkt **Budget** zeigt die **Monatsbilanz** aus euren
 echten Buchungen, was jeden Monat reinkam, rausging und gespart wurde – als
 Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
 Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB

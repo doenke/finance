@@ -1,49 +1,16 @@
 <script lang="ts">
   // Return per account (ranked by IRR) and how each account adds up to the household's total return.
   import { api } from './api.ts';
+  import { flattenBreakdown, rankByIrr, type Breakdown } from './returns.ts';
   import { formatPercent, toNumber } from './format.ts';
   import Money from './Money.svelte';
   import PeriodPicker from './PeriodPicker.svelte';
-
-  interface Pos {
-    instrument_id: number;
-    name: string;
-    gain: string;
-    irr: string | null;
-    ttwror: string | null;
-    ttwror_pa: string | null;
-    contribution: string | null;
-    sold: boolean;
-  }
-  interface Item {
-    positions: Pos[] | null;
-    account_id: number;
-    name: string;
-    kind_label: string;
-    start_value: string;
-    end_value: string;
-    net_flows: string;
-    gain: string;
-    irr: string | null;
-    ttwror: string | null;
-    ttwror_pa: string | null;
-    avg_capital: string;
-    contribution: string | null;
-    weight: string | null;
-  }
-  interface Breakdown {
-    from: string | null;
-    to: string;
-    total: { gain: string; avg_capital: string; simple_return: string | null; irr: string | null; ttwror: string | null; ttwror_pa: string | null } | null;
-    items: Item[];
-  }
 
   let { personId = null }: { personId?: number | null } = $props();
   let period = $state('1Y');
   let data = $state<Breakdown | null>(null);
   let error = $state('');
   let loading = $state(true);
-  const hasPositions = (i: Item) => (i.positions?.length ?? 0) > 0;
 
   $effect(() => {
     const p = period;
@@ -73,53 +40,10 @@
     return `${n > 0 ? '+' : ''}${n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Pp`;
   };
 
-  // Depots and crypto accounts are replaced by their single positions; fees and taxes that belong
-  // to no position stay as one line per account so that everything still adds up.
-  interface Row {
-    key: string;
-    name: string;
-    sub: string;
-    href: string;
-    irr: string | null;
-    ttwror: string | null;
-    ttwror_pa: string | null;
-    gain: string;
-    contribution: string | null;
-    rest: boolean;
-  }
-  const rows = $derived.by(() => {
-    const out: Row[] = [];
-    for (const i of data?.items ?? []) {
-      if (!hasPositions(i)) {
-        out.push({ key: `a${i.account_id}`, name: i.name, sub: i.kind_label, href: `/konten/${i.account_id}`, irr: i.irr, ttwror: i.ttwror, ttwror_pa: i.ttwror_pa, gain: i.gain, contribution: i.contribution, rest: false });
-        continue;
-      }
-      let gain = toNumber(i.gain);
-      let contribution = toNumber(i.contribution);
-      for (const p of i.positions!) {
-        out.push({
-          key: `p${i.account_id}-${p.instrument_id}`,
-          name: p.name,
-          sub: `${i.name}${p.sold ? ' · verkauft' : ''}`,
-          href: `/konten/${i.account_id}`,
-          irr: p.irr,
-          ttwror: p.ttwror,
-          ttwror_pa: p.ttwror_pa,
-          gain: p.gain,
-          contribution: p.contribution,
-          rest: false
-        });
-        gain -= toNumber(p.gain);
-        contribution -= toNumber(p.contribution);
-      }
-      if (Math.abs(gain) >= 0.5)
-        out.push({ key: `r${i.account_id}`, name: `${i.name}: Kosten & Steuern`, sub: 'ohne Position', href: `/konten/${i.account_id}`, irr: null, ttwror: null, ttwror_pa: null, gain: String(gain), contribution: String(contribution), rest: true });
-    }
-    return out;
-  });
-  const ranked = $derived(
-    rows.filter((r) => !r.rest).sort((a, b) => (a.irr === null ? 1 : 0) - (b.irr === null ? 1 : 0) || toNumber(b.irr) - toNumber(a.irr))
-  );
+  // Depots and crypto accounts appear with their single positions; fees and taxes without a position
+  // stay as one line per account so that the waterfall still adds up.
+  const rows = $derived(flattenBreakdown(data?.items ?? []));
+  const ranked = $derived(rankByIrr(rows));
   const maxIrr = $derived(Math.max(0.0001, ...ranked.map((r) => Math.abs(pc(r.irr) ?? 0))));
 
   // Waterfall: positive contributions first (largest first), then negative ones.

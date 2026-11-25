@@ -12,15 +12,16 @@
   let { children } = $props();
 
   const nav = [
-    { href: '/', label: 'Übersicht', icon: 'home' },
-    { href: '/konten', label: 'Konten', icon: 'wallet' },
-    // Contracts and the yearly balance are tabs on the balance page (BudgetTabs).
-    { href: '/bilanz', label: 'Bilanz', icon: 'bars', also: ['/jahresbilanz', '/vertraege'] },
-    { href: '/vorsorge', label: 'Vorsorge', icon: 'hourglass', desktopOnly: true },
-    { href: '/banken', label: 'Banken', icon: 'bank' },
-    { href: '/haushalt', label: 'Haushalt', icon: 'people', desktopOnly: true },
-    { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings' }
+    { href: '/', label: 'Übersicht', short: 'Start', icon: 'home' },
+    { href: '/konten', label: 'Konten', icon: 'wallet', also: ['/import'] },
+    { href: '/anlagen', label: 'Anlagen', icon: 'trend', also: ['/wertpapiere'] },
+    // Monthly/yearly balance and contracts are tabs (BudgetTabs).
+    { href: '/bilanz', label: 'Budget', icon: 'bars', also: ['/jahresbilanz', '/vertraege'] },
+    { href: '/vorsorge', label: 'Vorsorge', icon: 'hourglass' },
+    // Household, banks, audit log and the rest are reached from the settings.
+    { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings', also: ['/haushalt', '/banken', '/protokoll'] }
   ];
+
 
   const isActive = (href: string) => {
     if (href === '/') return page.url.pathname === '/';
@@ -53,7 +54,7 @@
         <span>Finanzen</span>
       </a>
       {#each nav as item (item.href)}
-        <a href={item.href} class:desktop-only={item.desktopOnly} class:active={isActive(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
+        <a href={item.href} class:active={isActive(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
           <Icon name={item.icon} />
           <span class="full">{item.label}</span>
           {#if item.short}<span class="short">{item.short}</span>{/if}
@@ -135,7 +136,8 @@
   .short {
     display: none;
   }
-  @media (max-width: 400px) {
+  /* six entries in the bottom bar: short labels on phones */
+  @media (max-width: 560px) {
     .sidebar a:has(.short) .full {
       display: none;
     }
@@ -180,7 +182,6 @@
     .brand,
     .spacer,
     .privacy,
-    .desktop-only,
     .user {
       display: none !important;
     }
