@@ -160,8 +160,9 @@ Vorsorge, etwa für die Steuer auf die Renten.
 ### 4. Wissen, wo ihr steht
 
 Das Menü hat sechs Punkte: **Übersicht, Konten, Anlagen, Budget, Vorsorge**
-und **Einstellungen** (dort findest du auch Haushalt, Banken und das
-Änderungsprotokoll).
+und **Einstellungen**. Die Einstellungen sind in „Für dich“, „Haushalt &
+Daten“ (Haushalt, Kategorien, Banken, Kurse, KI-Assistenten, Export) und
+„Verwaltung“ (Änderungsprotokoll, Benutzer, Sicherungen) gegliedert.
 
 Die **Übersicht** beantwortet „Wo stehen wir?“: Nettovermögen mit der
 Veränderung seit Vormonat und Jahresbeginn, verfügbar und gebunden, der

@@ -72,7 +72,7 @@
       <section class="card group">
         <header>
           <h2>{g.label}</h2>
-          <strong><Money value={g.total} /></strong>
+          <strong><Money value={g.total} cents={false} /></strong>
         </header>
         <ul>
           {#each g.items as a (a.id)}
@@ -90,7 +90,7 @@
                   </div>
                 </div>
                 <div class="value">
-                  <Money value={toNumber(a.value)} />
+                  <Money value={toNumber(a.value)} cents={false} />
                 </div>
               </a>
             </li>

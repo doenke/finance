@@ -1,16 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
   const tabs = [
-    { href: '/bilanz', label: 'Monatsbilanz' },
-    { href: '/jahresbilanz', label: 'Jahresbilanz' },
-    { href: '/vertraege', label: 'Verträge & Abos' },
-    { href: '/kategorien', label: 'Kategorien' }
+    { href: '/bilanz', label: 'Monatsbilanz', short: 'Monat' },
+    { href: '/jahresbilanz', label: 'Jahresbilanz', short: 'Jahr' },
+    { href: '/vertraege', label: 'Verträge & Abos', short: 'Verträge' },
+    { href: '/kategorien', label: 'Kategorien', short: 'Kategorien' }
   ];
 </script>
 
 <nav class="tabs" aria-label="Budget">
   {#each tabs as t (t.href)}
-    <a href={t.href} class:active={page.url.pathname.startsWith(t.href)} aria-current={page.url.pathname.startsWith(t.href) ? 'page' : undefined}>{t.label}</a>
+    <a href={t.href} class:active={page.url.pathname.startsWith(t.href)} aria-current={page.url.pathname.startsWith(t.href) ? 'page' : undefined}><span class="full">{t.label}</span><span class="short">{t.short}</span></a>
   {/each}
 </nav>
 
@@ -38,5 +38,19 @@
     background: var(--accent-soft);
     color: var(--accent-strong);
     font-weight: 600;
+  }
+  .short {
+    display: none;
+  }
+  @media (max-width: 560px) {
+    .full {
+      display: none;
+    }
+    .short {
+      display: inline;
+    }
+    a {
+      padding: 8px 10px;
+    }
   }
 </style>

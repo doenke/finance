@@ -104,6 +104,11 @@
     const name = MONTHS[Number(m.slice(5)) - 1];
     return long ? `${name} ${m.slice(0, 4)}` : `${name} ${m.slice(2, 4)}`;
   };
+  // the current month is incomplete (salary usually still missing)
+  const thisMonth = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  })();
   const current = $derived(data?.months.find((m) => m.month === selected) ?? null);
   const withIncome = $derived((data?.months ?? []).filter((m) => toNumber(m.income) > 0));
   const avgRate = $derived.by(() => {
@@ -167,7 +172,7 @@
         {/each}
         {#each data.months as m, k (m.month)}
           {@const x0 = pad.l + k * groupW + (groupW - 3 * barW - 4) / 2}
-          <g class="month" class:sel={m.month === selected} role="button" tabindex="0" aria-label="{monthLabel(m.month, true)} anzeigen" onclick={() => load(m.month)} onkeydown={(e) => e.key === 'Enter' && load(m.month)}>
+          <g class="month" class:sel={m.month === selected} class:running={m.month === thisMonth} role="button" tabindex="0" aria-label="{monthLabel(m.month, true)} anzeigen" onclick={() => load(m.month)} onkeydown={(e) => e.key === 'Enter' && load(m.month)}>
             <title>{monthLabel(m.month, true)}: Einnahmen {formatMoney(m.income)}, Ausgaben {formatMoney(m.expenses)}, gespart {formatMoney(m.savings)}</title>
             <rect x={pad.l + k * groupW} y={pad.t} width={groupW} height={H - pad.t - pad.b} class="hit" />
             {#each SERIES as s, j (s.key)}
@@ -175,7 +180,7 @@
               <rect x={x0 + j * (barW + 2)} y={Math.min(sy(v), sy(0))} width={barW} height={Math.max(1, Math.abs(sy(v) - sy(0)))} rx="3" fill={s.color} />
             {/each}
             {#if groupW >= 44 || k % 2 === (data.months.length - 1) % 2}
-              <text x={pad.l + k * groupW + groupW / 2} y={H - 8} text-anchor="middle" class="tick" class:strong={m.month === selected}>{groupW >= 44 ? monthLabel(m.month) : MONTHS[Number(m.month.slice(5)) - 1]}</text>
+              <text x={pad.l + k * groupW + groupW / 2} y={H - 8} text-anchor="middle" class="tick" class:strong={m.month === selected}>{m.month === thisMonth ? (groupW >= 44 ? 'läuft' : '…') : groupW >= 44 ? monthLabel(m.month) : MONTHS[Number(m.month.slice(5)) - 1]}</text>
             {/if}
           </g>
         {/each}
@@ -187,7 +192,7 @@
 
     {#if current}
       <section class="card stack">
-        <h2>{monthLabel(current.month, true)}</h2>
+        <h2>{monthLabel(current.month, true)}{#if current.month === thisMonth}<span class="muted small"> · läuft noch</span>{/if}</h2>
         <div class="tiles">
           <div><span class="muted">Einnahmen</span><strong><Money value={current.income} cents={false} /></strong></div>
           <div><span class="muted">Ausgaben</span><strong><Money value={current.expenses} cents={false} /></strong></div>
@@ -350,6 +355,9 @@
     cursor: pointer;
   }
   .month:hover .hit,
+  .month.running rect:not(.hit) {
+    opacity: 0.4;
+  }
   .month.sel .hit {
     fill: var(--surface-2);
   }

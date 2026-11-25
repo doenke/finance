@@ -77,6 +77,7 @@
     current: boolean;
   }
   let devices = $state<Device[]>([]);
+  let allDevices = $state(false);
 
   async function loadDevices() {
     devices = await api.get<Device[]>('/api/sessions');
@@ -200,6 +201,7 @@
 <div class="stack">
   <h1>Einstellungen</h1>
 
+  <h2 class="section">Für dich</h2>
   {#if session.me}
     <section class="card row">
       <Avatar name={session.me.name} url={session.me.avatar_url} size={48} />
@@ -209,40 +211,33 @@
       </div>
       <button class="btn" onclick={doLogout}><Icon name="logout" size={18} /> Abmelden</button>
     </section>
-    <a class="card row navlink" href="/haushalt">
-      <Icon name="people" />
-      <div class="grow">
-        <strong>Haushalt</strong>
-        <div class="muted small">Personen und wem welche Konten gehören</div>
-      </div>
-      <span class="muted">›</span>
-    </a>
-    <a class="card row navlink" href="/kategorien">
-      <Icon name="bars" />
-      <div class="grow">
-        <strong>Kategorien &amp; Regeln</strong>
-        <div class="muted small">Kategorien für Ausgaben, Einnahmen und Sparen und wie Buchungen zugeordnet werden</div>
-      </div>
-      <span class="muted">›</span>
-    </a>
-    <a class="card row navlink" href="/banken">
-      <Icon name="bank" />
-      <div class="grow">
-        <strong>Banken</strong>
-        <div class="muted small">Bankzugänge und automatischer Abruf (FinTS)</div>
-      </div>
-      <span class="muted">›</span>
-    </a>
-    <a class="card row navlink" href="/protokoll">
-      <Icon name="history" />
-      <div class="grow">
-        <strong>Änderungsprotokoll</strong>
-        <div class="muted small">Wer hat wann was geändert – in der App und über KI-Assistenten</div>
-      </div>
-      <span class="muted">›</span>
-    </a>
   {/if}
-
+  <NotificationSettings />
+  {#if devices.length}
+    <section class="card stack">
+      <h2>Angemeldete Geräte</h2>
+      <p class="muted small">Hier bist du gerade angemeldet. Kennst du ein Gerät nicht, melde es ab.</p>
+      <ul class="files small">
+        {#each allDevices ? devices : devices.slice(0, 4) as d (d.id)}
+          <li class="row wrap">
+            <span class="grow">
+              <strong>{deviceName(d.user_agent)}</strong>
+              <span class="muted">· {d.current ? 'dieses Gerät' : `zuletzt ${formatDateTime(d.last_seen_at)}`} · angemeldet {formatDate(d.created_at.slice(0, 10))}</span>
+            </span>
+            {#if !d.current}<button class="btn" onclick={() => endDevice(d)}>Abmelden</button>{/if}
+          </li>
+        {/each}
+      </ul>
+      {#if devices.length > 1}
+        <div class="row wrap">
+          {#if devices.length > 4}
+            <button class="btn" onclick={() => (allDevices = !allDevices)}>{allDevices ? 'Weniger zeigen' : `Alle ${devices.length} zeigen`}</button>
+          {/if}
+          <button class="btn" onclick={endOthers}>Alle anderen Geräte abmelden</button>
+        </div>
+      {/if}
+    </section>
+  {/if}
   <section class="card stack">
     <h2>Darstellung</h2>
     <div class="segmented" role="radiogroup" aria-label="Farbschema">
@@ -257,6 +252,35 @@
     <p class="muted small">Praktisch, wenn du die App jemandem zeigst. Prozentwerte bleiben sichtbar. Gilt nur auf diesem Gerät; umschalten geht auch mit dem Auge auf der Übersicht.</p>
   </section>
 
+  <h2 class="section">Haushalt &amp; Daten</h2>
+  {#if session.me}
+    <nav class="card links" aria-label="Haushalt">
+    <a class="row navlink" href="/haushalt">
+      <Icon name="people" />
+      <div class="grow">
+        <strong>Haushalt</strong>
+        <div class="muted small">Personen und wem welche Konten gehören</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
+    <a class="row navlink" href="/kategorien">
+      <Icon name="bars" />
+      <div class="grow">
+        <strong>Kategorien &amp; Regeln</strong>
+        <div class="muted small">Kategorien für Ausgaben, Einnahmen und Sparen und wie Buchungen zugeordnet werden</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
+    <a class="row navlink" href="/banken">
+      <Icon name="bank" />
+      <div class="grow">
+        <strong>Banken</strong>
+        <div class="muted small">Bankzugänge und automatischer Abruf (FinTS)</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
+    </nav>
+  {/if}
   <section class="card stack">
     <h2>Kurse</h2>
     <p class="muted small">
@@ -282,9 +306,6 @@
     </div>
     {#if switchInfo}<p class="small">{switchInfo}</p>{/if}
   </section>
-
-  <NotificationSettings />
-
   {#if mcp}
     <section class="card stack">
       <h2>KI-Assistenten (MCP)</h2>
@@ -313,28 +334,32 @@
       {/if}
     </section>
   {/if}
+  <section class="card stack">
+    <h2>Daten exportieren</h2>
+    <p class="muted small">
+      Alles als JSON – ohne Anmeldesitzungen, Assistenten-Zugänge und Bank-Zugangsdaten (PINs, Anmeldenamen anderer Personen) – oder Buchungen und Depot-Transaktionen als CSV
+      für Excel. Eine vollständige Sicherung zum Wiederherstellen gibt es für Admins unter „Sicherungen“.
+    </p>
+    <div class="row">
+      <a class="btn" href="/api/export/json" download>Alles (JSON)</a>
+      <a class="btn" href="/api/export/transactions.csv" download>Buchungen (CSV)</a>
+      <a class="btn" href="/api/export/trades.csv" download>Transaktionen (CSV)</a>
+    </div>
+  </section>
 
-  {#if devices.length}
-    <section class="card stack">
-      <h2>Angemeldete Geräte</h2>
-      <p class="muted small">Hier bist du gerade angemeldet. Kennst du ein Gerät nicht, melde es ab.</p>
-      <ul class="files small">
-        {#each devices as d (d.id)}
-          <li class="row wrap">
-            <span class="grow">
-              <strong>{deviceName(d.user_agent)}</strong>
-              <span class="muted">· {d.current ? 'dieses Gerät' : `zuletzt ${formatDateTime(d.last_seen_at)}`} · angemeldet {formatDate(d.created_at.slice(0, 10))}</span>
-            </span>
-            {#if !d.current}<button class="btn" onclick={() => endDevice(d)}>Abmelden</button>{/if}
-          </li>
-        {/each}
-      </ul>
-      {#if devices.length > 1}
-        <div><button class="btn" onclick={endOthers}>Alle anderen Geräte abmelden</button></div>
-      {/if}
-    </section>
+  <h2 class="section">Verwaltung</h2>
+  {#if session.me}
+    <nav class="card links" aria-label="Verwaltung">
+    <a class="row navlink" href="/protokoll">
+      <Icon name="history" />
+      <div class="grow">
+        <strong>Änderungsprotokoll</strong>
+        <div class="muted small">Wer hat wann was geändert – in der App und über KI-Assistenten</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
+    </nav>
   {/if}
-
   {#if session.me?.is_admin && users.length}
     <section class="card stack">
       <h2>Benutzer</h2>
@@ -362,20 +387,6 @@
       </ul>
     </section>
   {/if}
-
-  <section class="card stack">
-    <h2>Daten exportieren</h2>
-    <p class="muted small">
-      Alles als JSON – ohne Anmeldesitzungen, Assistenten-Zugänge und Bank-Zugangsdaten (PINs, Anmeldenamen anderer Personen) – oder Buchungen und Depot-Transaktionen als CSV
-      für Excel. Eine vollständige Sicherung zum Wiederherstellen gibt es für Admins unter „Sicherungen“.
-    </p>
-    <div class="row">
-      <a class="btn" href="/api/export/json" download>Alles (JSON)</a>
-      <a class="btn" href="/api/export/transactions.csv" download>Buchungen (CSV)</a>
-      <a class="btn" href="/api/export/trades.csv" download>Transaktionen (CSV)</a>
-    </div>
-  </section>
-
   {#if session.me?.is_admin && backups}
     <section class="card stack">
       <h2>Sicherungen</h2>
@@ -395,7 +406,6 @@
       <div><button class="btn" onclick={backupNow} disabled={backingUp}>{backingUp ? 'Sichert …' : 'Jetzt sichern'}</button></div>
     </section>
   {/if}
-
   <section class="card stack">
     <h2>Über</h2>
     <p class="muted">Finanzen · Version <span class="num">{session.config?.version}</span></p>
@@ -433,6 +443,26 @@
   .navlink {
     color: inherit;
     text-decoration: none;
+  }
+  .section {
+    margin: 16px 0 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .links {
+    display: grid;
+    padding: 0;
+  }
+  .links .navlink {
+    padding: 14px 16px;
+  }
+  .links .navlink + .navlink {
+    border-top: 1px solid var(--border);
+  }
+  .links .navlink:hover {
+    background: var(--surface-2);
   }
   .files {
     list-style: none;
