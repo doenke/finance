@@ -292,7 +292,8 @@ das gilt nur für diese Buchung und schlägt Regeln und die automatische
 Erkennung. „Automatisch“ nimmt die Festlegung wieder zurück. Ganz unten stehen
 **alle Buchungen** des gewählten Monats – durchsuchbar, filterbar nach
 Ausgaben, Einnahmen, Gespartem, Umbuchungen oder „Ohne Kategorie“ und mit
-derselben Kategorie-Auswahl je Zeile. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
+derselben Kategorie-Auswahl je Zeile. Die Liste ist zugeklappt, bis du auf
+„Alle Buchungen“ tippst. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
 Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
 Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester
