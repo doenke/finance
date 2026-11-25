@@ -1,41 +1,18 @@
-// Household members and the person filter ("Alle" or one person), remembered per device.
-import { api, type Account, type Person } from './api.ts';
-import { toNumber } from './format.ts';
+// Household members.
+import { api, type Person } from './api.ts';
 
-const KEY = 'finanzen:person-filter';
-
-function initialFilter(): number | null {
-  try {
-    const v = localStorage.getItem(KEY);
-    return v ? Number(v) : null;
-  } catch {
-    return null;
-  }
+// The person filter was removed (shared household); forget a choice stored by older versions.
+try {
+  localStorage.removeItem('finanzen:person-filter');
+} catch {
+  // ignore
 }
 
-export const household = $state<{ persons: Person[]; filter: number | null }>({ persons: [], filter: initialFilter() });
+export const household = $state<{ persons: Person[] }>({ persons: [] });
 
 export async function loadPersons(): Promise<Person[]> {
   household.persons = await api.get<Person[]>('/api/persons');
-  if (household.filter !== null && !household.persons.some((p) => p.id === household.filter)) setFilter(null);
   return household.persons;
-}
-
-export function setFilter(id: number | null): void {
-  household.filter = id;
-  try {
-    if (id === null) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, String(id));
-  } catch {
-    // ignore
-  }
-}
-
-/** Share of the filtered person in an account (1 when no filter is active). */
-export function shareOf(account: Account): number {
-  if (household.filter === null) return 1;
-  const owner = account.owners.find((o) => o.person_id === household.filter);
-  return owner ? toNumber(owner.share) : 0;
 }
 
 export function personName(id: number): string {

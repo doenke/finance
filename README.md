@@ -153,9 +153,9 @@ Die Historie ab dem ersten Kauf wird sofort geladen, danach kommt jeden
 Werktag um 23:30 Uhr der Schlusskurs dazu. Kurse, die älter als drei
 Handelstage sind, werden als „veraltet“ markiert.
 
-Jedes Konto gehört einer Person oder mehreren mit Anteilen. Oben in der
-Kontenliste filterst du nach Person – gemeinsame Konten zählen dann mit dem
-jeweiligen Anteil.
+Jedes Konto gehört einer Person oder mehreren mit Anteilen. Finanzen zeigt
+trotzdem immer den ganzen Haushalt – wem was gehört, zählt nur bei der
+Vorsorge, etwa für die Steuer auf die Renten.
 
 ### 4. Wissen, wo ihr steht
 

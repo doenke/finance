@@ -9,8 +9,6 @@
   import ReturnSummary from '#lib/ReturnSummary.svelte';
   import LiquidityCard from '#lib/LiquidityCard.svelte';
   import PeriodPicker from '#lib/PeriodPicker.svelte';
-  import PersonFilter from '#lib/PersonFilter.svelte';
-  import { household, loadPersons } from '#lib/persons.svelte.ts';
   import { session } from '#lib/session.svelte.ts';
 
   let period = $state('1Y');
@@ -29,7 +27,7 @@
 
   onMount(async () => {
     try {
-      await Promise.all([loadMeta(), loadPersons()]);
+      await loadMeta();
       accounts = await api.get<Account[]>('/api/accounts');
     } catch (e) {
       error = (e as Error).message;
@@ -40,9 +38,8 @@
 
   $effect(() => {
     const p = period;
-    const person = household.filter;
     api
-      .get<NetWorthData>(`/api/networth?period=${p}${person !== null ? `&person_id=${person}` : ''}`)
+      .get<NetWorthData>(`/api/networth?period=${p}`)
       .then((d) => (nw = d))
       .catch((e) => (error = (e as Error).message));
   });
@@ -61,7 +58,6 @@
     <h1>{greeting}, {firstName}</h1>
     <PrivacyToggle />
   </div>
-  <PersonFilter />
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if ready && accounts.length === 0}
@@ -89,7 +85,7 @@
       </div>
     </section>
 
-    <LiquidityCard personId={household.filter} />
+    <LiquidityCard />
 
     <section class="card stack">
       <div class="row head">
@@ -103,7 +99,7 @@
       {/if}
     </section>
 
-    <ReturnSummary personId={household.filter} />
+    <ReturnSummary />
   {:else if !error}
     <p class="muted">Lädt …</p>
   {/if}

@@ -6,8 +6,6 @@
   import Icon from '#lib/Icon.svelte';
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
-  import PersonFilter from '#lib/PersonFilter.svelte';
-  import { household, loadPersons, shareOf } from '#lib/persons.svelte.ts';
 
   let accounts = $state<Account[]>([]);
   let loaded = $state(false);
@@ -16,7 +14,7 @@
 
   onMount(async () => {
     try {
-      await Promise.all([loadMeta(), loadPersons()]);
+      await loadMeta();
       accounts = await api.get<Account[]>('/api/accounts');
     } catch (e) {
       error = (e as Error).message;
@@ -25,19 +23,18 @@
     }
   });
 
-  const visible = $derived(accounts.filter((a) => (showClosed || !a.closed) && shareOf(a) > 0));
+  const visible = $derived(accounts.filter((a) => (showClosed || !a.closed)));
   const groups = $derived.by(() => {
     const order = meta.value?.asset_classes.map((c) => c.key) ?? [];
     const map = new Map<string, Account[]>();
     for (const a of visible) map.set(a.asset_class, [...(map.get(a.asset_class) ?? []), a]);
     return [...map.entries()]
       .sort((x, y) => order.indexOf(x[0]) - order.indexOf(y[0]))
-      .map(([key, items]) => ({ key, label: label(meta.value?.asset_classes, key), items, total: items.reduce((s, a) => s + toNumber(a.value) * shareOf(a), 0) }));
+      .map(([key, items]) => ({ key, label: label(meta.value?.asset_classes, key), items, total: items.reduce((s, a) => s + toNumber(a.value), 0) }));
   });
   const assets = $derived(groups.filter((g) => g.key !== 'liabilities').reduce((s, g) => s + g.total, 0));
   const debts = $derived(groups.filter((g) => g.key === 'liabilities').reduce((s, g) => s + g.total, 0));
   const hasClosed = $derived(accounts.some((a) => a.closed));
-  const filtered = $derived(household.filter !== null);
 </script>
 
 <svelte:head><title>Konten – Finanzen</title></svelte:head>
@@ -50,7 +47,6 @@
       <a class="btn primary" href="/konten/neu"><Icon name="plus" size={18} /> Konto</a>
     </div>
   </div>
-  <PersonFilter />
   {#if error}<p class="error">{error}</p>{/if}
 
   {#if loaded && accounts.length === 0}
@@ -85,8 +81,7 @@
                   </div>
                 </div>
                 <div class="value">
-                  <Money value={toNumber(a.value) * shareOf(a)} />
-                  {#if filtered && shareOf(a) < 1}<div class="muted small">Anteil {Math.round(shareOf(a) * 100)} %</div>{/if}
+                  <Money value={toNumber(a.value)} />
                 </div>
               </a>
             </li>
