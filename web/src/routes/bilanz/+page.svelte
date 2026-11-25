@@ -5,6 +5,7 @@
   import BarList from '#lib/charts/BarList.svelte';
   import { formatDate, formatMoney, toNumber } from '#lib/format.ts';
   import Money from '#lib/Money.svelte';
+  import RuleEditor, { type Rule } from '#lib/RuleEditor.svelte';
 
   interface MonthRow {
     month: string;
@@ -36,9 +37,25 @@
       uncategorized: { date: string; amount: string; counterparty: string; purpose: string; account: string }[];
     };
     accounts: FlowAccount[];
+    unknown_groups: { pattern: string; count: number; total: string; example: string; last: string }[];
+  }
+  interface SavedRule extends Rule {
+    id: number;
+    category: string | null;
+    count: number;
+    total: string;
+  }
+  interface CategoryOption {
+    id: number;
+    name: string;
+    kind: string;
   }
 
   let data = $state<Cashflow | null>(null);
+  let rules = $state<SavedRule[]>([]);
+  let categories = $state<CategoryOption[]>([]);
+  let editing = $state<{ key: string; rule: Rule } | null>(null);
+  let showRules = $state(false);
   let selected = $state<string | null>(null);
   let error = $state('');
 
@@ -50,12 +67,28 @@
       error = (e as Error).message;
     }
   }
-  onMount(() => load(null));
-
-  async function setRole(a: FlowAccount, role: 'spending' | 'saving' | null) {
-    await api.put(`/api/accounts/${a.id}/flow-role`, { role });
-    await load();
+  async function loadRules() {
+    [rules, categories] = await Promise.all([api.get<SavedRule[]>('/api/category-rules'), api.get<CategoryOption[]>('/api/categories')]);
   }
+  onMount(() => {
+    load(null);
+    loadRules();
+  });
+
+  async function afterSave() {
+    editing = null;
+    await Promise.all([load(), loadRules()]);
+  }
+
+  async function removeRule(r: SavedRule) {
+    if (!confirm(`Regel „${r.pattern}“ → ${r.category} löschen?`)) return;
+    await api.del(`/api/category-rules/${r.id}`);
+    await Promise.all([load(), loadRules()]);
+  }
+
+  const newRule = (pattern: string): Rule => ({ pattern, field: 'any', direction: 'out', account_id: null, category_id: null });
+  const expenseCategories = $derived(categories.filter((c) => c.kind === 'expense' || c.kind === 'transfer' || c.kind === 'internal'));
+  const fieldText = { any: '', counterparty: ' im Empfänger', purpose: ' im Zweck' };
 
   const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const monthLabel = (m: string, long = false) => {
@@ -98,7 +131,6 @@
   const sy = (v: number) => pad.t + (1 - (v - lo) / (hi - lo || 1)) * (H - pad.t - pad.b);
   const groupW = $derived((W - pad.l - pad.r) / Math.max(1, data?.months.length ?? 1));
   const barW = $derived(Math.max(3, Math.min(16, (groupW - 10) / 3 - 2)));
-  const roleLabel = { spending: 'Alltag', saving: 'Sparen' };
 </script>
 
 <svelte:head><title>Monatsbilanz – Finanzen</title></svelte:head>
@@ -107,8 +139,9 @@
   <h1>Monatsbilanz</h1>
   <BudgetTabs />
   <p class="muted">
-    Was kam rein, was ging raus, was habt ihr gespart – aus den echten Buchungen. Gespart ist, was von den Alltagskonten auf Sparkonten fließt (abzüglich
-    Entnahmen) plus direkte Sparbeiträge wie Riester oder Sparpläne. Geld zwischen Konten derselben Rolle zählt nicht.
+    Was kam rein, was ging raus, was habt ihr gespart – aus den echten Buchungen. Gespart ist, was von den Haushaltskonten auf Sparkonten fließt
+    (abzüglich Entnahmen) plus direkte Sparbeiträge wie Riester oder Sparpläne. Geld zwischen Konten derselben Art zählt nicht. Welche Konten
+    Haushaltskonten sind, legst du unter <a href="/konten">Konten</a> fest.
   </p>
   {#if error}<p class="error">{error}</p>{/if}
 
@@ -208,20 +241,56 @@
     {/if}
 
     <section class="card stack">
-      <h2>Rolle der Konten</h2>
-      <p class="muted small">Alltag: Gehalt, laufende Ausgaben. Sparen: Rücklagen und Anlagen. Ein Gemeinschaftskonto, das hier fehlt, legst du unter Konten an (IBAN reicht).</p>
-      <ul class="roles">
-        {#each data.accounts as a (a.id)}
-          <li>
-            <span>{a.name}{#if a.automatic}<span class="muted small auto">automatisch</span>{/if}</span>
-            <span class="seg" role="radiogroup" aria-label="Rolle von {a.name}">
-              {#each ['spending', 'saving'] as r (r)}
-                <button role="radio" aria-checked={a.role === r} class:active={a.role === r} onclick={() => setRole(a, r as 'spending' | 'saving')}>{roleLabel[r as 'spending' | 'saving']}</button>
-              {/each}
-            </span>
-          </li>
-        {/each}
-      </ul>
+      <h2>Ohne Kategorie</h2>
+      {#if data.unknown_groups.length}
+        <p class="muted small">Die häufigsten Ausgaben der letzten zwölf Monate, die noch keiner Kategorie zugeordnet sind. Leg eine Regel an – sie gilt auch für alle künftigen Buchungen.</p>
+        <ul class="groups">
+          {#each data.unknown_groups as g (g.pattern)}
+            <li>
+              <div class="grow">
+                <strong class="ellipsis">{g.example}</strong>
+                <span class="muted small">{g.count}× · zuletzt {formatDate(g.last)}</span>
+              </div>
+              <Money value={g.total} cents={false} />
+              <button class="btn" onclick={() => (editing = { key: g.pattern, rule: newRule(g.pattern) })}>Kategorie festlegen</button>
+            </li>
+            {#if editing?.key === g.pattern}
+              <li class="edit"><RuleEditor rule={editing.rule} categories={expenseCategories} onsaved={afterSave} oncancel={() => (editing = null)} /></li>
+            {/if}
+          {/each}
+        </ul>
+      {:else}
+        <p class="muted small">Alle Ausgaben der letzten zwölf Monate haben eine Kategorie.</p>
+      {/if}
+    </section>
+
+    <section class="card stack">
+      <div class="row head">
+        <button class="link" onclick={() => (showRules = !showRules)}>{showRules ? 'Regeln ausblenden' : `Regeln (${rules.length})`}</button>
+        <button class="btn" onclick={() => ((showRules = true), (editing = { key: 'new', rule: newRule('') }))}>Neue Regel</button>
+      </div>
+      {#if editing?.key === 'new'}
+        <RuleEditor rule={editing.rule} categories={categories} onsaved={afterSave} oncancel={() => (editing = null)} />
+      {/if}
+      {#if showRules}
+        <p class="muted small">Die erste passende Regel gewinnt, längere (genauere) Muster zuerst. Kategorien aus „Verträge“ gehen immer vor; ohne Regel ordnet Finanzen bekannte Händler selbst zu.</p>
+        <ul class="groups">
+          {#each rules as r (r.id)}
+            <li>
+              <div class="grow">
+                <span>enthält „<strong>{r.pattern}</strong>“{fieldText[r.field]}{r.direction === 'in' ? ' (Einnahmen)' : r.direction === 'any' ? '' : ''} → <strong>{r.category}</strong></span>
+                <span class="muted small">{r.count} Buchungen · {formatMoney(r.total, 'EUR', false)}</span>
+              </div>
+              <button class="btn" onclick={() => (editing = { key: `r${r.id}`, rule: { ...r } })}>Ändern</button>
+              <button class="btn danger" onclick={() => removeRule(r)}>Löschen</button>
+            </li>
+            {#if editing?.key === `r${r.id}`}
+              <li class="edit"><RuleEditor rule={editing.rule} categories={categories} onsaved={afterSave} oncancel={() => (editing = null)} /></li>
+            {/if}
+          {/each}
+          {#if !rules.length}<li class="muted small">Noch keine eigenen Regeln.</li>{/if}
+        </ul>
+      {/if}
     </section>
   {/if}
 </div>
@@ -266,9 +335,6 @@
   }
   .bars {
     display: block;
-  }
-  .auto {
-    margin-left: 8px;
   }
   .grid {
     stroke: var(--grid);
@@ -318,14 +384,12 @@
     grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
     gap: 24px;
   }
-  .list,
-  .roles {
+  .list {
     list-style: none;
     margin: 0;
     padding: 0;
   }
-  .list li,
-  .roles li {
+  .list li {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -333,28 +397,41 @@
     padding: 6px 0;
     border-top: 1px solid var(--border);
   }
-  .seg {
-    display: inline-flex;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+  .groups {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .groups li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .groups li.edit {
+    display: block;
+    border-top: 0;
+    padding-top: 0;
+  }
+  .grow {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+  }
+  .ellipsis {
     overflow: hidden;
-    flex-shrink: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .seg button {
-    font: inherit;
+  .link {
+    background: none;
     border: 0;
-    background: var(--surface);
-    color: var(--text);
-    padding: 6px 12px;
-    cursor: pointer;
-  }
-  .seg button + button {
-    border-left: 1px solid var(--border);
-  }
-  .seg button.active {
-    background: var(--accent-soft);
+    padding: 0;
     color: var(--accent-strong);
-    font-weight: 600;
+    cursor: pointer;
+    font: inherit;
   }
   .table-wrap {
     overflow-x: auto;

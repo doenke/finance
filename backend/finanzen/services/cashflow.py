@@ -21,7 +21,7 @@ from . import recurring as rec
 
 ZERO = Decimal("0")
 ROLES = ("spending", "saving")
-ROLE_LABELS = {"spending": "Alltag", "saving": "Sparen"}
+ROLE_LABELS = {"spending": "Haushaltskonto", "saving": "Sparkonto"}
 DEFAULT_ROLE = {"giro": "spending", "kreditkarte": "spending", "tagesgeld": "saving", "verrechnung": "saving", "festgeld": "saving"}
 
 
@@ -68,8 +68,9 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
     roles = {a.id: role_of(a) for a in accounts}
     names = {a.id: a.name for a in accounts}
     iban_to_account = {re.sub(r"\s", "", a.iban).upper(): a.id for a in accounts if a.iban}
-    categories = {c.id: c for c in db.scalars(select(Category)).all()}
-    by_name = {c.name: c for c in categories.values()}
+    from .categorize import Categorizer, suggest_pattern
+
+    categorize = Categorizer(db)
     names_own = rec.own_names(db)
 
     txs = [t for t in rec.load_transactions(db, first) if t.date <= end]
@@ -93,15 +94,9 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
         return min(mirror, key=lambda u: abs((u.date - t.date).days)).account_id if mirror else None
 
     def guess_category(t: rec.Tx) -> Category | None:
-        if t.category_id in categories:
-            return categories[t.category_id]
-        text = f"{t.counterparty} {t.purpose}".lower()
-        for name, direction, words in rec.RULES:
-            if direction and direction != t.direction:
-                continue
-            if any(re.search(rf"(?<![a-zäöü]){re.escape(w)}", text) for w in words) and name in by_name:
-                return by_name[name]
-        return None
+        return categorize(t)[0]
+
+    unknown: dict[str, dict] = {}  # spending without a category over the whole period, grouped by pattern
 
     stats = {m: {"income": ZERO, "expenses": ZERO, "savings": ZERO, "internal": ZERO} for m in month_keys}
     # default: the last complete month (the current one usually lacks the salary yet)
@@ -144,6 +139,13 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
                 detail["expenses"][label] -= t.amount
                 if cat is None:
                     detail["uncategorized"].append(t)
+            if cat is None:
+                pattern = suggest_pattern(t.counterparty, t.purpose) or "?"
+                g = unknown.setdefault(pattern, {"pattern": pattern, "count": 0, "total": ZERO, "example": t.counterparty or t.purpose, "last": t.date})
+                g["count"] += 1
+                g["total"] -= t.amount
+                if t.date >= g["last"]:
+                    g["last"], g["example"] = t.date, (t.counterparty or t.purpose)[:80]
 
     rows = []
     for m in month_keys:
@@ -173,6 +175,7 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
             "savings": sorted_items(detail["savings"]),
             "uncategorized": [{"date": t.date, "amount": t.amount, "counterparty": t.counterparty, "purpose": t.purpose[:120], "account": names[t.account_id]} for t in top_unknown],
         },
+        "unknown_groups": sorted(unknown.values(), key=lambda g: g["total"], reverse=True)[:20],
         "accounts": [
             {"id": a.id, "name": a.name, "kind": a.kind, "role": roles[a.id], "automatic": (a.details or {}).get("flow_role") not in ROLES}
             for a in sorted(accounts, key=lambda a: a.name)

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..auth.session import current_user
 from ..db import get_db
-from ..models import Account, Category, RecurringPayment, Transaction
+from ..models import Account, Category, CategoryRule, RecurringPayment, Transaction
 from ..services import recurring as rec
 
 router = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
@@ -227,6 +227,111 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     }
 
 
+class RuleIn(BaseModel):
+    pattern: str = Field(min_length=2, max_length=120)
+    field: str = "any"
+    direction: str = "out"
+    account_id: int | None = None
+    category_id: int | None = None  # required when saving, not for a preview
+
+
+def _check_rule(db: Session, data: RuleIn, need_category: bool = True) -> None:
+    if data.field not in ("any", "counterparty", "purpose"):
+        raise HTTPException(422, "Unbekanntes Feld")
+    if data.direction not in ("any", "in", "out"):
+        raise HTTPException(422, "Unbekannte Richtung")
+    if data.account_id is not None and db.get(Account, data.account_id) is None:
+        raise HTTPException(422, "Unbekanntes Konto")
+    if need_category and (data.category_id is None or db.get(Category, data.category_id) is None):
+        raise HTTPException(422, "Bitte eine Kategorie wählen")
+
+
+def _rule_txs(db: Session) -> list[rec.Tx]:
+    return rec.load_transactions(db, date.today() - timedelta(days=rec.LOOKBACK_DAYS))
+
+
+def _rule_out(r: CategoryRule, cats: dict[int, Category], txs: list[rec.Tx]) -> dict[str, Any]:
+    from ..services.categorize import Rule, rule_matches
+
+    rule = Rule(r.id, r.pattern.strip().lower(), r.field, r.direction, r.account_id, r.category_id)
+    hits = [t for t in txs if rule_matches(rule, t.counterparty, t.purpose, t.amount, t.account_id)]
+    return {
+        "id": r.id,
+        "pattern": r.pattern,
+        "field": r.field,
+        "direction": r.direction,
+        "account_id": r.account_id,
+        "category_id": r.category_id,
+        "category": cats[r.category_id].name if r.category_id in cats else None,
+        "count": len(hits),
+        "total": sum((abs(t.amount) for t in hits), ZERO),
+    }
+
+
+@router.get("/category-rules")
+def list_rules(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
+    cats = {c.id: c for c in _categories(db)}
+    txs = _rule_txs(db)
+    rows = sorted(db.scalars(select(CategoryRule)).all(), key=lambda r: (r.sort, -len(r.pattern), r.id))
+    return [_rule_out(r, cats, txs) for r in rows]
+
+
+@router.post("/category-rules/preview")
+def preview_rule(data: RuleIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    from ..services.categorize import Categorizer, Rule, rule_matches
+
+    _check_rule(db, data, need_category=False)
+    rule = Rule(0, data.pattern.strip().lower(), data.field, data.direction, data.account_id, data.category_id or 0)
+    categorize = Categorizer(db)
+    accounts = {a.id: a.name for a in db.scalars(select(Account)).all()}
+    hits = sorted((t for t in _rule_txs(db) if rule_matches(rule, t.counterparty, t.purpose, t.amount, t.account_id)), key=lambda t: t.date, reverse=True)
+    examples = []
+    for t in hits[:8]:
+        cat, source = categorize(t)
+        examples.append(
+            {
+                "date": t.date,
+                "amount": t.amount,
+                "counterparty": t.counterparty,
+                "purpose": t.purpose[:100],
+                "account": accounts.get(t.account_id),
+                "current": cat.name if cat else None,
+                "fixed": source == "fixed",  # set by a contract; a rule does not change it
+            }
+        )
+    return {"count": len(hits), "total": sum((abs(t.amount) for t in hits), ZERO), "fixed": sum(1 for t in hits if t.category_id is not None), "examples": examples}
+
+
+@router.post("/category-rules", status_code=201)
+def create_rule(data: RuleIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    _check_rule(db, data)
+    r = CategoryRule(pattern=data.pattern.strip(), field=data.field, direction=data.direction, account_id=data.account_id, category_id=data.category_id)
+    db.add(r)
+    db.commit()
+    return _rule_out(r, {c.id: c for c in _categories(db)}, _rule_txs(db))
+
+
+@router.put("/category-rules/{rule_id}")
+def update_rule(rule_id: int, data: RuleIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    r = db.get(CategoryRule, rule_id)
+    if r is None:
+        raise HTTPException(404, "Regel nicht gefunden")
+    _check_rule(db, data)
+    r.pattern, r.field, r.direction, r.account_id, r.category_id = data.pattern.strip(), data.field, data.direction, data.account_id, data.category_id
+    db.commit()
+    return _rule_out(r, {c.id: c for c in _categories(db)}, _rule_txs(db))
+
+
+@router.delete("/category-rules/{rule_id}", status_code=204)
+def delete_rule(rule_id: int, db: Session = Depends(get_db)) -> Response:
+    r = db.get(CategoryRule, rule_id)
+    if r is None:
+        raise HTTPException(404, "Regel nicht gefunden")
+    db.delete(r)
+    db.commit()
+    return Response(status_code=204)
+
+
 class FlowRoleIn(BaseModel):
     role: str | None = None  # spending | saving | None (automatic)
 
@@ -236,6 +341,18 @@ def get_cashflow(months: int = 12, month: str | None = None, db: Session = Depen
     from ..services.cashflow import cashflow
 
     return cashflow(db, max(1, min(months, 36)), month)
+
+
+@router.get("/flow-roles")
+def list_flow_roles(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
+    from ..services.cashflow import role_of
+
+    accounts = sorted(db.scalars(select(Account).where(Account.closed.is_(False))).all(), key=lambda a: a.name)
+    return [
+        {"id": a.id, "name": a.name, "kind": a.kind, "role": role_of(a), "automatic": (a.details or {}).get("flow_role") not in ("spending", "saving")}
+        for a in accounts
+        if role_of(a) is not None
+    ]
 
 
 @router.put("/accounts/{account_id}/flow-role")

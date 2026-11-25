@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api, type Account } from '#lib/api.ts';
   import { formatDate, toNumber } from '#lib/format.ts';
+  import AccountRoles from '#lib/AccountRoles.svelte';
   import Icon from '#lib/Icon.svelte';
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
@@ -97,6 +98,8 @@
     {#if hasClosed}
       <label class="check"><input type="checkbox" bind:checked={showClosed} /> Aufgelöste Konten zeigen</label>
     {/if}
+
+    <AccountRoles />
   {/if}
 </div>
 

@@ -10,12 +10,15 @@
     kind_label: string;
     value: string;
     bucket: 'available' | 'bound' | 'liability';
+    group: 'current' | 'invested' | 'bound' | 'liability';
     automatic: boolean;
     free_from: string | null;
     free_reason: string | null;
   }
   interface Liquidity {
     available: string;
+    current: string;
+    invested: string;
     bound: string;
     liabilities: string;
     net: string;
@@ -37,6 +40,10 @@
 
   const share = $derived(data?.available_share !== null && data?.available_share !== undefined ? toNumber(data.available_share) : null);
   const available = $derived((data?.items ?? []).filter((i) => i.bucket === 'available'));
+  const current = $derived(available.filter((i) => i.group === 'current'));
+  const invested = $derived(available.filter((i) => i.group === 'invested'));
+  const assets = $derived(data ? toNumber(data.available) + toNumber(data.bound) : 0);
+  const shareOf = (v: string | undefined) => (assets > 0 && v !== undefined ? Math.max(0, toNumber(v)) / assets : 0);
   const bound = $derived((data?.items ?? []).filter((i) => i.bucket === 'bound'));
   const LIMIT = 5;
   const yearsUntil = (d: string) => {
@@ -59,7 +66,17 @@
         {#if share !== null}<span class="muted small">{Math.round(share * 100)} % des Vermögens</span>{/if}
       </div>
       <div>
-        <span class="muted">Gebunden</span>
+        <span class="muted"><i class="dot cur"></i>Haushaltskonten</span>
+        <strong><Money value={data.current} cents={false} /></strong>
+        <span class="muted small">sofort nutzbar</span>
+      </div>
+      <div>
+        <span class="muted"><i class="dot inv"></i>Angelegt</span>
+        <strong><Money value={data.invested} cents={false} /></strong>
+        <span class="muted small">Tagesgeld, Depots, Krypto</span>
+      </div>
+      <div>
+        <span class="muted"><i class="dot bound"></i>Gebunden</span>
         <strong><Money value={data.bound} cents={false} /></strong>
         {#if share !== null}<span class="muted small">{100 - Math.round(share * 100)} %</span>{/if}
       </div>
@@ -70,26 +87,33 @@
         </div>
       {/if}
     </div>
-    {#if share !== null}
-      <div class="bar" role="img" aria-label="{Math.round(share * 100)} % verfügbar, {100 - Math.round(share * 100)} % gebunden">
-        <div class="avail" style:width="{Math.max(0, Math.min(1, share)) * 100}%"></div>
-        <div class="bound" style:width="{(1 - Math.max(0, Math.min(1, share))) * 100}%"></div>
+    {#if assets > 0}
+      <div
+        class="bar"
+        role="img"
+        aria-label="{Math.round(shareOf(data.current) * 100)} % Haushaltskonten, {Math.round(shareOf(data.invested) * 100)} % angelegt, {Math.round(shareOf(data.bound) * 100)} % gebunden"
+      >
+        <div class="cur" style:width="{shareOf(data.current) * 100}%"></div>
+        <div class="inv" style:width="{shareOf(data.invested) * 100}%"></div>
+        <div class="bound" style:width="{shareOf(data.bound) * 100}%"></div>
       </div>
-      <div class="legend small muted"><span><i class="dot avail"></i>verfügbar</span><span><i class="dot bound"></i>gebunden</span></div>
     {/if}
 
     <div class="lists">
-      <div>
-        <h3>Verfügbar</h3>
-        <ul>
-          {#each showAll ? available : available.slice(0, LIMIT) as i (i.account_id)}
-            <li>
-              <a href="/konten/{i.account_id}" class="name">{i.name}</a>
-              <Money value={i.value} cents={false} colored={toNumber(i.value) < 0} />
-            </li>
-          {/each}
-        </ul>
-      </div>
+      {#each [{ title: 'Haushaltskonten', items: current }, { title: 'Angelegt', items: invested }] as col (col.title)}
+        <div>
+          <h3>{col.title}</h3>
+          <ul>
+            {#each showAll ? col.items : col.items.slice(0, LIMIT) as i (i.account_id)}
+              <li>
+                <a href="/konten/{i.account_id}" class="name">{i.name}</a>
+                <Money value={i.value} cents={false} colored={toNumber(i.value) < 0} />
+              </li>
+            {/each}
+            {#if !col.items.length}<li class="muted small">–</li>{/if}
+          </ul>
+        </div>
+      {/each}
       <div>
         <h3>Gebunden <span class="muted small">– frei ab</span></h3>
         <ul>
@@ -107,11 +131,12 @@
         </ul>
       </div>
     </div>
-    {#if available.length > LIMIT || bound.length > LIMIT}
+    {#if current.length > LIMIT || invested.length > LIMIT || bound.length > LIMIT}
       <button class="link small" onclick={() => (showAll = !showAll)}>{showAll ? 'Weniger anzeigen' : 'Alle anzeigen'}</button>
     {/if}
     <p class="muted small">
-      Verfügbar ist, was ihr kurzfristig nutzen könntet: Konten, Tagesgeld, Depots, Krypto, Edelmetalle (abzüglich Kreditkarten). Gebunden sind Festgeld,
+      Verfügbar ist, was ihr kurzfristig nutzen könntet: auf den Haushaltskonten sofort (abzüglich Kreditkarten), angelegt in Tagesgeld, Depots, Krypto und
+      Edelmetallen innerhalb weniger Tage. Welche Konten Haushaltskonten sind, legst du unter Konten fest. Gebunden sind Festgeld,
       Altersvorsorge, Immobilien, Beteiligungen und sonstige Anlagen. Je Konto änderst du das unter „Bearbeiten“ → Verfügbarkeit.
     </p>
   </section>
@@ -156,15 +181,17 @@
     overflow: hidden;
     background: var(--surface-2);
   }
-  .avail {
+  .cur {
     background: var(--series-3);
+  }
+  .inv {
+    background: var(--series-4);
   }
   .bound {
     background: var(--series-1);
   }
-  .legend {
-    display: flex;
-    gap: 16px;
+  .bar div + div {
+    border-left: 2px solid var(--surface);
   }
   .dot {
     display: inline-block;
@@ -173,6 +200,15 @@
     border-radius: 3px;
     margin-right: 6px;
     vertical-align: -1px;
+  }
+  .dot.cur {
+    background: var(--series-3);
+  }
+  .dot.inv {
+    background: var(--series-4);
+  }
+  .dot.bound {
+    background: var(--series-1);
   }
   .lists {
     display: grid;

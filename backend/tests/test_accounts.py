@@ -190,3 +190,17 @@ def test_liquidity_available_vs_bound(client):
     assert items["Kredit"]["bucket"] == "liability"
     bound = [i["name"] for i in res["items"] if i["bucket"] == "bound"]
     assert bound == ["Festgeld", "Rente"]  # sorted by the date they become free
+
+
+def test_liquidity_splits_available(client):
+    login(client)
+    today = date.today().isoformat()
+    giro = create(client, "/api/accounts", {"name": "Giro", "kind": "giro"})
+    create(client, f"/api/accounts/{giro['id']}/balances", {"date": today, "amount": "2000"})
+    tg = create(client, "/api/accounts", {"name": "Tagesgeld", "kind": "tagesgeld"})
+    create(client, f"/api/accounts/{tg['id']}/balances", {"date": today, "amount": "15000"})
+    res = client.get("/api/liquidity").json()
+    assert D(res["current"]) == D("2000.00") and D(res["invested"]) == D("15000.00")
+    assert D(res["available"]) == D("17000.00")
+    groups = {i["name"]: i["group"] for i in res["items"]}
+    assert groups == {"Giro": "current", "Tagesgeld": "invested"}

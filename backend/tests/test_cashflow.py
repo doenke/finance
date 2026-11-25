@@ -72,3 +72,47 @@ def test_flow_role_override(client):
     assert res["role"] == "spending" and res["automatic"] is True
     assert client.put(f"/api/accounts/{joint_id}/flow-role", json={"role": "x"}, headers=ORIGIN).status_code == 422
     assert client.get("/api/cashflow").status_code == 200
+
+
+def test_category_rules(client):
+    login(client)
+    with client.app.state.sessionmaker() as db:
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        db.add(giro)
+        db.flush()
+        for k in range(6):
+            d = date(2026, 10, 1 + k)
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-45.10"), counterparty="REWE SAGT DANKE. 43655260/Bardenberg", purpose="Debitk.12"))
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-12.00"), counterparty="Kiosk am Eck", purpose="Kartenzahlung"))
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-19.39"), counterparty="PayPal Europe S.a.r.l. et Cie S.C.A", purpose="1054/PP.7863.PP/. Takeaway.com Payments B.V., Ihr Einkauf bei Takeaway.com"))
+        db.add(Transaction(account_id=giro.id, booking_date=date(2026, 10, 28), amount=D("3000"), counterparty="Arbeitgeber", purpose="Gehalt"))
+        db.commit()
+        giro_id = giro.id
+        cats = {c.name: c.id for c in db.query(Category).all()}
+        data = cashflow(db, months=1, month="2026-10", end=date(2026, 10, 31))
+    exp = {e["name"]: D(e["amount"]) for e in data["detail"]["expenses"]}
+    # built-in keywords know REWE and Takeaway; the kiosk is unknown
+    assert exp["Lebensmittel & Drogerie"] == D("270.60") and exp["Restaurant & Lieferdienst"] == D("116.34")
+    assert exp["Ohne Kategorie"] == D("72.00")
+    group = data["unknown_groups"][0]
+    assert group["pattern"] == "kiosk" and group["count"] == 6 and D(group["total"]) == D("72.00")
+
+    preview = client.post("/api/category-rules/preview", json={"pattern": "Kiosk", "direction": "out"}, headers=ORIGIN).json()
+    assert preview["count"] == 6 and D(preview["total"]) == D("72.00") and preview["examples"][0]["current"] is None
+    bad = client.post("/api/category-rules", json={"pattern": "Kiosk"}, headers=ORIGIN)
+    assert bad.status_code == 422  # no category
+    rule = client.post("/api/category-rules", json={"pattern": "Kiosk", "direction": "out", "category_id": cats["Lebensmittel & Drogerie"]}, headers=ORIGIN).json()
+    assert rule["count"] == 6 and rule["category"] == "Lebensmittel & Drogerie"
+    # an own rule beats the built-in keyword: Takeaway -> Einkaufen (only on this account)
+    client.post("/api/category-rules", json={"pattern": "takeaway", "field": "purpose", "account_id": giro_id, "category_id": cats["Einkaufen"]}, headers=ORIGIN)
+    with client.app.state.sessionmaker() as db:
+        data = cashflow(db, months=1, month="2026-10", end=date(2026, 10, 31))
+    exp = {e["name"]: D(e["amount"]) for e in data["detail"]["expenses"]}
+    assert exp["Lebensmittel & Drogerie"] == D("342.60") and exp["Einkaufen"] == D("116.34") and "Ohne Kategorie" not in exp
+    assert data["unknown_groups"] == []
+    rules = client.get("/api/category-rules").json()
+    assert [r["pattern"] for r in rules] == ["takeaway", "Kiosk"]  # longer pattern first
+    upd = client.put(f"/api/category-rules/{rule['id']}", json={"pattern": "kiosk am", "category_id": cats["Einkaufen"]}, headers=ORIGIN).json()
+    assert upd["count"] == 6 and upd["category"] == "Einkaufen"
+    assert client.delete(f"/api/category-rules/{rule['id']}", headers=ORIGIN).status_code == 204
+    assert len(client.get("/api/category-rules").json()) == 1

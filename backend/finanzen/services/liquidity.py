@@ -45,7 +45,10 @@ def free_from(account: Account) -> tuple[date | None, str | None]:
 def liquidity(db: Session, person_id: int | None = None, on: date | None = None) -> dict:
     on = on or date.today()
     scope = Scope(person_id=person_id)
+    from .cashflow import role_of
+
     available = bound = liabilities = ZERO
+    current = invested = ZERO  # available split: everyday accounts vs. invested (call money, depots, crypto …)
     items = []
     for account in db.scalars(select(Account).where(Account.closed.is_(False)).order_by(Account.name)).all():
         share = scope.share(account)
@@ -64,6 +67,10 @@ def liquidity(db: Session, person_id: int | None = None, on: date | None = None)
         else:
             bucket = "available"  # incl. credit cards, which reduce what is available
             available += value
+            if role_of(account) == "spending":
+                current += value
+            else:
+                invested += value
         when, why = free_from(account) if bucket == "bound" else (None, None)
         if when is not None and when <= on:
             when, why = None, None  # already due
@@ -75,6 +82,7 @@ def liquidity(db: Session, person_id: int | None = None, on: date | None = None)
                 "kind_label": kind.label if kind else account.kind,
                 "value": value,
                 "bucket": bucket,
+                "group": ("current" if role_of(account) == "spending" else "invested") if bucket == "available" else bucket,
                 "automatic": (account.details or {}).get("liquidity") not in ("available", "bound"),
                 "free_from": when,
                 "free_reason": why,
@@ -85,6 +93,8 @@ def liquidity(db: Session, person_id: int | None = None, on: date | None = None)
     return {
         "as_of": on,
         "available": available,
+        "current": current,
+        "invested": invested,
         "bound": bound,
         "liabilities": liabilities,
         "net": available + bound + liabilities,

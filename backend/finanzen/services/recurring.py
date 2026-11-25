@@ -114,6 +114,10 @@ RULES: list[tuple[str, str, tuple[str, ...]]] = [
     ("Gesundheit & Fitness", "out", ("fitness", "mcfit", "urban sports", "gym", "apotheke", "krankenkasse", "zahnarzt", "physio", "wellpass", "egym")),
     ("Kinder & Familie", "out", ("kita", "schule", "kindergarten", "musikschule", "ogs", "betreuung", "taschengeld")),
     ("Vereine & Spenden", "out", ("verein", "e.v.", "spende", "unicef", "greenpeace", "mitglied", "gewerkschaft", "ver.di", "wikimedia")),
+    ("Lebensmittel & Drogerie", "out", ("rewe", "aldi", "lidl", "edeka", "netto", "penny", "kaufland", "globus", "tegut", "bio company", "alnatura", "denns", "dm drogerie", "dm-drogerie", "rossmann", "müller", "bäckerei", "baeckerei", "metzgerei")),
+    ("Restaurant & Lieferdienst", "out", ("restaurant", "ristorante", "pizzeria", "cafe", "café", "bistro", "lieferando", "takeaway", "wolt", "uber eats", "mcdonald", "burger king", "starbucks", "imbiss")),
+    ("Bargeld", "out", ("geldautomat", "bargeld", "ga nr", "auszahlung atm")),
+    ("Einkaufen", "out", ("amazon", "tchibo", "ikea", "bauhaus", "obi ", "hornbach", "toom", "mediamarkt", "media markt", "saturn", "zalando", "otto ", "ebay", "decathlon", "h&m", "c&a", "thalia")),
 ]
 
 

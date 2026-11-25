@@ -165,8 +165,9 @@ Vergleichswert, etwa einen MSCI-World-ETF, und Finanzen legt dessen Verlauf
 daneben. Dieselbe Auswertung gibt es für jedes einzelne Konto und Depot, mit
 allen Zeiträumen von einem Monat bis „seit Beginn“.
 
-**Verfügbar und gebunden** trennt, was ihr kurzfristig nutzen könntet
-(Konten, Tagesgeld, Depots, Krypto, Edelmetalle, abzüglich Kreditkarten), von
+**Verfügbar und gebunden** trennt, was ihr kurzfristig nutzen könntet –
+sofort auf den Haushaltskonten (abzüglich Kreditkarten) oder angelegt in
+Tagesgeld, Depots, Krypto und Edelmetallen –, von
 dem, was festliegt (Festgeld, Altersvorsorge, Immobilien, Beteiligungen,
 sonstige Anlagen) – mit dem Datum, ab dem es frei wird: Fälligkeit beim
 Festgeld, Rentenbeginn bei der Altersvorsorge oder ein eigenes „frei ab“.
@@ -280,10 +281,19 @@ echten Buchungen, was jeden Monat reinkam, rausging und gespart wurde – als
 Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
 Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB
 Tagesgeld“). Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
-Kreditkarte) oder **Sparen** (Tagesgeld, Depots, Verrechnungskonten). Gespart
-ist, was von Alltags- auf Sparkonten fließt, abzüglich Entnahmen, plus
-direkte Sparbeiträge wie Riester oder Sparpläne. Geld zwischen Konten
-derselben Rolle zählt nicht. Die Rollen stellst du unten auf der Seite um.
+Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
+Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
+Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester
+oder Sparpläne. Geld zwischen Konten derselben Art zählt nicht. Welche Konten
+Haushaltskonten sind, stellst du unter **Konten** ganz unten um.
+
+**Kategorien per Regel:** Bekannte Händler (REWE, Aldi, dm, Lieferando,
+Amazon, Geldautomat …) ordnet Finanzen selbst zu. Für den Rest zeigt die
+Monatsbilanz die häufigsten Ausgaben ohne Kategorie – ein Tipp auf
+„Kategorie festlegen“ legt eine Regel an („enthält kiosk → Lebensmittel“),
+mit Vorschau, welche Buchungen sie trifft. Regeln gelten auch für alle
+künftigen Buchungen; du kannst sie auf Empfänger, Verwendungszweck, Ein- oder
+Ausgaben und ein Konto beschränken.
 
 ### 8. Zum Startbildschirm hinzufügen
 

@@ -288,6 +288,21 @@ class Category(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class CategoryRule(Base):
+    """User rule: bookings whose counterparty/purpose contains `pattern` get `category_id`."""
+
+    __tablename__ = "category_rules"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pattern: Mapped[str] = mapped_column(String(120))
+    field: Mapped[str] = mapped_column(String(12), default="any")  # any | counterparty | purpose
+    direction: Mapped[str] = mapped_column(String(3), default="any")  # any | in | out
+    account_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="CASCADE"))
+    sort: Mapped[int] = mapped_column(Integer, default=100)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class RecurringPayment(Base):
     """A recurring payment (contract, subscription, salary ...) and the rule that finds its transactions."""
 
