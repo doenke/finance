@@ -65,6 +65,7 @@
   // all bookings of the month: filter by text and by where they count
   let query = $state('');
   let showAll = $state(false);
+  let showUnknown = $state(false);
   let filter = $state('alle');
   const FILTERS = [
     { key: 'alle', label: 'Alle' },
@@ -279,7 +280,11 @@
     {/if}
 
     <section class="card stack">
-      <h2>Ohne Kategorie</h2>
+      <button class="fold" aria-expanded={showUnknown} onclick={() => (showUnknown = !showUnknown)}>
+        <span class="chev" class:rot={showUnknown} aria-hidden="true">›</span>
+        <h2>Ohne Kategorie <span class="muted small">· {data.unknown_groups.length}{data.unknown_groups.length >= 20 ? '+' : ''}</span></h2>
+      </button>
+      {#if showUnknown}
       {#if data.unknown_groups.length}
         <p class="muted small">Die häufigsten Ausgaben der letzten zwölf Monate, die noch keiner Kategorie zugeordnet sind. Leg eine Regel an – sie gilt auch für alle künftigen Buchungen.</p>
         <ul class="groups">
@@ -300,6 +305,7 @@
         </ul>
       {:else}
         <p class="muted small">Alle Ausgaben der letzten zwölf Monate haben eine Kategorie.</p>
+      {/if}
       {/if}
     </section>
 
