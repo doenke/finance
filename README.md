@@ -213,8 +213,9 @@ größter Rückgang) und eine Korrelations-Matrix, die zeigt, wie gut die
 Positionen das Risiko streuen. Kurse lädt Finanzen dafür mindestens fünf
 Jahre zurück – auch wenn du ein Wertpapier erst seit Kurzem hast.
 
-**Altersvorsorge:** Unter **Vorsorge** rechnet Finanzen hoch, was du im Alter
-monatlich zur Verfügung hast – in heutiger Kaufkraft und in drei Szenarien
+**Altersvorsorge:** Unter **Vorsorge** rechnet Finanzen hoch, was ihr im Alter
+monatlich zur Verfügung habt – standardmäßig für den ganzen Haushalt, auf
+Wunsch je Person, in heutiger Kaufkraft und in drei Szenarien
 (vorsichtig, mittel, optimistisch). Dazu zählen die gesetzliche Rente aus
 deiner Renteninformation, alle Vorsorge-Verträge mit Rentenprognose und eine
 Entnahme aus deinem Kapital (Depots, Krypto, Tagesgeld, Festgeld,

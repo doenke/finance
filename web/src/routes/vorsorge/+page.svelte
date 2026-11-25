@@ -6,7 +6,6 @@
   import { formatDate, formatMoney, toNumber } from '#lib/format.ts';
   import Money from '#lib/Money.svelte';
   import { household, loadPersons } from '#lib/persons.svelte.ts';
-  import { session } from '#lib/session.svelte.ts';
 
   interface Pension {
     account_id: number;
@@ -18,6 +17,7 @@
     monthly: number;
     after_retirement: boolean;
     statement_date: string | null;
+    owner: string | null;
   }
   interface Scenario {
     key: string;
@@ -34,7 +34,7 @@
     series: { date: string; value: number }[];
   }
   interface Projection {
-    person_id: number;
+    person_id: number | null;
     retire_on: string;
     default_retire_on: string;
     years_to_retirement: number;
@@ -45,7 +45,7 @@
     scenarios: Scenario[];
   }
 
-  let personId = $state<number | null>(null);
+  let personId = $state<number | null>(null); // null = whole household
   let retireOn = $state('');
   let savings = $state<string | null>('');
   let inflation = $state<string | null>('2');
@@ -57,17 +57,15 @@
   let error = $state('');
   let loading = $state(false);
 
-  onMount(async () => {
-    await loadPersons();
-    personId = household.persons.find((p) => p.user_id === session.me?.id)?.id ?? household.persons[0]?.id ?? null;
+  onMount(() => {
+    loadPersons();
   });
 
   const num = (v: string | null | undefined) => (v == null || String(v).trim() === '' ? null : Number(String(v).replace(',', '.')));
   let timer: ReturnType<typeof setTimeout> | undefined;
   $effect(() => {
     const q = new URLSearchParams();
-    if (personId === null) return;
-    q.set('person_id', String(personId));
+    if (personId !== null) q.set('person_id', String(personId));
     if (retireOn) q.set('retire_on', retireOn);
     const s = num(savings);
     if (s !== null && !Number.isNaN(s)) q.set('savings', String(s));
@@ -115,13 +113,14 @@
       <label>
         Person
         <select bind:value={personId}>
+          <option value={null}>Ganzer Haushalt</option>
           {#each household.persons.filter((p) => !p.archived) as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
         </select>
       </label>
       <label>
         Rentenbeginn
         <input type="date" bind:value={retireOn} />
-        {#if data && !retireOn}<span class="muted small">{formatDate(data.default_retire_on)} (aus den Verträgen)</span>{/if}
+        {#if data && !retireOn}<span class="muted small">{formatDate(data.default_retire_on)} ({personId === null ? 'wenn alle in Rente sind' : 'aus den Verträgen'})</span>{/if}
       </label>
       <label>
         Sparrate / Monat
@@ -175,7 +174,7 @@
                 <span class="name">
                   <a href="/konten/{p.account_id}">{p.name}</a>
                   <span class="muted small">
-                    {p.product_label} · ab {formatDate(p.start)}{#if p.statement_date} · Stand {formatDate(p.statement_date)}{/if}{#if p.after_retirement} · beginnt später{/if}
+                    {#if personId === null && p.owner}{p.owner}{' · '}{/if}{p.product_label} · ab {formatDate(p.start)}{#if p.statement_date} · Stand {formatDate(p.statement_date)}{/if}{#if p.after_retirement} · beginnt später{/if}
                   </span>
                 </span>
                 <span class="val">
@@ -218,7 +217,7 @@
       künftige Rentenanpassungen, das entspricht etwa heutiger Kaufkraft); andere Renten sind nominal zugesagt und werden mit der Inflation abgezinst.
       Kapital sind Depots, Krypto, Tagesgeld, Festgeld, Beteiligungen und Verträge ohne Rentenprognose – ohne Haushaltskonten und Immobilien. Es wächst
       mit der Rendite des Szenarios und der Sparrate (Standard: euer Gespartes der letzten 12 Monate, anteilig) und wird ab Rentenbeginn über die gewählte Dauer verbraucht. Netto: Kranken- und
-      Pflegeversicherung der Rentner auf gesetzliche und Betriebsrenten, Einkommensteuer nach Grundtarif 2025 mit Besteuerungs- bzw. Ertragsanteil,
+      Pflegeversicherung der Rentner auf gesetzliche und Betriebsrenten, Einkommensteuer je Person nach Grundtarif 2025 mit Besteuerungs- bzw. Ertragsanteil,
       Abgeltungsteuer auf den Gewinnanteil der Entnahmen. Ohne Splitting, Kirchensteuer und Freibeträge.
     </p>
   {:else if !error}
@@ -300,6 +299,9 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
     gap: 16px;
+  }
+  .split > section {
+    align-content: start;
   }
   .list {
     list-style: none;

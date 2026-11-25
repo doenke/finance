@@ -410,13 +410,7 @@ def t_add_pension_statement(db: Session, user: User, args: dict) -> Any:
 def t_get_retirement_projection(db: Session, user: User, args: dict) -> Any:
     from ..services.retirement import Params, projection
 
-    if args.get("person"):
-        person = _person_id(db, user, args["person"])
-    else:
-        p = db.scalar(select(Person).where(Person.user_id == user.id))
-        if p is None:
-            raise ToolError("Bitte person angeben.")
-        person = p.id
+    person = _person_id(db, user, args["person"]) if args.get("person") else None  # default: whole household
     params = Params(
         retire_on=date.fromisoformat(args["retire_on"]) if args.get("retire_on") else None,
         savings=float(args["savings"]) if args.get("savings") is not None else None,
@@ -573,7 +567,7 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         t_get_retirement_projection,
         _schema({"person": {"type": ["string", "integer"]}, "retire_on": DATE, "savings": {"type": ["number", "string"]}, "inflation": {"type": "number"}, "years": {"type": "integer"}}),
         False,
-        "Altersvorsorge-Projektion einer Person in heutiger Kaufkraft: Renten, Kapital bei Rentenbeginn und monatliches Einkommen (brutto, grob netto) in drei Szenarien.",
+        "Altersvorsorge-Projektion für den ganzen Haushalt (Standard) oder eine Person, in heutiger Kaufkraft: Renten, Kapital bei Rentenbeginn und monatliches Einkommen (brutto, grob netto) in drei Szenarien.",
     ),
     "list_categories": (t_list_categories, _schema({}), False, "Kategorien für Ausgaben, Einnahmen, Sparen (transfer) und Umbuchungen (internal)."),
     "create_category": (

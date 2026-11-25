@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import kinds
-from ..models import Account
+from ..models import Account, Person
 from .cashflow import role_of, year_balance
 from .performance import Scope
 from .valuation import account_value, holdings_value
@@ -80,6 +80,26 @@ def income_tax(zve: float) -> float:
     return 0.45 * x - 19246.67
 
 
+def _pension_burden(pensions: list[dict]) -> tuple[float, float]:
+    """Monthly health/care insurance and taxable part of one person's pensions."""
+    kv = taxable = 0.0
+    for p in pensions:
+        amt = p["monthly"]
+        if p["product"] == "gesetzlich":
+            kv += amt * KV_STATUTORY
+            taxable += amt * taxable_share_statutory(p["start"].year)
+        elif p["product"] == "ruerup":
+            taxable += amt * taxable_share_statutory(p["start"].year)
+        elif p["product"] == "bav":
+            kv += max(0.0, amt - BAV_ALLOWANCE) * KV_BAV
+            taxable += amt
+        elif p["product"] == "riester":
+            taxable += amt
+        else:
+            taxable += amt * PRIVATE_SHARE
+    return kv, taxable
+
+
 def _months_between(a: date, b: date) -> int:
     return max(0, (b.year - a.year) * 12 + (b.month - a.month))
 
@@ -93,7 +113,8 @@ class Params:
     returns: dict[str, float] | None = None
 
 
-def projection(db: Session, person_id: int, params: Params, today: date | None = None) -> dict:
+def projection(db: Session, person_id: int | None, params: Params, today: date | None = None) -> dict:
+    """person_id None: the whole household (every account in full, pensions taxed per owner)."""
     today = today or date.today()
     scope = Scope(person_id=person_id)
     accounts = [a for a in db.scalars(select(Account).where(Account.closed.is_(False))).all() if scope.share(a) > 0]
@@ -123,10 +144,14 @@ def projection(db: Session, person_id: int, params: Params, today: date | None =
     statutory = [p for p in pensions_raw if (p[2].get("product") == "gesetzlich")]
     starts = [_date(p[2].get("payout_start")) for p in (statutory or pensions_raw)]
     starts = [s for s in starts if s]
-    default_retire = (min(starts) if statutory else max(starts)) if starts else date(today.year + 25, today.month, 1)
+    if person_id is None:  # household: when everyone receives their pension
+        default_retire = max(starts) if starts else date(today.year + 25, today.month, 1)
+    else:
+        default_retire = (min(starts) if statutory else max(starts)) if starts else date(today.year + 25, today.month, 1)
     retire_on = params.retire_on or default_retire
     years_to = max(0.0, (retire_on - today).days / 365.25)
 
+    names = {p.id: p.name for p in db.scalars(select(Person)).all()}
     pensions = []
     for a, share, d in pensions_raw:
         product = d.get("product") or "other"
@@ -136,8 +161,11 @@ def projection(db: Session, person_id: int, params: Params, today: date | None =
             real = amount  # DRV figure without future increases ~ today's money
         else:
             real = amount / (1 + infl) ** max(0.0, (start - today).days / 365.25)
+        owner = a.owners[0].person_id if a.owners else None
         pensions.append(
             {
+                "owner_id": owner,
+                "owner": names.get(owner),
                 "account_id": a.id,
                 "name": a.name,
                 "product": product,
@@ -187,23 +215,15 @@ def projection(db: Session, person_id: int, params: Params, today: date | None =
 
         gross_pensions = sum(p["monthly"] for p in pensions)
         kv = 0.0
-        taxable = 0.0
+        tax = 0.0
+        # income tax per owner (no joint assessment)
+        by_owner: dict[int | None, list[dict]] = {}
         for p in pensions:
-            amt = p["monthly"]
-            if p["product"] == "gesetzlich":
-                kv += amt * KV_STATUTORY
-                taxable += amt * taxable_share_statutory(p["start"].year)
-            elif p["product"] == "ruerup":
-                taxable += amt * taxable_share_statutory(p["start"].year)
-            elif p["product"] == "bav":
-                kv += max(0.0, amt - BAV_ALLOWANCE) * KV_BAV
-                taxable += amt
-            elif p["product"] == "riester":
-                taxable += amt
-            else:
-                taxable += amt * PRIVATE_SHARE
-        zve = (taxable - kv) * 12 - 102
-        tax = income_tax(zve) / 12
+            by_owner.setdefault(p["owner_id"], []).append(p)
+        for owned in by_owner.values():
+            owner_kv, taxable = _pension_burden(owned)
+            kv += owner_kv
+            tax += income_tax((taxable - owner_kv) * 12 - 102) / 12
         capital_tax = withdrawal * gain_share * FLAT_TAX
         gross = gross_pensions + withdrawal
         scenarios.append(

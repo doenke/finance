@@ -4,12 +4,10 @@ from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth.session import current_user
 from ..db import get_db
-from ..models import User
 from ..services.performance import PERIODS, Scope, benchmark, breakdown, net_worth, performance
 
 router = APIRouter(prefix="/api", dependencies=[Depends(current_user)])
@@ -75,18 +73,12 @@ def get_retirement(
     r_mid: float | None = None,
     r_high: float | None = None,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
 ) -> dict[str, Any]:
-    """Retirement projection for one person (default: the logged-in user's person)."""
+    """Retirement projection for the household (default) or one person."""
     from ..models import Person
     from ..services.retirement import Params, projection
 
-    if person_id is None:
-        person = db.scalar(select(Person).where(Person.user_id == user.id))
-        if person is None:
-            raise HTTPException(422, "Bitte eine Person wählen")
-        person_id = person.id
-    elif db.get(Person, person_id) is None:
+    if person_id is not None and db.get(Person, person_id) is None:
         raise HTTPException(404, "Person nicht gefunden")
     if not (-0.05 <= inflation <= 0.15) or not (1 <= years <= 60) or (savings is not None and not (0 <= savings <= 1_000_000)):
         raise HTTPException(422, "Ungültige Annahme")
