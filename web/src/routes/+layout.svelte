@@ -15,6 +15,7 @@
     { href: '/', label: 'Übersicht', icon: 'home' },
     { href: '/konten', label: 'Konten', icon: 'wallet' },
     { href: '/vertraege', label: 'Verträge', icon: 'repeat' },
+    { href: '/bilanz', label: 'Monatsbilanz', icon: 'bars', desktopOnly: true },
     { href: '/banken', label: 'Banken', icon: 'bank' },
     { href: '/haushalt', label: 'Haushalt', icon: 'people', desktopOnly: true },
     { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings' }

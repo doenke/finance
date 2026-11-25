@@ -275,6 +275,16 @@ Die Kategorie landet auch an den einzelnen Umsätzen – die Grundlage für den
 späteren Budget-Planer. Am besten holst du vorher ein Jahr Umsätze ab, dann
 findet Finanzen auch die jährlichen Zahlungen.
 
+**Monatsbilanz:** Neben den Verträgen zeigt die **Monatsbilanz** aus euren
+echten Buchungen, was jeden Monat reinkam, rausging und gespart wurde – als
+Balken für die letzten zwölf Monate und im Detail je Monat: Ausgaben nach
+Kategorie, Einnahmen und wohin gespart wurde (z. B. „DKB Girokonto → DKB
+Tagesgeld“). Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
+Kreditkarte) oder **Sparen** (Tagesgeld, Depots, Verrechnungskonten). Gespart
+ist, was von Alltags- auf Sparkonten fließt, abzüglich Entnahmen, plus
+direkte Sparbeiträge wie Riester oder Sparpläne. Geld zwischen Konten
+derselben Rolle zählt nicht. Die Rollen stellst du unten auf der Seite um.
+
 ### 8. Zum Startbildschirm hinzufügen
 
 Im Browsermenü „Zum Startbildschirm hinzufügen“ bzw. „App installieren“

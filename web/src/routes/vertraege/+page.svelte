@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api } from '#lib/api.ts';
   import BarList from '#lib/charts/BarList.svelte';
+  import BudgetTabs from '#lib/BudgetTabs.svelte';
   import { formatDate, formatMoney, toNumber } from '#lib/format.ts';
   import Money from '#lib/Money.svelte';
 
@@ -190,6 +191,7 @@
 
 <div class="stack">
   <h1>Verträge & Abos</h1>
+  <BudgetTabs />
   <p class="muted">Finanzen sucht in euren Umsätzen nach Zahlungen, die regelmäßig wiederkommen – Miete, Versicherungen, Abos, Kredite, Gehalt – und ordnet sie Kategorien zu.</p>
   {#if error}<p class="error">{error}</p>{/if}
 

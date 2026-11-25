@@ -227,6 +227,36 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     }
 
 
+class FlowRoleIn(BaseModel):
+    role: str | None = None  # spending | saving | None (automatic)
+
+
+@router.get("/cashflow")
+def get_cashflow(months: int = 12, month: str | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
+    from ..services.cashflow import cashflow
+
+    return cashflow(db, max(1, min(months, 36)), month)
+
+
+@router.put("/accounts/{account_id}/flow-role")
+def set_flow_role(account_id: int, data: FlowRoleIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    from ..services.cashflow import ROLES, role_of
+
+    account = db.get(Account, account_id)
+    if account is None:
+        raise HTTPException(404, "Konto nicht gefunden")
+    if data.role is not None and data.role not in ROLES:
+        raise HTTPException(422, "Unbekannte Rolle")
+    details = dict(account.details or {})
+    if data.role is None:
+        details.pop("flow_role", None)
+    else:
+        details["flow_role"] = data.role
+    account.details = details
+    db.commit()
+    return {"id": account.id, "role": role_of(account), "automatic": data.role is None}
+
+
 @router.get("/recurring")
 def get_overview(db: Session = Depends(get_db)) -> dict[str, Any]:
     return overview(db)
