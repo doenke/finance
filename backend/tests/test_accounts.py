@@ -221,3 +221,14 @@ def test_liquidity_lists_positions(client):
     assert first["name"] == "World ETF" and D(first["value"]) == D("1000.00") and D(first["gain"]) == D("200.00")
     assert abs(D(first["gain_pct"]) - D("0.25")) < D("0.0001")
     assert second["name"] == "Ohne Kurs AG" and D(second["value"]) == D("100.00")
+
+
+def test_valuation_value_includes_contributions_since_statement(client):
+    login(client)
+    rente = create(client, "/api/accounts", {"name": "Rente", "kind": "altersvorsorge"})
+    create(client, f"/api/accounts/{rente['id']}/valuations", {"date": "2025-12-31", "value": "10000"})
+    create(client, f"/api/accounts/{rente['id']}/transactions", {"booking_date": "2026-02-01", "amount": "150", "kind": "contribution"})
+    acc = next(a for a in client.get("/api/accounts").json() if a["id"] == rente["id"])
+    assert D(acc["value"]) == D("10150.00")  # same as the value series behind the net worth
+    nw = client.get("/api/networth", params={"period": "1M"}).json()
+    assert D(nw["current"]["net"]) == D("10150.00")

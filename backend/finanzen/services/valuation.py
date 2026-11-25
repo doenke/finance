@@ -230,4 +230,9 @@ def account_value(db: Session, account: Account, on: date) -> AccountValue:
         return deposit_account_value(account, on)
     if mode == kinds.LOAN:
         return loan_value(db, account, on)
-    return valuation_value(db, account.id, on)
+    # Same rule as the value series: last valuation (or purchase price) plus contributions/withdrawals since then.
+    from .series import Context, account_series
+
+    last = valuation_value(db, account.id, on)
+    series = account_series(Context(db), account, on, on)
+    return AccountValue(series.values[-1].quantize(Decimal("0.01")), last.as_of or series.first)
