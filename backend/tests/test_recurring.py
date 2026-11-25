@@ -208,3 +208,30 @@ def test_internal_transfers_are_not_counted(client):
     assert all("Sönke" not in u["name"] for u in res["upcoming"])
     kinds = {c["kind"] for c in client.get("/api/categories").json()}
     assert "internal" in kinds
+
+
+def test_transfer_route(client):
+    login(client, "Sönke Jacobs")
+    with client.app.state.sessionmaker() as db:
+        spk = Account(name="Sparkasse Giro", kind="giro", asset_class="cash", iban="DE11 3905 0000 0000 0000 01", details={})
+        dkb = Account(name="DKB Giro", kind="giro", asset_class="cash", iban="DE22120300000000000002", details={})
+        tg = Account(name="DKB Tagesgeld", kind="tagesgeld", asset_class="cash", iban="DE33120300000000000003", details={})
+        db.add_all([spk, dkb, tg])
+        db.flush()
+        for d in months_back(6, 2):
+            # by IBAN in the raw data of the bank
+            db.add(Transaction(account_id=spk.id, booking_date=d, amount=D("-2900"), counterparty="Ulrike Jacobs", purpose="Spass", raw={"IBAN Zahlungsbeteiligter": "DE22120300000000000002"}))
+            # by the mirrored booking on the other account (no IBAN)
+            db.add(Transaction(account_id=dkb.id, booking_date=d + timedelta(days=14), amount=D("-971.95"), counterparty="Herr Sönke Jacobs", purpose="Sparen"))
+            db.add(Transaction(account_id=tg.id, booking_date=d + timedelta(days=15), amount=D("971.95"), counterparty="Herr Sönke Jacobs", purpose="Sparen"))
+        db.commit()
+        data = overview(db, TODAY)
+        internal = next(c.id for c in db.query(Category).all() if c.kind == "internal")
+    for s in data["suggestions"]:
+        if s["direction"] == "out":
+            body = {k: (str(v) if isinstance(v, D) else v) for k, v in s.items() if k in ("match_key", "direction", "interval", "amount_min", "amount_max", "name")}
+            body["category_id"] = internal
+            assert client.post("/api/recurring", json=body, headers=ORIGIN).status_code == 201
+    items = {i["name"]: i for i in client.get("/api/recurring").json()["items"]}
+    assert items["Ulrike Jacobs"]["route"] == {"from": "Sparkasse Giro", "to": "DKB Giro"}
+    assert items["Herr Sönke Jacobs"]["route"] == {"from": "DKB Giro", "to": "DKB Tagesgeld"}

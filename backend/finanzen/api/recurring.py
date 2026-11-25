@@ -1,5 +1,6 @@
 """Categories and recurring payments (contracts, subscriptions, salary) with an overview."""
 
+import re
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
@@ -141,6 +142,7 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
     accounts = {a.id: a.name for a in db.scalars(select(Account)).all()}
     ibans = rec.own_ibans(db)
     names_own = rec.own_names(db)
+    iban_to_account = {re.sub(r"\s", "", a.iban).upper(): a.id for a in db.scalars(select(Account)).all() if a.iban}
 
     items = []
     for r in rules:
@@ -164,6 +166,10 @@ def overview(db: Session, today: date | None = None) -> dict[str, Any]:
                 **info,
             }
         )
+        if cat and cat.kind in ("internal", "transfer") and by_rule[r.id]:
+            src, dst = rec.transfer_route(by_rule[r.id], txs, iban_to_account)
+            if src is not None or dst is not None:
+                items[-1]["route"] = {"from": accounts.get(src) if src else None, "to": accounts.get(dst) if dst else None}
 
     suggestions = []
     for c in rec.detect(free, today):

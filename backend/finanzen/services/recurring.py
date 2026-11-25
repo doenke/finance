@@ -154,6 +154,7 @@ class Tx:
     key: str
     category_id: int | None = None
     key2: str | None = None  # payee + purpose words, see purpose_key()
+    ibans: tuple[str, ...] = ()  # IBANs named in counterparty, purpose or the bank's raw data
 
     @property
     def direction(self) -> str:
@@ -185,7 +186,9 @@ def load_transactions(db: Session, since: date) -> list[Tx]:
     for t in rows:
         key = match_key(t.counterparty or "", t.purpose or "")
         if key:
-            out.append(Tx(t.id, t.account_id, t.booking_date, t.amount, t.counterparty or "", t.purpose or "", key, t.category_id, purpose_key(t.counterparty or "", t.purpose or "")))
+            raw_text = " ".join(str(v) for v in (t.raw or {}).values() if v) if isinstance(t.raw, dict) else ""
+            ibans = tuple(sorted(_ibans(f"{t.counterparty} {t.purpose} {raw_text}")))
+            out.append(Tx(t.id, t.account_id, t.booking_date, t.amount, t.counterparty or "", t.purpose or "", key, t.category_id, purpose_key(t.counterparty or "", t.purpose or ""), ibans))
     return out
 
 
@@ -304,6 +307,35 @@ def rule_covers(rule: RecurringPayment, c: Candidate) -> bool:
     if rule.amount_min is None or c.amount_min is None:
         return True
     return not (c.amount_max < rule.amount_min or c.amount_min > rule.amount_max)
+
+
+IBAN_FIND = re.compile(r"\b([A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?)\b")
+
+
+def _ibans(text: str) -> set[str]:
+    return {re.sub(r"\s", "", m) for m in IBAN_FIND.findall(text.upper()) if 15 <= len(re.sub(r"\s", "", m)) <= 34}
+
+
+def transfer_route(own: list[Tx], all_txs: list[Tx], iban_to_account: dict[str, int]) -> tuple[int | None, int | None]:
+    """(from account, to account) of a transfer between own accounts, the most frequent over its bookings.
+
+    The other side is found by IBAN, else by the mirrored booking (same amount, opposite sign, within four days).
+    """
+    by_amount: dict[Decimal, list[Tx]] = defaultdict(list)
+    for t in all_txs:
+        by_amount[abs(t.amount)].append(t)
+    votes: dict[tuple[int | None, int | None], int] = defaultdict(int)
+    for t in own:
+        other = next((iban_to_account[i] for i in t.ibans if iban_to_account.get(i) not in (None, t.account_id)), None)
+        if other is None:
+            mirror = [u for u in by_amount[abs(t.amount)] if u.account_id != t.account_id and u.amount == -t.amount and abs((u.date - t.date).days) <= 4]
+            if mirror:
+                other = min(mirror, key=lambda u: abs((u.date - t.date).days)).account_id
+        route = (t.account_id, other) if t.direction == "out" else (other, t.account_id)
+        votes[route] += 1
+    if not votes:
+        return None, None
+    return max(votes.items(), key=lambda kv: (kv[0][0] is not None and kv[0][1] is not None, kv[1]))[0]
 
 
 def own_ibans(db: Session) -> set[str]:

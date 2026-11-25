@@ -30,6 +30,8 @@
     category_id: number | null;
     category: string | null;
     category_kind: 'expense' | 'income' | 'transfer' | 'internal';
+    /** for transfers between own accounts: where the money comes from and goes to (null = not one of yours) */
+    route?: { from: string | null; to: string | null };
   }
   interface Suggestion extends Info {
     match_key: string;
@@ -309,7 +311,8 @@
       <span class="grow">
         <strong class="ellipsis">{i.name}</strong>
         <span class="muted small">
-          {i.interval_label}{i.account ? ` · ${i.account}` : ''}{i.next_date && i.status === 'active' ? ` · nächste ${formatDate(i.next_date)}` : ''}
+          {i.interval_label}{#if i.route}
+            · <span class="route">{i.route.from ?? i.name} → {i.route.to ?? i.name}</span>{:else}{i.account ? ` · ${i.account}` : ''}{/if}{i.next_date && i.status === 'active' ? ` · nächste ${formatDate(i.next_date)}` : ''}
         </span>
         {#if i.changed}<span class="badge warn">Betrag geändert: {formatMoney(i.changed.from)} → {formatMoney(i.changed.to)}</span>{/if}
         {#if i.overdue && i.status === 'active'}<span class="badge warn">ausgeblieben – gekündigt?</span>{/if}
@@ -546,5 +549,8 @@
     .sugg .actions {
       grid-column: 1 / -1;
     }
+  }
+  .route {
+    color: var(--text);
   }
 </style>
