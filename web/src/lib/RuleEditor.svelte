@@ -125,7 +125,10 @@
               <tr>
                 <td>{formatDate(x.date)}</td>
                 <td class="r"><Money value={x.amount} /></td>
-                <td class="ellipsis">{x.counterparty || x.purpose}</td>
+                <td class="text">
+                  <div class="ellipsis">{x.counterparty || '–'}</div>
+                  <div class="ellipsis muted" title={x.purpose}>{x.purpose}</div>
+                </td>
                 <td class="muted">{x.current ? `bisher: ${x.current}` : 'bisher ohne'}</td>
               </tr>
             {/each}
@@ -172,9 +175,16 @@
   .r {
     text-align: right;
   }
+  .text {
+    white-space: normal;
+    max-width: 420px;
+  }
   .ellipsis {
-    max-width: 260px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  td.text .muted {
+    font-size: 0.8rem;
   }
 </style>

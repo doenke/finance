@@ -141,11 +141,11 @@ def cashflow(db: Session, months: int = 12, month: str | None = None, end: date 
                     detail["uncategorized"].append(t)
             if cat is None:
                 pattern = suggest_pattern(t.counterparty, t.purpose) or "?"
-                g = unknown.setdefault(pattern, {"pattern": pattern, "count": 0, "total": ZERO, "example": t.counterparty or t.purpose, "last": t.date})
+                g = unknown.setdefault(pattern, {"pattern": pattern, "count": 0, "total": ZERO, "example": t.counterparty or t.purpose, "purpose": t.purpose[:140], "last": t.date})
                 g["count"] += 1
                 g["total"] -= t.amount
                 if t.date >= g["last"]:
-                    g["last"], g["example"] = t.date, (t.counterparty or t.purpose)[:80]
+                    g["last"], g["example"], g["purpose"] = t.date, (t.counterparty or t.purpose)[:80], t.purpose[:140]
 
     rows = []
     for m in month_keys:

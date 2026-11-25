@@ -37,7 +37,7 @@
       uncategorized: { date: string; amount: string; counterparty: string; purpose: string; account: string }[];
     };
     accounts: FlowAccount[];
-    unknown_groups: { pattern: string; count: number; total: string; example: string; last: string }[];
+    unknown_groups: { pattern: string; count: number; total: string; example: string; purpose: string; last: string }[];
   }
   interface SavedRule extends Rule {
     id: number;
@@ -228,7 +228,7 @@
                     <tr>
                       <td>{formatDate(u.date)}</td>
                       <td class="r"><Money value={u.amount} /></td>
-                      <td>{u.counterparty}</td>
+                      <td>{u.counterparty}<div class="muted purpose-cell">{u.purpose}</div></td>
                       <td class="muted">{u.account}</td>
                     </tr>
                   {/each}
@@ -249,6 +249,7 @@
             <li>
               <div class="grow">
                 <strong class="ellipsis">{g.example}</strong>
+                {#if g.purpose && g.purpose !== g.example}<span class="small ellipsis purpose" title={g.purpose}>{g.purpose}</span>{/if}
                 <span class="muted small">{g.count}× · zuletzt {formatDate(g.last)}</span>
               </div>
               <Money value={g.total} cents={false} />
@@ -424,6 +425,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .purpose {
+    color: var(--muted);
+  }
+  .purpose-cell {
+    font-size: 0.8rem;
+    white-space: normal;
   }
   .link {
     background: none;
