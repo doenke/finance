@@ -164,6 +164,26 @@ def _cash_series(ctx: Context, account: Account, days: list[date]) -> tuple[list
 
 def _holdings_series(ctx: Context, account: Account, days: list[date]) -> tuple[list[Decimal], list[Decimal], date | None]:
     trades = ctx.db.scalars(select(Trade).where(Trade.account_id == account.id).order_by(Trade.date, Trade.id)).all()
+    return _trades_series(ctx, list(trades), days)
+
+
+def position_series(ctx: Context, account: Account, start: date, end: date) -> dict[int, AccountSeries]:
+    """Value and flows per instrument of a holdings account (trades without an instrument are left out)."""
+    days = day_range(start, end)
+    trades = ctx.db.scalars(
+        select(Trade).where(Trade.account_id == account.id, Trade.instrument_id.is_not(None)).order_by(Trade.date, Trade.id)
+    ).all()
+    by_instrument: dict[int, list[Trade]] = defaultdict(list)
+    for t in trades:
+        by_instrument[t.instrument_id].append(t)
+    out = {}
+    for iid, rows in by_instrument.items():
+        values, flows, first = _trades_series(ctx, rows, days)
+        out[iid] = AccountSeries(account, days, values, flows, first)
+    return out
+
+
+def _trades_series(ctx: Context, trades: list[Trade], days: list[date]) -> tuple[list[Decimal], list[Decimal], date | None]:
     if not trades:
         return [ZERO] * len(days), [ZERO] * len(days), None
     flow_by_day: dict[date, Decimal] = defaultdict(lambda: ZERO)

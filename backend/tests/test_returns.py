@@ -152,6 +152,37 @@ def test_breakdown_contributions_add_up(client):
     assert client.get("/api/performance/breakdown", params={"period": "x"}).status_code == 422
 
 
+def test_breakdown_positions(client):
+    from decimal import Decimal as Dec
+
+    from tests.conftest import login as do_login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    do_login(client)
+
+    def post(path, body):
+        res = client.post(path, json=body, headers=origin)
+        assert res.status_code in (200, 201), res.text
+        return res.json()
+
+    depot = post("/api/accounts", {"name": "Depot", "kind": "depot"})["id"]
+    up = post("/api/instruments", {"kind": "etf", "name": "Steigt"})["id"]
+    down = post("/api/instruments", {"kind": "stock", "name": "Fällt"})["id"]
+    post(f"/api/accounts/{depot}/trades", {"date": "2025-01-01", "type": "buy", "instrument_id": up, "quantity": "10", "price": "100"})
+    post(f"/api/accounts/{depot}/trades", {"date": "2025-01-01", "type": "buy", "instrument_id": down, "quantity": "10", "price": "50"})
+    post(f"/api/accounts/{depot}/trades", {"date": "2025-07-01", "type": "dividend", "instrument_id": up, "amount": "20"})
+    post(f"/api/instruments/{up}/prices", {"date": "2026-01-01", "close": "110"})
+    post(f"/api/instruments/{down}/prices", {"date": "2026-01-01", "close": "40"})
+    res = client.get("/api/performance/breakdown", params={"period": "1Y", "to": "2026-01-01"}).json()
+    item = res["items"][0]
+    pos = {p["name"]: p for p in item["positions"]}
+    assert Dec(pos["Steigt"]["gain"]) == Dec("120")  # 100 price gain + 20 dividend
+    assert Dec(pos["Fällt"]["gain"]) == Dec("-100")
+    assert sum(Dec(p["gain"]) for p in item["positions"]) == Dec(item["gain"])
+    assert abs(sum(Dec(p["contribution"]) for p in item["positions"]) - Dec(item["contribution"])) < Dec("1e-12")
+    assert [p["name"] for p in item["positions"]] == ["Steigt", "Fällt"]  # best IRR first
+
+
 def test_position_compare(client):
     import math
     from datetime import date, timedelta

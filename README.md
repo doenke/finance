@@ -172,15 +172,15 @@ dem, was festliegt (Festgeld, Altersvorsorge, Immobilien, Beteiligungen,
 sonstige Anlagen) – mit dem Datum, ab dem es frei wird: Fälligkeit beim
 Festgeld, Rentenbeginn bei der Altersvorsorge oder ein eigenes „frei ab“.
 Passt die Einteilung bei einem Konto nicht, stellst du sie unter
-„Bearbeiten“ → Verfügbarkeit um. Depots und Krypto klappst du per Klick auf:
-Dann siehst du jede Position mit Stückzahl, aktuellem Wert und Gewinn in
-Prozent.
+„Bearbeiten“ → Verfügbarkeit um.
 
 Darunter zeigt **Rendite je Anlage**, was welche Anlage bringt – sortiert
 nach IZF pro Jahr, mit TTWROR und Gewinn daneben – und woraus sich eure
 Gesamtrendite zusammensetzt: Jede Anlage steuert ihren Gewinn in Euro und in
 Prozentpunkten bei, die Balken addieren sich zur Gesamtrendite des gewählten
-Zeitraums (Standard: ein Jahr).
+Zeitraums (Standard: ein Jahr). Depots und Krypto klappst du auf: Dann
+siehst du die Rendite jeder einzelnen Position, und in der Zusammensetzung
+stehen die Positionen statt des Depots.
 
 So rechnet Finanzen:
 

@@ -204,20 +204,3 @@ def test_liquidity_splits_available(client):
     assert D(res["available"]) == D("17000.00")
     groups = {i["name"]: i["group"] for i in res["items"]}
     assert groups == {"Giro": "current", "Tagesgeld": "invested"}
-
-
-def test_liquidity_lists_positions(client):
-    login(client)
-    depot = create(client, "/api/accounts", {"name": "Depot", "kind": "depot"})
-    world = create(client, "/api/instruments", {"kind": "etf", "name": "World ETF", "isin": "IE00B4L5Y983"})
-    stock = create(client, "/api/instruments", {"kind": "stock", "name": "Ohne Kurs AG"})
-    url = f"/api/accounts/{depot['id']}/trades"
-    create(client, url, {"date": "2024-01-10", "type": "buy", "instrument_id": world["id"], "quantity": "10", "price": "80"})
-    create(client, url, {"date": "2024-01-10", "type": "buy", "instrument_id": stock["id"], "quantity": "5", "price": "20"})
-    create(client, f"/api/instruments/{world['id']}/prices", {"date": "2025-01-02", "close": "100"})
-    item = next(i for i in client.get("/api/liquidity").json()["items"] if i["name"] == "Depot")
-    assert D(item["value"]) == D("1100.00")
-    first, second = item["positions"]
-    assert first["name"] == "World ETF" and D(first["value"]) == D("1000.00") and D(first["gain"]) == D("200.00")
-    assert abs(D(first["gain_pct"]) - D("0.25")) < D("0.0001")
-    assert second["name"] == "Ohne Kurs AG" and D(second["value"]) == D("100.00")

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .. import cache, kinds
 from ..models import Account, Instrument
 from .returns import ReturnResult, compute_returns, ttwror_series
-from .series import Context, account_series, day_range, first_data_date
+from .series import Context, account_series, day_range, first_data_date, position_series
 
 ZERO = Decimal("0")
 PERIODS = ["1M", "YTD", "1Y", "3Y", "5Y", "ALL"]
@@ -246,6 +246,38 @@ def _avg_capital(agg: Aggregate, base: date, end: date) -> Decimal:
     return capital
 
 
+def _position_returns(db: Session, account: Account, share: Decimal, base: date, end: date) -> list[dict]:
+    """Return of each position of a holdings account over (base, end], scaled to the person's share."""
+    ctx = Context(db)
+    start = base - timedelta(days=1)
+    out = []
+    for iid, s in position_series(ctx, account, start, end).items():
+        values = [v * share for v in s.values]
+        flows = [f * share for f in s.flows]
+        if not any(values) and not any(flows[1:]):
+            continue  # nothing held in the period
+        agg = Aggregate(s.dates, values, flows, values, [ZERO] * len(values), {}, s.first)
+        r = returns_for(agg, base)
+        instrument = ctx.instrument(iid)
+        out.append(
+            {
+                "instrument_id": iid,
+                "name": instrument.name if instrument else "?",
+                "start_value": r.start_value,
+                "end_value": r.end_value,
+                "net_flows": r.net_flows,
+                "gain": r.gain,
+                "irr": r.irr,
+                "ttwror": r.ttwror,
+                "ttwror_pa": r.ttwror_pa,
+                "avg_capital": _avg_capital(agg, base, end),
+                "sold": values[-1] == 0,
+            }
+        )
+    out.sort(key=lambda p: (p["irr"] is None, -(p["irr"] or ZERO)))
+    return out
+
+
 def breakdown(db: Session, person_id: int | None, period: str = "1Y", end: date | None = None) -> dict:
     """Return per account and each account's contribution to the total return of the period.
 
@@ -270,8 +302,10 @@ def breakdown(db: Session, person_id: int | None, period: str = "1Y", end: date 
         if r.start_value == 0 and r.end_value == 0 and r.net_flows == 0:
             continue
         kind = kinds.KINDS.get(account.kind)
+        positions = _position_returns(db, account, scope.share(account), base, end) if kind and kind.mode == kinds.HOLDINGS else None
         items.append(
             {
+                "positions": positions,
                 "account_id": account.id,
                 "name": account.name,
                 "kind": account.kind,
@@ -292,6 +326,8 @@ def breakdown(db: Session, person_id: int | None, period: str = "1Y", end: date 
     for i in items:
         i["contribution"] = i["gain"] / total_capital if total_capital > 0 else None
         i["weight"] = i["avg_capital"] / total_capital if total_capital > 0 else None
+        for p in i["positions"] or []:
+            p["contribution"] = p["gain"] / total_capital if total_capital > 0 else None
     items.sort(key=lambda i: (i["irr"] is None, -(i["irr"] or ZERO)))
     overall = returns_for(total, base)
     return {
