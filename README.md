@@ -323,8 +323,9 @@ das gilt nur für diese Buchung und schlägt Regeln und die automatische
 Erkennung. „Automatisch“ nimmt die Festlegung wieder zurück. Ganz unten stehen
 **alle Buchungen** des gewählten Monats – durchsuchbar, filterbar nach
 Ausgaben, Einnahmen, Gespartem, Umbuchungen oder „Ohne Kategorie“ und mit
-derselben Kategorie-Auswahl je Zeile. „Alle Buchungen“ und „Ohne Kategorie“ sind
-zugeklappt, bis du auf die Überschrift tippst. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
+derselben Kategorie-Auswahl je Zeile; „Regel…“ macht aus einer Buchung gleich
+eine Regel für alle ähnlichen. Die Liste ist zugeklappt – gibt es Buchungen
+ohne Kategorie, bringt dich ein Knopf direkt dorthin. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
 Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
 Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester
@@ -340,12 +341,14 @@ Kategorien zeigen Summe, Ø pro Monat, Vorjahr und Veränderung; ein Klick
 öffnet die Buchungen dahinter, auch hier mit Kategorie-Auswahl je Buchung.
 
 **Kategorien per Regel:** Bekannte Händler (REWE, Aldi, dm, Lieferando,
-Amazon, Geldautomat …) ordnet Finanzen selbst zu. Für den Rest zeigt die
-Monatsbilanz die häufigsten Ausgaben ohne Kategorie – ein Tipp auf
-„Kategorie festlegen“ legt eine Regel an („enthält kiosk → Lebensmittel“),
+Amazon, Geldautomat …) ordnet Finanzen selbst zu. Für den Rest zeigt
+**Budget → Kategorien** die häufigsten Ausgaben ohne Kategorie der letzten
+zwölf Monate – ein Tipp auf „Regel anlegen“ legt eine Regel an („enthält kiosk → Lebensmittel“),
 mit Vorschau, welche Buchungen sie trifft. Regeln gelten auch für alle
 künftigen Buchungen; du kannst sie auf Empfänger, Verwendungszweck, Ein- oder
-Ausgaben und ein Konto beschränken.
+Ausgaben und ein Konto beschränken. Auf derselben Seite verwaltest du alle
+Regeln und die Kategorien selbst (Ausgaben, Einnahmen, Sparen & Anlegen,
+Umbuchungen).
 
 ### 8. Zum Startbildschirm hinzufügen
 

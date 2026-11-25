@@ -16,7 +16,7 @@
     { href: '/konten', label: 'Konten', icon: 'wallet', also: ['/import'] },
     { href: '/anlagen', label: 'Anlagen', icon: 'trend', also: ['/wertpapiere'] },
     // Monthly/yearly balance and contracts are tabs (BudgetTabs).
-    { href: '/bilanz', label: 'Budget', icon: 'bars', also: ['/jahresbilanz', '/vertraege'] },
+    { href: '/bilanz', label: 'Budget', icon: 'bars', also: ['/jahresbilanz', '/vertraege', '/kategorien'] },
     { href: '/vorsorge', label: 'Vorsorge', icon: 'hourglass' },
     // Household, banks, audit log and the rest are reached from the settings.
     { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings', also: ['/haushalt', '/banken', '/protokoll'] }

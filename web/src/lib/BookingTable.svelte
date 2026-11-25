@@ -11,6 +11,7 @@
     assignable: boolean;
     counts_as?: string;
     stale_category?: boolean;
+    pattern?: string;
   }
   export interface CategoryOption {
     id: number;
@@ -29,8 +30,15 @@
     bookings,
     categories,
     onchanged,
-    showCountsAs = false
-  }: { bookings: Booking[]; categories: CategoryOption[]; onchanged: () => Promise<void> | void; showCountsAs?: boolean } = $props();
+    showCountsAs = false,
+    onrule
+  }: {
+    bookings: Booking[];
+    categories: CategoryOption[];
+    onchanged: () => Promise<void> | void;
+    showCountsAs?: boolean;
+    onrule?: (b: Booking) => void;
+  } = $props();
 
   const KIND_LABEL: Record<string, string> = { expense: 'Ausgaben', income: 'Einnahmen', transfer: 'Sparen & Anlegen', internal: 'Umbuchungen' };
   const SOURCE_HINT: Record<string, string> = { rule: 'per Regel', keyword: 'automatisch erkannt' };
@@ -81,7 +89,10 @@
                   </optgroup>
                 {/each}
               </select>
-              {#if b.category_source && b.category_source !== 'fixed'}<div class="muted hint">{SOURCE_HINT[b.category_source] ?? ''}</div>{/if}
+              <div class="hint">
+                {#if b.category_source && b.category_source !== 'fixed'}<span class="muted">{SOURCE_HINT[b.category_source] ?? ''}</span>{/if}
+                {#if onrule}<button class="reset" onclick={() => onrule(b)}>Regel…</button>{/if}
+              </div>
             {:else}
               <span class="muted" title="Zählt über die Kontenrollen, nicht über die Kategorie">Umbuchung zwischen Konten</span>
               {#if b.stale_category}
@@ -142,6 +153,11 @@
     font-size: 0.75rem;
   }
   .hint {
+    font-size: 0.75rem;
+    display: flex;
+    gap: 8px;
+  }
+  .hint .reset {
     font-size: 0.75rem;
   }
   .small {

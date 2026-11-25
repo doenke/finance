@@ -41,20 +41,12 @@
       all: Booking[];
     };
     accounts: FlowAccount[];
-    unknown_groups: { pattern: string; count: number; total: string; example: string; purpose: string; last: string }[];
-  }
-  interface SavedRule extends Rule {
-    id: number;
-    category: string | null;
-    count: number;
-    total: string;
   }
 
   let data = $state<Cashflow | null>(null);
-  let rules = $state<SavedRule[]>([]);
   let categories = $state<CategoryOption[]>([]);
-  let editing = $state<{ key: string; rule: Rule } | null>(null);
-  let showRules = $state(false);
+  // rule proposed from a booking row ("Regel…")
+  let ruleDraft = $state<Rule | null>(null);
   let selected = $state<string | null>(null);
   let error = $state('');
   // category (or savings route) whose single bookings are shown; kept by name when the month changes
@@ -65,7 +57,6 @@
   // all bookings of the month: filter by text and by where they count
   let query = $state('');
   let showAll = $state(false);
-  let showUnknown = $state(false);
   let filter = $state('alle');
   const FILTERS = [
     { key: 'alle', label: 'Alle' },
@@ -93,7 +84,7 @@
     }
   }
   async function loadRules() {
-    [rules, categories] = await Promise.all([api.get<SavedRule[]>('/api/category-rules'), api.get<CategoryOption[]>('/api/categories')]);
+    categories = await api.get<CategoryOption[]>('/api/categories');
   }
   onMount(() => {
     load(new URLSearchParams(location.search).get('monat'));
@@ -101,19 +92,12 @@
   });
 
   async function afterSave() {
-    editing = null;
-    await Promise.all([load(), loadRules()]);
+    ruleDraft = null;
+    await load();
   }
 
-  async function removeRule(r: SavedRule) {
-    if (!confirm(`Regel „${r.pattern}“ → ${r.category} löschen?`)) return;
-    await api.del(`/api/category-rules/${r.id}`);
-    await Promise.all([load(), loadRules()]);
-  }
-
-  const newRule = (pattern: string): Rule => ({ pattern, field: 'any', direction: 'out', account_id: null, category_id: null });
-  const expenseCategories = $derived(categories.filter((c) => c.kind === 'expense' || c.kind === 'transfer' || c.kind === 'internal'));
-  const fieldText = { any: '', counterparty: ' im Empfänger', purpose: ' im Zweck' };
+  const uncategorized = $derived((data?.detail.all ?? []).filter((b) => b.assignable && b.category_id === null).length);
+  const ruleFrom = (b: Booking): Rule => ({ pattern: b.pattern ?? '', field: 'any', direction: toNumber(b.amount) > 0 ? 'in' : 'out', account_id: null, category_id: null });
 
   const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const monthLabel = (m: string, long = false) => {
@@ -270,73 +254,8 @@
             {/if}
           </div>
         {/if}
-        {#if data.detail.uncategorized.length}
-          <details>
-            <summary class="small">Größte Ausgaben ohne Kategorie</summary>
-            <BookingTable bookings={data.detail.uncategorized} {categories} onchanged={() => load(selected)} />
-          </details>
-        {/if}
       </section>
     {/if}
-
-    <section class="card stack">
-      <button class="fold" aria-expanded={showUnknown} onclick={() => (showUnknown = !showUnknown)}>
-        <span class="chev" class:rot={showUnknown} aria-hidden="true">›</span>
-        <h2>Ohne Kategorie <span class="muted small">· {data.unknown_groups.length}{data.unknown_groups.length >= 20 ? '+' : ''}</span></h2>
-      </button>
-      {#if showUnknown}
-      {#if data.unknown_groups.length}
-        <p class="muted small">Die häufigsten Ausgaben der letzten zwölf Monate, die noch keiner Kategorie zugeordnet sind. Leg eine Regel an – sie gilt auch für alle künftigen Buchungen.</p>
-        <ul class="groups">
-          {#each data.unknown_groups as g (g.pattern)}
-            <li>
-              <div class="grow">
-                <strong class="ellipsis">{g.example}</strong>
-                {#if g.purpose && g.purpose !== g.example}<span class="small ellipsis purpose" title={g.purpose}>{g.purpose}</span>{/if}
-                <span class="muted small">{g.count}× · zuletzt {formatDate(g.last)}</span>
-              </div>
-              <Money value={g.total} cents={false} />
-              <button class="btn" onclick={() => (editing = { key: g.pattern, rule: newRule(g.pattern) })}>Kategorie festlegen</button>
-            </li>
-            {#if editing?.key === g.pattern}
-              <li class="edit"><RuleEditor rule={editing.rule} categories={expenseCategories} onsaved={afterSave} oncancel={() => (editing = null)} /></li>
-            {/if}
-          {/each}
-        </ul>
-      {:else}
-        <p class="muted small">Alle Ausgaben der letzten zwölf Monate haben eine Kategorie.</p>
-      {/if}
-      {/if}
-    </section>
-
-    <section class="card stack">
-      <div class="row head">
-        <button class="link" onclick={() => (showRules = !showRules)}>{showRules ? 'Regeln ausblenden' : `Regeln (${rules.length})`}</button>
-        <button class="btn" onclick={() => ((showRules = true), (editing = { key: 'new', rule: newRule('') }))}>Neue Regel</button>
-      </div>
-      {#if editing?.key === 'new'}
-        <RuleEditor rule={editing.rule} categories={categories} onsaved={afterSave} oncancel={() => (editing = null)} />
-      {/if}
-      {#if showRules}
-        <p class="muted small">Die erste passende Regel gewinnt, längere (genauere) Muster zuerst. Kategorien aus „Verträge“ gehen immer vor; ohne Regel ordnet Finanzen bekannte Händler selbst zu.</p>
-        <ul class="groups">
-          {#each rules as r (r.id)}
-            <li>
-              <div class="grow">
-                <span>enthält „<strong>{r.pattern}</strong>“{fieldText[r.field]}{r.direction === 'in' ? ' (Einnahmen)' : r.direction === 'any' ? '' : ''} → <strong>{r.category}</strong></span>
-                <span class="muted small">{r.count} Buchungen · {formatMoney(r.total, 'EUR', false)}</span>
-              </div>
-              <button class="btn" onclick={() => (editing = { key: `r${r.id}`, rule: { ...r } })}>Ändern</button>
-              <button class="btn danger" onclick={() => removeRule(r)}>Löschen</button>
-            </li>
-            {#if editing?.key === `r${r.id}`}
-              <li class="edit"><RuleEditor rule={editing.rule} categories={categories} onsaved={afterSave} oncancel={() => (editing = null)} /></li>
-            {/if}
-          {/each}
-          {#if !rules.length}<li class="muted small">Noch keine eigenen Regeln.</li>{/if}
-        </ul>
-      {/if}
-    </section>
 
     <section class="card stack">
       <div class="row head">
@@ -344,7 +263,11 @@
           <span class="chev" class:rot={showAll} aria-hidden="true">›</span>
           <h2>Alle Buchungen <span class="muted small">· {monthLabel(data.month, true)} · {data.detail.all.length}</span></h2>
         </button>
-        {#if showAll}<input class="search" type="search" placeholder="Suchen …" aria-label="Buchungen durchsuchen" bind:value={query} />{/if}
+        {#if showAll}
+          <input class="search" type="search" placeholder="Suchen …" aria-label="Buchungen durchsuchen" bind:value={query} />
+        {:else if uncategorized}
+          <button class="btn small" onclick={() => ((showAll = true), (filter = 'ohne'))}>{uncategorized} ohne Kategorie</button>
+        {/if}
       </div>
       {#if showAll}
       <div class="filters" role="group" aria-label="Filter">
@@ -353,8 +276,9 @@
         {/each}
       </div>
       {#if allBookings.length}
-        <BookingTable bookings={allBookings} {categories} onchanged={() => load(selected)} showCountsAs />
-        <p class="muted small">{allBookings.length} von {data.detail.all.length} Buchungen der Haushaltskonten. Den Monat wählst du oben im Diagramm.</p>
+        {#if ruleDraft}<RuleEditor rule={ruleDraft} {categories} onsaved={afterSave} oncancel={() => (ruleDraft = null)} />{/if}
+        <BookingTable bookings={allBookings} {categories} onchanged={() => load(selected)} showCountsAs onrule={(b) => (ruleDraft = ruleFrom(b))} />
+        <p class="muted small">{allBookings.length} von {data.detail.all.length} Buchungen der Haushaltskonten. Den Monat wählst du oben im Diagramm. <a href="/kategorien">Kategorien &amp; Regeln</a></p>
       {:else}
         <p class="muted small">Keine passenden Buchungen.</p>
       {/if}
@@ -536,37 +460,6 @@
     gap: 12px;
     padding: 6px 0;
     border-top: 1px solid var(--border);
-  }
-  .groups {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .groups li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    border-top: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-  .groups li.edit {
-    display: block;
-    border-top: 0;
-    padding-top: 0;
-  }
-  .grow {
-    flex: 1;
-    min-width: 0;
-    display: grid;
-  }
-  .ellipsis {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .purpose {
-    color: var(--muted);
   }
   .link {
     background: none;

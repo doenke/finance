@@ -3,7 +3,8 @@
   const tabs = [
     { href: '/bilanz', label: 'Monatsbilanz' },
     { href: '/jahresbilanz', label: 'Jahresbilanz' },
-    { href: '/vertraege', label: 'Verträge & Abos' }
+    { href: '/vertraege', label: 'Verträge & Abos' },
+    { href: '/kategorien', label: 'Kategorien' }
   ];
 </script>
 
@@ -21,8 +22,10 @@
     overflow: hidden;
     width: fit-content;
     max-width: 100%;
+    overflow-x: auto;
   }
   a {
+    white-space: nowrap;
     padding: 8px 14px;
     color: var(--text);
     text-decoration: none;

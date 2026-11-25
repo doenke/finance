@@ -306,6 +306,7 @@ die App ist auch ohne FinTS schon nützlich.
 | Kein Personenfilter | Übersicht, Konten und Anlagen zeigen immer den ganzen Haushalt (Zugewinngemeinschaft); die Personenauswahl gibt es nur noch auf der Vorsorge-Seite. Eigentümer-Anteile bleiben an den Konten (Vorsorge, Steuer). Die API-Parameter `person_id` bleiben bestehen |
 | Erklärtexte und Zeitraum | Längere Erklärungen stehen hinter einem ⓘ neben der Überschrift (`lib/Info.svelte`) statt als Absatz unter jeder Karte. Ein Zeitraum je Seite: Übersicht (Verlauf steuert auch die Renditekarte), Anlagen (oben rechts für alle Karten); Komponenten haben `period` (bindbar) und `showPeriod` |
 | Kaufnebenkosten | Bei Immobilien zählen die Kaufnebenkosten am Kauftag noch zum Wert und gehen erst am Folgetag verloren – so misst die TTWROR den Verlust am ganzen eingesetzten Kapital und nicht am (kleineren) Vortagesvermögen |
+| Kategorisieren an einem Ort | Monatsbilanz: Diagramm, Monatsdetail, „Alle Buchungen“ (Kategorie je Zeile, „Regel…“ mit vorgeschlagenem Muster `pattern` aus der API, Knopf „N ohne Kategorie“). Häufig ohne Kategorie (12 Monate), Regeln und Kategorien-Verwaltung auf `/kategorien` (Tab „Kategorien“ im Budget, Link in den Einstellungen) |
 | Sitzungen | Serverseitig (Tabelle `sessions`, nur Hash des Tokens), Cookie signiert und 30 Tage gültig. Abmelden löscht die Sitzung. Jede Person sieht ihre Geräte und meldet einzelne oder alle anderen ab. Admins können eine Person überall abmelden (Sitzungen und MCP-Tokens) oder sperren (`users.disabled`: keine Anmeldung, keine Tokens). Admin-Rechte werden bei jeder Anmeldung aus der OIDC-Gruppe gelesen; der Zugang zur App wird in Pocket ID über „Allowed User Groups“ geregelt |
 | Änderungsprotokoll (N-SI-05) | Tabelle `audit_log`: Zeit, Person, Weg (App oder MCP mit Name des Assistenten), Aktion, Objekt, kurzes Detail. In der App per Middleware für jede schreibende `/api`-Anfrage (ausgenommen Vorschauen, Szenarien, TAN-Antworten, Testnachricht); das Objekt wird vor der Anfrage benannt, damit Gelöschtes seinen Namen behält. Details nur aus einer Feld-Allowlist (Name, Datum, Betrag, Empfänger …), nie Zugangsdaten, PINs oder TANs. MCP-Werkzeuge protokollieren selbst. Dazu An- und Abmeldungen und das Verbinden von Assistenten. Für alle im Haushalt sichtbar (Einstellungen → Änderungsprotokoll) |
 | Datenexport | Der JSON-Export für alle lässt `sessions`, `oauth_*` und `push_subscriptions` weg und entfernt bei Bankzugängen PIN und FinTS-Zustand, bei fremden Zugängen zusätzlich Anmeldename, Kunden-ID und TAN-Medium (`scope: export`). Die Admin-Sicherung bleibt vollständig (`scope: backup`) |
@@ -326,3 +327,9 @@ die App ist auch ohne FinTS schon nützlich.
 3. **Advanzia und Trade Republic:** Erledigt – die Exporte lassen sich mit dem
    normalen CSV-Import (Spaltenzuordnung) einlesen; eigene Importer sind
    nicht nötig.
+4. **Freiwerdende Kreditrate in der Vorsorge (vorgemerkt):** Das Ende des
+   Immobilienkredits ist aus dem Tilgungsplan bekannt. Ab dann steht die
+   Rate (heute 1.400,30 € im Monat) zusätzlich zum Sparen bereit. Die
+   Vorsorge-Projektion soll das berücksichtigen: Sparrate ab Kreditende um
+   die Rate erhöhen (abschaltbar, Anteil einstellbar), Restschuld bis dahin
+   nicht als Kapital zählen.

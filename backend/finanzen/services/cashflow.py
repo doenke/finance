@@ -213,6 +213,7 @@ def cashflow(
             "category_id": cat.id if cat is not None else None,
             "category_source": source,  # fixed (set on the booking), rule, keyword or None
             "assignable": t.id not in routed,
+            "pattern": suggest_pattern(t.counterparty, t.purpose) or "",  # proposal for a rule
             # a category left on a booking that counts by account pair: it has no effect, but can be removed
             "stale_category": t.id in routed and t.category_id is not None,
         }

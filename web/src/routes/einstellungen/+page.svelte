@@ -217,6 +217,14 @@
       </div>
       <span class="muted">›</span>
     </a>
+    <a class="card row navlink" href="/kategorien">
+      <Icon name="bars" />
+      <div class="grow">
+        <strong>Kategorien &amp; Regeln</strong>
+        <div class="muted small">Kategorien für Ausgaben, Einnahmen und Sparen und wie Buchungen zugeordnet werden</div>
+      </div>
+      <span class="muted">›</span>
+    </a>
     <a class="card row navlink" href="/banken">
       <Icon name="bank" />
       <div class="grow">
