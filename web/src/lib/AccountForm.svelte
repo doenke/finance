@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { defaultRole, ROLE_LABEL } from './flowrole.ts';
   import { goto } from '$app/navigation';
   import { onMount, untrack } from 'svelte';
   import { api, type Account } from './api.ts';
@@ -50,6 +51,7 @@
 
   const kindMeta = $derived(meta.value?.kinds.find((k) => k.key === kind));
   const mode = $derived(kindMeta?.mode ?? 'cash');
+  const autoRole = $derived(defaultRole(kind, mode));
   const isBound = $derived(details.liquidity === 'bound' || (!details.liquidity && !!kindMeta?.bound));
   const cashAccounts = $derived(others.filter((a) => a.mode === 'cash' && !a.closed));
   const properties = $derived(others.filter((a) => a.kind === 'immobilie'));
@@ -272,8 +274,19 @@
   </section>
 
   <section class="card stack">
-    {#if kindMeta && !kindMeta.liability}
+    {#if kindMeta && (!kindMeta.liability || autoRole)}
       <div class="liq">
+        {#if autoRole}
+          <label>
+            Rolle in der Bilanz
+            <select bind:value={details.flow_role}>
+              <option value={undefined}>automatisch ({ROLE_LABEL[autoRole]})</option>
+              <option value="spending">Haushaltskonto – Einnahmen und laufende Ausgaben</option>
+              <option value="saving">Sparkonto – Rücklagen und Anlagen</option>
+            </select>
+          </label>
+        {/if}
+        {#if !kindMeta.liability}
         <label>
           Verfügbarkeit
           <select bind:value={details.liquidity}>
@@ -284,6 +297,7 @@
         </label>
         {#if isBound && kind !== 'festgeld' && kind !== 'altersvorsorge'}
           <label>Frei ab (optional) <input type="date" bind:value={details.free_from} /></label>
+        {/if}
         {/if}
       </div>
     {/if}

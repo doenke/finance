@@ -330,7 +330,8 @@ Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
 Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester
 oder Sparpläne. Geld zwischen Konten derselben Art zählt nicht. Welche Konten
-Haushaltskonten sind, stellst du unter **Konten** ganz unten um.
+Haushaltskonten sind, siehst du in der Kontenliste am Etikett
+„Haushaltskonto“; ändern kannst du es unter „Bearbeiten“ → Rolle in der Bilanz.
 
 **Jahresbilanz:** Daneben fasst die **Jahresbilanz** zusammen, was über einen
 längeren Zeitraum reinkam, rausging und gespart wurde – seit Jahresbeginn, für

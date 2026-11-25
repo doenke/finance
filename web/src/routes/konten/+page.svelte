@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { api, type Account } from '#lib/api.ts';
   import { formatDate, toNumber } from '#lib/format.ts';
-  import AccountRoles from '#lib/AccountRoles.svelte';
+  import { flowRole } from '#lib/flowrole.ts';
   import Icon from '#lib/Icon.svelte';
   import { label, loadMeta, meta } from '#lib/meta.svelte.ts';
   import Money from '#lib/Money.svelte';
@@ -27,13 +27,19 @@
   const groups = $derived.by(() => {
     const order = meta.value?.asset_classes.map((c) => c.key) ?? [];
     const map = new Map<string, Account[]>();
-    for (const a of visible) map.set(a.asset_class, [...(map.get(a.asset_class) ?? []), a]);
+    // credit cards belong to the everyday accounts (as in the overview), not to the loans
+    for (const a of visible) {
+      const key = a.kind === 'kreditkarte' ? 'cash' : a.asset_class;
+      map.set(key, [...(map.get(key) ?? []), a]);
+    }
     return [...map.entries()]
       .sort((x, y) => order.indexOf(x[0]) - order.indexOf(y[0]))
       .map(([key, items]) => ({ key, label: label(meta.value?.asset_classes, key), items, total: items.reduce((s, a) => s + toNumber(a.value), 0) }));
   });
-  const assets = $derived(groups.filter((g) => g.key !== 'liabilities').reduce((s, g) => s + g.total, 0));
-  const debts = $derived(groups.filter((g) => g.key === 'liabilities').reduce((s, g) => s + g.total, 0));
+  // like the net worth: everything below zero (loans, credit cards) counts as debt
+  const open = $derived(visible.filter((a) => !a.closed).map((a) => toNumber(a.value)));
+  const assets = $derived(open.filter((v) => v > 0).reduce((s, v) => s + v, 0));
+  const debts = $derived(open.filter((v) => v < 0).reduce((s, v) => s + v, 0));
   const hasClosed = $derived(accounts.some((a) => a.closed));
 </script>
 
@@ -73,7 +79,10 @@
             <li>
               <a href="/konten/{a.id}">
                 <div class="grow">
-                  <div class="name">{a.name}{a.closed ? ' (aufgelöst)' : ''}</div>
+                  <div class="name">
+                    {a.name}{a.closed ? ' (aufgelöst)' : ''}
+                    {#if flowRole(a) === 'spending'}<span class="badge">Haushaltskonto</span>{/if}
+                  </div>
                   <div class="muted small">
                     {a.kind_label}{a.institution ? ` · ${a.institution}` : ''}{a.owners.length > 1 ? ' · gemeinsam' : ''}
                     {#if a.value_as_of}· Stand {formatDate(a.value_as_of)}{/if}
@@ -93,12 +102,21 @@
     {#if hasClosed}
       <label class="check"><input type="checkbox" bind:checked={showClosed} /> Aufgelöste Konten zeigen</label>
     {/if}
-
-    <AccountRoles />
   {/if}
 </div>
 
 <style>
+  .badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.72rem;
+    font-weight: 600;
+    vertical-align: 2px;
+  }
   .head {
     justify-content: space-between;
   }
