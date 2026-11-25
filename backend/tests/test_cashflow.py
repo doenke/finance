@@ -116,3 +116,29 @@ def test_category_rules(client):
     assert upd["count"] == 6 and upd["category"] == "Einkaufen"
     assert client.delete(f"/api/category-rules/{rule['id']}", headers=ORIGIN).status_code == 204
     assert len(client.get("/api/category-rules").json()) == 1
+
+
+def test_mcp_category_tools(client):
+    from finanzen.mcp.server import t_create_category, t_create_category_rule, t_list_categories, t_set_recurring_category
+    from finanzen.models import RecurringPayment
+
+    login(client)
+    with client.app.state.sessionmaker() as db:
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        db.add(giro)
+        db.flush()
+        other = db.query(Category).filter(Category.name == "Sonstige Ausgaben").one()
+        for m in range(1, 7):
+            db.add(Transaction(account_id=giro.id, booking_date=date(2026, m, 12), amount=D("-400"), counterparty="Advanzia Bank S.A.", purpose="Advanzia MasterCard Zahlung", category_id=other.id))
+        db.add(RecurringPayment(name="Advanzia Bank", match_key="advanzia bank", direction="out", interval="monthly", category_id=other.id))
+        db.commit()
+        created = t_create_category(db, None, {"name": "Kreditkarte"})
+        assert created["created"] and created["category"]["kind"] == "expense"
+        assert t_create_category(db, None, {"name": "kreditkarte"})["created"] is False
+        rule = t_create_category_rule(db, None, {"pattern": "advanzia", "category": "Kreditkarte"})
+        assert rule["count"] == 6
+        assert t_set_recurring_category(db, None, {"recurring": "Advanzia", "category": "Kreditkarte"})["updated"]
+        kk = created["category"]["id"]
+        db.expire_all()
+        assert {t.category_id for t in db.query(Transaction).all()} == {kk}
+        assert any(c["name"] == "Kreditkarte" for c in t_list_categories(db, None, {}))

@@ -295,6 +295,66 @@ def t_get_holding_period(db: Session, user: User, args: dict) -> Any:
     return data
 
 
+def _category_id(db: Session, value: Any) -> int:
+    from ..models import Category
+
+    if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
+        cat = db.get(Category, int(value))
+    else:
+        cat = next((c for c in db.scalars(select(Category)).all() if c.name.lower() == str(value).strip().lower()), None)
+    if cat is None:
+        raise ToolError(f"Kategorie „{value}“ nicht gefunden – siehe list_categories.")
+    return cat.id
+
+
+def t_list_categories(db: Session, user: User, args: dict) -> Any:
+    from ..api.recurring import list_categories
+
+    return list_categories(db)
+
+
+def t_create_category(db: Session, user: User, args: dict) -> Any:
+    from ..api.recurring import CategoryIn, create_category, list_categories
+
+    name = str(args["name"]).strip()
+    existing = next((c for c in list_categories(db) if c["name"].lower() == name.lower()), None)
+    if existing:
+        return {"created": False, "category": existing}
+    return {"created": True, "category": create_category(CategoryIn(name=name, kind=args.get("kind", "expense")), db)}
+
+
+def t_create_category_rule(db: Session, user: User, args: dict) -> Any:
+    from ..api.recurring import RuleIn, create_rule
+
+    data = RuleIn(
+        pattern=args["pattern"],
+        field=args.get("field", "any"),
+        direction=args.get("direction", "out"),
+        account_id=args.get("account_id"),
+        category_id=_category_id(db, args["category"]),
+    )
+    return create_rule(data, db)
+
+
+def t_set_recurring_category(db: Session, user: User, args: dict) -> Any:
+    from ..api.recurring import RecurringUpdate, update_recurring
+    from ..models import RecurringPayment
+
+    value = args["recurring"]
+    rows = db.scalars(select(RecurringPayment)).all()
+    if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
+        hits = [r for r in rows if r.id == int(value)]
+    else:
+        hits = [r for r in rows if str(value).strip().lower() in r.name.lower()]
+    if not hits:
+        raise ToolError(f"Kein Vertrag „{value}“ gefunden – siehe get_recurring_payments.")
+    if len(hits) > 1:
+        raise ToolError("Mehrere Verträge passen: " + ", ".join(f"{r.id} {r.name}" for r in hits) + " – bitte per ID angeben.")
+    r = hits[0]
+    update_recurring(r.id, RecurringUpdate(name=r.name, interval=r.interval, category_id=_category_id(db, args["category"]), status=r.status, note=r.note), db)
+    return {"updated": True, "recurring": r.name, "category": args["category"]}
+
+
 def t_get_recurring(db: Session, user: User, args: dict) -> Any:
     from ..api.recurring import overview
 
@@ -337,6 +397,34 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         _schema({"account_id": {"type": "integer"}, "on": DATE}, ["account_id"]),
         False,
         "Haltefrist (§ 23 EStG) für Krypto- und Edelmetall-Konten: je Kaufposten frei ab, steuerfrei verkaufbare Menge, Gewinne nach Jahr.",
+    ),
+    "list_categories": (t_list_categories, _schema({}), False, "Kategorien für Ausgaben, Einnahmen, Sparen (transfer) und Umbuchungen (internal)."),
+    "create_category": (
+        t_create_category,
+        _schema({"name": {"type": "string"}, "kind": {"type": "string", "enum": ["expense", "income", "transfer", "internal"]}}, ["name"]),
+        True,
+        "Neue Kategorie anlegen (gibt eine vorhandene gleichnamige zurück).",
+    ),
+    "create_category_rule": (
+        t_create_category_rule,
+        _schema(
+            {
+                "pattern": {"type": "string", "description": "Text, der im Empfänger/Zweck vorkommen muss (Groß-/Kleinschreibung egal)"},
+                "category": {"type": ["string", "integer"], "description": "Name oder ID der Kategorie"},
+                "field": {"type": "string", "enum": ["any", "counterparty", "purpose"]},
+                "direction": {"type": "string", "enum": ["out", "in", "any"]},
+                "account_id": {"type": "integer"},
+            },
+            ["pattern", "category"],
+        ),
+        True,
+        "Regel: Buchungen, deren Empfänger/Zweck den Text enthält, bekommen die Kategorie (gilt auch künftig).",
+    ),
+    "set_recurring_category": (
+        t_set_recurring_category,
+        _schema({"recurring": {"type": ["string", "integer"], "description": "Name (Teil) oder ID des Vertrags"}, "category": {"type": ["string", "integer"]}}, ["recurring", "category"]),
+        True,
+        "Kategorie eines Vertrags/Abos ändern; seine Buchungen ziehen mit.",
     ),
     "get_recurring_payments": (
         t_get_recurring,
