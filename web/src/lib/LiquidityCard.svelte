@@ -39,7 +39,6 @@
 
   let { personId = null }: { personId?: number | null } = $props();
   let data = $state<Liquidity | null>(null);
-  let showAll = $state(false);
   let open = $state<Record<number, boolean>>({});
   const expandable = (i: Item) => (i.positions?.length ?? 0) > 0;
 
@@ -59,7 +58,6 @@
   const shareOf = (v: string | undefined) => (assets > 0 && v !== undefined ? Math.max(0, toNumber(v)) / assets : 0);
   const bound = $derived((data?.items ?? []).filter((i) => i.bucket === 'bound'));
   const debts = $derived((data?.items ?? []).filter((i) => i.bucket === 'liability'));
-  const LIMIT = 5;
   const yearsUntil = (d: string) => {
     const years = (new Date(d).getTime() - Date.now()) / (365.25 * 864e5);
     if (years < 1) {
@@ -125,7 +123,7 @@
               </div>
               <div class="muted small csub">{col.hint}</div>
               <ul>
-                {#each showAll ? col.items : col.items.slice(0, LIMIT) as i (i.account_id)}
+                {#each col.items as i (i.account_id)}
                   <li>
                     {#if expandable(i)}
                       <button class="toggle" aria-expanded={!!open[i.account_id]} onclick={() => (open[i.account_id] = !open[i.account_id])}>
@@ -159,7 +157,7 @@
           </div>
           <div class="muted small csub">Altersvorsorge, Festgeld, Beteiligungen</div>
           <ul>
-            {#each showAll ? bound : bound.slice(0, LIMIT) as i (i.account_id)}
+            {#each bound as i (i.account_id)}
               <li>
                 <span class="name" class:indent={!expandable(i) && bound.some(expandable)}>
                   {#if expandable(i)}
@@ -197,9 +195,6 @@
           <span>Vermögen netto <strong><Money value={data.net} cents={false} /></strong></span>
         </div>
       </div>
-    {/if}
-    {#if current.length > LIMIT || invested.length > LIMIT || bound.length > LIMIT}
-      <button class="link small" onclick={() => (showAll = !showAll)}>{showAll ? 'Weniger anzeigen' : 'Alle anzeigen'}</button>
     {/if}
     <p class="muted small">
       Verfügbar ist, was ihr kurzfristig nutzen könntet: auf den Haushaltskonten sofort (abzüglich Kreditkarten), angelegt in Tagesgeld, Depots, Krypto und
