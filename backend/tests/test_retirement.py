@@ -135,3 +135,33 @@ def test_savings_exclude_pension_contributions(client):
     parts = data["inputs"]["savings_parts"]
     assert round(parts["to_accounts"]) == round(250.55 * 10 / 12) and round(parts["in_pensions"]) == round(1000 / 12)
     assert data["inputs"]["savings_default"] == round(250.55 * 10 / 12)  # the Riester contribution is not counted twice
+
+
+def test_pension_indexation(client):
+    login(client, "Sönke Jacobs")
+    today = date(2026, 11, 25)
+    with client.app.state.sessionmaker() as db:
+        from finanzen.models import AccountOwner
+
+        me = db.query(Person).first()
+        for name, details in [
+            ("DRV", {"product": "gesetzlich", "expected_pension": "1500", "payout_start": "2046-10-01"}),
+            ("VBL", {"product": "bav", "expected_pension": "400", "payout_start": "2046-10-01"}),
+            ("Privat", {"product": "rente", "expected_pension": "300", "payout_start": "2046-10-01"}),
+            ("Dynamisch", {"product": "rente", "expected_pension": "300", "payout_start": "2046-10-01", "indexation": "2"}),
+        ]:
+            a = Account(name=name, kind="altersvorsorge", asset_class="pension", details=details)
+            db.add(a)
+            db.flush()
+            db.add(AccountOwner(account_id=a.id, person_id=me.id, share=D(1)))
+        db.commit()
+        data = projection(db, None, Params(savings=0, inflation=0.02, years=25), today=today)
+    p = {x["name"]: x for x in data["pensions"]}
+    assert p["DRV"]["indexation"] is None and p["DRV"]["monthly_end"] == p["DRV"]["monthly"]  # keeps its value
+    assert p["VBL"]["indexation"] == 0.01 and p["VBL"]["monthly_end"] < p["VBL"]["monthly"]  # 1 % < 2 % inflation
+    assert abs(p["VBL"]["monthly_end"] - p["VBL"]["monthly"] * (1.01 / 1.02) ** 25) < 1
+    assert p["Privat"]["indexation"] == 0.0 and abs(p["Privat"]["monthly_end"] - p["Privat"]["monthly"] / 1.02**25) < 1
+    assert abs(p["Dynamisch"]["monthly_end"] - p["Dynamisch"]["monthly"]) < 0.01  # rises with inflation
+    mid = next(s for s in data["scenarios"] if s["key"] == "mittel")
+    assert mid["pensions_end"] < mid["pensions"] and mid["net_end"] < mid["net"]
+    assert data["end_of_payout"] == date(2071, 10, 1)

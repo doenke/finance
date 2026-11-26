@@ -240,6 +240,10 @@
         <label>Vertragsnummer <input bind:value={details.contract_no} /></label>
         <label>Prognostizierte Rente / Monat <DecimalInput bind:value={details.expected_pension} suffix="€" /></label>
         <label>Rentenbeginn <input type="date" bind:value={details.payout_start} /></label>
+        <label>
+          Steigerung ab Rentenbeginn p. a.
+          <DecimalInput bind:value={details.indexation} suffix="%" placeholder={details.product === 'gesetzlich' ? 'wie Inflation' : details.product === 'bav' ? '1' : '0'} />
+        </label>
         {#if details.product === 'gesetzlich'}
           <label>Bisher erreichte Rente / Monat <DecimalInput bind:value={details.current_pension} suffix="€" /></label>
           <label>Stand der Renteninformation <input type="date" bind:value={details.info_date} /></label>

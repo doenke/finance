@@ -16,6 +16,8 @@
     start: string;
     nominal: number;
     monthly: number;
+    monthly_end: number;
+    indexation: number | null;
     after_retirement: boolean;
     statement_date: string | null;
     owner: string | null;
@@ -26,6 +28,8 @@
     return: number;
     capital: number;
     withdrawal: number;
+    pensions_end: number;
+    net_end: number;
     pensions: number;
     gross: number;
     health: number;
@@ -39,6 +43,7 @@
     retire_on: string;
     default_retire_on: string;
     years_to_retirement: number;
+    end_of_payout: string;
     inputs: {
       savings: number;
       savings_default: number;
@@ -104,6 +109,7 @@
   const series = $derived(
     (data?.scenarios ?? []).map((s) => ({ key: s.key, label: s.label, color: COLORS[s.key] ?? 'var(--series-4)', points: s.series.map((p) => ({ date: p.date, value: p.value })) }))
   );
+  const indexText = (i: number | null) => (i === null ? 'steigt wie die Inflation' : i === 0 ? 'ohne Steigerung' : `+${(i * 100).toLocaleString('de-DE', { maximumFractionDigits: 2 })} % p. a.`);
   const eur = (v: number) => formatMoney(v, 'EUR', false);
   const pct = (v: number) => `${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
 </script>
@@ -165,6 +171,9 @@
             <span class="muted"><i class="dot" style:background={COLORS[s.key]}></i>{s.label} · {pct(s.return)}</span>
             <strong class="big"><Money value={s.net} cents={false} /></strong>
             <span class="small">netto geschätzt · brutto <Money value={s.gross} cents={false} /></span>
+            {#if Math.abs(s.net_end - s.net) >= 1}
+              <span class="small muted">{new Date(data.end_of_payout).getFullYear()}: <Money value={s.net_end} cents={false} /> netto in heutiger Kaufkraft</span>
+            {/if}
             <dl>
               <dt>Renten</dt><dd><Money value={s.pensions} cents={false} /></dd>
               <dt>Entnahme Kapital</dt><dd><Money value={s.withdrawal} cents={false} /></dd>
@@ -188,12 +197,16 @@
                 <span class="name">
                   <a href="/konten/{p.account_id}">{p.name}</a>
                   <span class="muted small">
-                    {#if personId === null && p.owner}{p.owner}{' · '}{/if}{p.product_label} · ab {formatDate(p.start)}{#if p.statement_date} · Stand {formatDate(p.statement_date)}{/if}{#if p.after_retirement} · beginnt später{/if}
+                    {#if personId === null && p.owner}{p.owner}{' · '}{/if}{p.product_label} · ab {formatDate(p.start)}{#if p.statement_date} · Stand {formatDate(p.statement_date)}{/if}{#if p.after_retirement} · beginnt später{/if} · {indexText(p.indexation)}
                   </span>
                 </span>
                 <span class="val">
                   <Money value={p.monthly} cents={false} />
-                  {#if p.product !== 'gesetzlich' && Math.abs(p.nominal - p.monthly) >= 1}<span class="muted small">nominal <Money value={p.nominal} cents={false} /></span>{/if}
+                  {#if Math.abs(p.monthly_end - p.monthly) >= 1}
+                    <span class="muted small">{new Date(data.end_of_payout).getFullYear()}: <Money value={p.monthly_end} cents={false} /></span>
+                  {:else if p.product !== 'gesetzlich' && Math.abs(p.nominal - p.monthly) >= 1}
+                    <span class="muted small">nominal <Money value={p.nominal} cents={false} /></span>
+                  {/if}
                 </span>
               </li>
             {/each}

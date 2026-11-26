@@ -235,7 +235,11 @@ Beteiligungen), das bis zum Rentenbeginn mit Rendite und Sparrate wächst.
 Für den Haushalt nimmt Finanzen als Rentenbeginn die Mitte zwischen euren
 Rentenbeginnen. Als Sparrate nimmt Finanzen euer Gespartes der letzten zwölf
 Monate – ohne die Beiträge zu Verträgen mit Rentenprognose, denn die stecken
-schon in deren Rente. Rentenbeginn, Sparrate, Inflation, Renditen und Entnahmedauer
+schon in deren Rente. Renten steigen unterschiedlich: Die gesetzliche Rente etwa mit der
+Inflation, die VBL- und andere Betriebsrenten um 1 % im Jahr, private Renten
+gar nicht (Überschüsse sind nicht garantiert). Den Satz kannst du je Vertrag
+unter „Steigerung ab Rentenbeginn“ ändern. Finanzen zeigt dazu, was am Ende
+der Entnahmezeit real übrig ist. Rentenbeginn, Sparrate, Inflation, Renditen und Entnahmedauer
 stellst du selbst ein. Netto ist grob geschätzt: Kranken- und Pflegeversicherung der
 Rentner, Einkommensteuer nach Grundtarif und Abgeltungsteuer auf Gewinne. Die
 Renteninformation der Deutschen Rentenversicherung lädst du als PDF bei

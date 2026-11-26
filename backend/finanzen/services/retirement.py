@@ -43,6 +43,9 @@ KV_BAV = 0.175 + 0.036  # company pensions: full rate above the allowance
 BAV_ALLOWANCE = 187.25  # per month
 FLAT_TAX = 0.26375  # capital gains tax incl. solidarity surcharge
 PRIVATE_SHARE = 0.17  # taxable share of a private annuity starting at 67 (Ertragsanteil)
+# yearly increase of a running pension unless set on the contract (details.indexation, percent):
+# statutory pensions follow wages (~ inflation, None), VBL/company pensions 1 % (VBLklassik), private contracts 0 %
+DEFAULT_INDEXATION: dict[str, float | None] = {"gesetzlich": None, "bav": 0.01}
 
 
 def _date(value) -> date | None:
@@ -163,6 +166,7 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
     years_to = max(0.0, (retire_on - today).days / 365.25)
 
     names = {p.id: p.name for p in db.scalars(select(Person)).all()}
+    end_of_payout = date(retire_on.year + max(1, params.years), retire_on.month, 1)  # last year of the withdrawals
     pensions = []
     for a, share, d in pensions_raw:
         product = d.get("product") or "other"
@@ -172,6 +176,11 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
             real = amount  # DRV figure without future increases ~ today's money
         else:
             real = amount / (1 + infl) ** max(0.0, (start - today).days / 365.25)
+        # real value at the end of the withdrawal period: the yearly increase against inflation
+        raw_idx = d.get("indexation")
+        indexation = _num(raw_idx) / 100 if raw_idx not in (None, "") and _num(raw_idx) is not None else DEFAULT_INDEXATION.get(product, 0.0)
+        years_paid = max(0.0, (end_of_payout - max(start, today)).days / 365.25)
+        real_end = real if indexation is None else real * ((1 + indexation) / (1 + infl)) ** years_paid
         owner = a.owners[0].person_id if a.owners else None
         pensions.append(
             {
@@ -184,6 +193,9 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
                 "start": start,
                 "nominal": round(amount, 2),
                 "monthly": round(real, 2),
+                "monthly_end": round(real_end, 2),
+                "indexation": indexation,  # None: like inflation
+                "indexation_set": raw_idx not in (None, ""),
                 "after_retirement": start > retire_on,
                 "statement_date": d.get("info_date"),
             }
@@ -246,17 +258,20 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
         invested = cost_now + savings * months
         gain_share = max(0.0, 1 - invested / capital) if capital > 0 else 0.0
 
-        gross_pensions = sum(p["monthly"] for p in pensions)
-        kv = 0.0
-        tax = 0.0
-        # income tax per owner (no joint assessment)
-        by_owner: dict[int | None, list[dict]] = {}
-        for p in pensions:
-            by_owner.setdefault(p["owner_id"], []).append(p)
-        for owned in by_owner.values():
-            owner_kv, taxable = _pension_burden(owned)
-            kv += owner_kv
-            tax += income_tax((taxable - owner_kv) * 12 - 102) / 12
+        def burden(field: str) -> tuple[float, float, float]:
+            """Gross pensions, health/care insurance and income tax (per owner, no joint assessment)."""
+            kv = tax = 0.0
+            by_owner: dict[int | None, list[dict]] = {}
+            for p in pensions:
+                by_owner.setdefault(p["owner_id"], []).append({**p, "monthly": p[field]})
+            for owned in by_owner.values():
+                owner_kv, taxable = _pension_burden(owned)
+                kv += owner_kv
+                tax += income_tax((taxable - owner_kv) * 12 - 102) / 12
+            return sum(p[field] for p in pensions), kv, tax
+
+        gross_pensions, kv, tax = burden("monthly")
+        end_pensions, end_kv, end_tax = burden("monthly_end")
         capital_tax = withdrawal * gain_share * FLAT_TAX
         gross = gross_pensions + withdrawal
         scenarios.append(
@@ -272,6 +287,10 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
                 "income_tax": round(tax, 0),
                 "capital_tax": round(capital_tax, 0),
                 "net": round(gross - kv - tax - capital_tax, 0),
+                # the same in the last year of the withdrawals (today's money): pensions that rise slower than
+                # prices lose value; the capital withdrawal is constant in real terms
+                "pensions_end": round(end_pensions, 0),
+                "net_end": round(end_pensions + withdrawal - end_kv - end_tax - capital_tax, 0),
                 "series": series,
             }
         )
@@ -282,6 +301,7 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
         "retire_on": retire_on,
         "default_retire_on": default_retire,
         "years_to_retirement": round(years_to, 1),
+        "end_of_payout": end_of_payout,
         "inputs": {"savings": savings, "savings_default": round(savings_default, 0), "savings_parts": savings_parts, "inflation": infl, "years": params.years, "returns": returns},
         "pensions": pensions,
         "capital": sorted(capital_items, key=lambda c: -c["value"]),
