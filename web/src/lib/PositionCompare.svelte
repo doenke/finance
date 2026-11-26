@@ -198,8 +198,8 @@
     </div>
 
     {#if data.items.length >= 2}
-      <div>
-        <h3>Wie ähnlich bewegen sie sich? <span class="muted small">(Korrelation, {periodLabel[period]})</span></h3>
+      <details class="corr">
+        <summary><h3>Wie ähnlich bewegen sie sich? <span class="muted small">(Korrelation, {periodLabel[period]})</span></h3></summary>
         <div class="table-wrap">
           <table class="heat">
             <thead>
@@ -231,7 +231,7 @@
           1 = bewegen sich gleich, 0 = unabhängig, −1 = gegenläufig. Je niedriger die Werte, desto besser streuen die Positionen das Risiko.
           <span class="legend"><i style:background="var(--div-neg)"></i>gegenläufig <i style:background="var(--div-mid)"></i>unabhängig <i style:background="var(--div-pos)"></i>gleichläufig</span>
         </p>
-      </div>
+      </details>
     {/if}
     {#if accountId !== null}<a class="small" href="/anlagen">Alle Depots zusammen vergleichen →</a>{/if}
   </section>
@@ -366,5 +366,15 @@
     height: 10px;
     border-radius: 3px;
     margin-left: 6px;
+  }
+  .corr summary {
+    cursor: pointer;
+    list-style-position: outside;
+  }
+  .corr summary h3 {
+    display: inline;
+  }
+  .corr[open] summary {
+    margin-bottom: 8px;
   }
 </style>
