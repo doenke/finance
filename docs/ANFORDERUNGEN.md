@@ -205,7 +205,7 @@ Geplant sind später:
 
 | ID | Anforderung |
 | --- | --- |
-| N-BT-01 | Ein Docker-Image (Server + Frontend) unter `ghcr.io/doenke/finanzen`, Multi-Arch (amd64/arm64), nicht als root. |
+| N-BT-01 | Ein Docker-Image (Server + Frontend) unter `ghcr.io/doenke/finanzen`, nur amd64 (der Server ist x86_64; arm64 wurde zugunsten schnellerer Builds gestrichen), nicht als root. |
 | N-BT-02 | PostgreSQL als eigener Dienst im Compose-Stack, ohne Port-Freigabe. Mounts unter `/data/container/finanzen/...`. |
 | N-BT-03 | Healthcheck `GET /healthz` (prüft DB und Datenverzeichnis, liefert Version), im Dockerfile und im Compose-Beispiel. |
 | N-BT-04 | Konfiguration nur über Env (`.env.example` mit Kommentaren): `PUBLIC_URL`, `PORT`, `TZ`, OIDC-Werte, `SESSION_KEY`, `SECRETS_KEY` (PIN-Verschlüsselung), `FINTS_PRODUCT_ID`, SMTP, VAPID-Schlüssel, Kursquellen-API-Keys. |
