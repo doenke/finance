@@ -555,9 +555,18 @@ def _sync(job: Job, client: Any, db: Session, login: BankLogin, account_ids: lis
                 holdings = _handle(job, client, client.get_holdings(sepa), db)
                 entry.update(apply_holdings(db, account, holdings))
             else:
-                balance = _handle(job, client, client.get_balance(sepa), db)
-                if balance is not None:
-                    entry["balance"] = str(apply_balance(db, account, balance))
+                balance_error: Exception | None = None
+                try:
+                    balance = _handle(job, client, client.get_balance(sepa), db)
+                    if balance is not None:
+                        entry["balance"] = str(apply_balance(db, account, balance))
+                except (TanRequired, JobCancelled, TimeoutError):
+                    raise
+                except Exception as exc:  # noqa: BLE001 - the transactions may still work
+                    if mode != kinds.CASH:
+                        raise
+                    log.warning("FinTS: balance of account %s failed, trying the transactions", account.id, exc_info=True)
+                    balance_error = exc
                 if mode == kinds.CASH:
                     start = _transactions_start(db, account)
                     txs = _fetch_transactions(job, client, sepa, start, db)
@@ -567,13 +576,19 @@ def _sync(job: Job, client: Any, db: Session, login: BankLogin, account_ids: lis
                     removed = remove_fints_duplicates(db, account.id)  # also cleans up earlier double imports
                     if removed:
                         entry["removed_duplicates"] = removed
+                if mode == kinds.CASH and balance_error is not None:
+                    entry["warning"] = "Saldo nicht abrufbar – nur die Umsätze wurden übernommen."
             db.commit()  # each account is saved on its own
         except (TanRequired, JobCancelled, TimeoutError):
             raise
         except Exception as exc:  # noqa: BLE001
             db.rollback()
             log.warning("FinTS: updating account %s failed", account.id, exc_info=True)  # no PINs in tracebacks
-            entry["error"] = _friendly_error(exc)
+            if account.kind == "kreditkarte":
+                # Sparkassen offer credit cards via a bank-specific order (DKKKU) that python-fints does not support
+                entry["error"] = "Die Bank gibt diese Kreditkarte per FinTS nicht heraus. Importiere ihre Umsätze bitte per CSV (Konten → Import)."
+            else:
+                entry["error"] = _friendly_error(exc)
         summary.append(entry)
     return {"accounts": summary}
 

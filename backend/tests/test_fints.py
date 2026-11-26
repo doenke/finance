@@ -493,3 +493,38 @@ def test_credit_card_without_bic_uses_bank_bic():
     assert fints_sync._sepa(account, [giro, card]).bic == "AACSDE33XXX"
     alone = SimpleNamespace(bic="", details={"fints": {"accountnumber": "4711", "blz": "39050000"}})
     assert fints_sync._sepa(alone, []).bic[4:6] == "DE"
+
+
+
+def test_balance_failure_still_fetches_transactions(client):
+    """Credit cards: the bank refuses the balance – the transactions are tried anyway, then a clear message."""
+    login(client)
+    from finanzen.models import Account, Bank, BankLogin
+
+    class Client:
+        def get_sepa_accounts(self):
+            return []
+
+        def get_balance(self, sepa):
+            raise RuntimeError("Error during dialog initialization, could not fetch BPD.")
+
+        def get_transactions(self, sepa, start, end):
+            if sepa.accountnumber == "4711":
+                raise RuntimeError("Die Nachricht enthält Fehler.")
+            return [SimpleNamespace(data={"date": date.today(), "amount": SimpleNamespace(amount=D("-9.99")), "applicant_name": "Shop", "purpose": "Kauf"})]
+
+    with client.app.state.sessionmaker() as db:
+        bank = Bank(name="Sparkasse", blz="39050000", server_url="https://banking.example.org/fints")
+        db.add(bank)
+        db.flush()
+        bl = BankLogin(bank_id=bank.id, username="max")
+        db.add(bl)
+        db.flush()
+        giro = Account(name="Giro", kind="giro", asset_class="cash", bank_login_id=bl.id, details={"fints": {"iban": "DE11390500000000000001", "accountnumber": "1", "blz": "39050000"}})
+        card = Account(name="Karte", kind="kreditkarte", asset_class="liabilities", bank_login_id=bl.id, details={"fints": {"accountnumber": "4711", "blz": "39050000"}})
+        db.add_all([giro, card])
+        db.commit()
+        job = SimpleNamespace(interactive=False, message="")
+        res = {a["name"]: a for a in fints_sync._sync(job, Client(), db, bl, None)["accounts"]}
+    assert res["Giro"]["new_transactions"] == 1 and "Saldo nicht abrufbar" in res["Giro"]["warning"]
+    assert "per CSV" in res["Karte"]["error"]

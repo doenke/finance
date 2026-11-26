@@ -128,7 +128,7 @@
               <strong>{a.name}</strong>:
               {#if a.error}<span class="error">{a.error}</span>
               {:else}
-                {#if a.balance !== undefined}Saldo aktualisiert{/if}{#if a.new_transactions !== undefined}, {a.new_transactions} neue Umsätze{/if}{#if a.removed_duplicates}, {a.removed_duplicates} doppelte entfernt{/if}
+                {#if a.balance !== undefined}Saldo aktualisiert{/if}{#if a.new_transactions !== undefined}, {a.new_transactions} neue Umsätze{/if}{#if a.removed_duplicates}, {a.removed_duplicates} doppelte entfernt{/if}{#if a.warning} <span class="warn">{a.warning}</span>{/if}
                 {#if a.positions !== undefined}{a.positions} Positionen{#if a.initial_deliveries}, Anfangsbestand übernommen{/if}{#if a.differences}, <span class="warn">{a.differences} Abweichungen</span>{/if}{/if}
               {/if}
             </li>
