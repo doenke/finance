@@ -90,7 +90,10 @@ def _correlation(a: dict[date, float], b: dict[date, float]) -> float | None:
     return cov / (vx * vy) if vx and vy else None
 
 
-def compare(db: Session, account_id: int | None = None, person_id: int | None = None, period: str = "1Y", end: date | None = None) -> dict:
+def compare(
+    db: Session, account_id: int | None = None, person_id: int | None = None, period: str = "1Y", end: date | None = None, extra_ids: list[int] | None = None
+) -> dict:
+    """Held positions compared with each other; `extra_ids` are candidates (e.g. a fund you think about buying)."""
     end = end or date.today()
     fx = FxConverter(db)
     scope = Scope(person_id=person_id)
@@ -118,6 +121,12 @@ def compare(db: Session, account_id: int | None = None, person_id: int | None = 
         value = priced[0] if priced else cost[instrument_id].quantize(Decimal("0.01"))
         items.append({"instrument": inst, "quantity": qty[instrument_id], "cost": cost[instrument_id].quantize(Decimal("0.01")), "value": value})
     total = sum((i["value"] for i in items), ZERO)
+    for instrument_id in extra_ids or []:
+        if instrument_id in qty:
+            continue
+        inst = db.get(Instrument, instrument_id)
+        if inst is not None:
+            items.append({"instrument": inst, "quantity": ZERO, "cost": ZERO, "value": ZERO, "candidate": True})
 
     history_start = end - timedelta(days=365 * 5 + 40)  # enough for the 5-year figures
     series = {it["instrument"].id: _close_series(db, it["instrument"], history_start, end, fx) for it in items}
@@ -160,13 +169,14 @@ def compare(db: Session, account_id: int | None = None, person_id: int | None = 
                 "cost": it["cost"],
                 "gain": gain.quantize(Decimal("0.01")),
                 "gain_pct": float(gain / it["cost"]) if it["cost"] > 0 else None,
-                "weight": float(it["value"] / total) if total > 0 else None,
+                "weight": float(it["value"] / total) if total > 0 and not it.get("candidate") else None,
                 "returns": {p: _change(ds, cs, period_start(p, end, ds[0] if ds else end), end) for p in PERIODS if p != "ALL"},
                 "period_return": points[-1] if points else None,
                 "volatility": _volatility(ds, cs, max(base, end - timedelta(days=365)), end),
                 "max_drawdown": _max_drawdown(ds, cs, base),
                 "history_from": ds[0] if ds else None,
                 "points": points,
+                "candidate": it.get("candidate", False),
             }
         )
     ids = [i["instrument_id"] for i in out_items]

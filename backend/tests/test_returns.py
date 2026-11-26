@@ -269,3 +269,30 @@ def test_cash_history_counts_back_from_the_known_balance(client):
     assert Dec("0.002") < Dec(s["ttwror"]) < Dec("0.006")  # about 0.5 %, not a fantasy value
     on_first_day = client.get(f"/api/accounts/{acc}", params={"on": d0.isoformat()}).json()
     assert Dec(on_first_day["value"]) == Dec("10000.00")
+
+
+def test_compare_with_candidate(client):
+    from datetime import date, timedelta
+    from decimal import Decimal as Dec
+
+    from tests.conftest import login as do_login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    do_login(client)
+    depot = client.post("/api/accounts", json={"name": "Depot", "kind": "depot"}, headers=origin).json()["id"]
+    held = client.post("/api/instruments", json={"kind": "etf", "name": "Welt"}, headers=origin).json()["id"]
+    cand = client.post("/api/instruments", json={"kind": "fund", "name": "Neuer Fonds"}, headers=origin).json()["id"]
+    today = date.today()
+    client.post(f"/api/accounts/{depot}/trades", json={"date": (today - timedelta(days=200)).isoformat(), "type": "buy", "instrument_id": held, "quantity": "10", "price": "100"}, headers=origin)
+    for k in range(0, 200, 5):
+        d = (today - timedelta(days=200 - k)).isoformat()
+        client.post(f"/api/instruments/{held}/prices", json={"date": d, "close": str(100 + k / 10)}, headers=origin)
+        client.post(f"/api/instruments/{cand}/prices", json={"date": d, "close": str(50 + k / 5)}, headers=origin)
+    data = client.get("/api/positions/compare", params={"period": "1Y", "extra": str(cand)}).json()
+    items = {i["name"]: i for i in data["items"]}
+    assert items["Neuer Fonds"]["candidate"] is True and items["Neuer Fonds"]["weight"] is None
+    assert items["Welt"]["candidate"] is False and abs(items["Welt"]["weight"] - 1) < 1e-9
+    assert len(data["correlation"]) == 2 and data["correlation"][0][1] is not None
+    assert Dec(str(items["Neuer Fonds"]["period_return"])) > 0
+    assert client.get("/api/positions/compare", params={"extra": "x"}).status_code == 422
+    assert client.post("/api/prices/candidates", json={"query": "x"}, headers=origin).status_code == 422

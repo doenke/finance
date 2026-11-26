@@ -24,6 +24,7 @@
     max_drawdown: number | null;
     history_from: string | null;
     points: (number | null)[];
+    candidate: boolean;
   }
   interface Compare {
     from: string;
@@ -44,10 +45,48 @@
   let data = $state<Compare | null>(null);
   let error = $state('');
 
+  // Candidates: securities you think about buying, compared alongside (remembered on this device).
+  const KEY = 'finanzen:compare-candidates';
+  function loadCandidates(): number[] {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) ?? '[]').filter((x: unknown) => Number.isInteger(x));
+    } catch {
+      return [];
+    }
+  }
+  let candidates = $state<number[]>(loadCandidates());
+  function saveCandidates(ids: number[]) {
+    candidates = ids.slice(0, 3);
+    try {
+      localStorage.setItem(KEY, JSON.stringify(candidates));
+    } catch {
+      // ignore
+    }
+  }
+  let query = $state('');
+  let adding = $state(false);
+  let addError = $state('');
+  async function addCandidate(e: SubmitEvent) {
+    e.preventDefault();
+    if (query.trim().length < 2) return;
+    adding = true;
+    addError = '';
+    try {
+      const c = await api.post<{ instrument_id: number }>('/api/prices/candidates', { query: query.trim() });
+      if (!candidates.includes(c.instrument_id)) saveCandidates([...candidates, c.instrument_id]);
+      query = '';
+    } catch (err) {
+      addError = (err as Error).message;
+    } finally {
+      adding = false;
+    }
+  }
+
   $effect(() => {
     const q = new URLSearchParams({ period });
     if (accountId !== null) q.set('account_id', String(accountId));
     if (personId !== null) q.set('person_id', String(personId));
+    if (candidates.length) q.set('extra', candidates.join(','));
     api
       .get<Compare>(`/api/positions/compare?${q}`)
       .then((d) => {
@@ -61,25 +100,27 @@
   // The five largest positions get a color; colors follow the stable order of the instruments, not their rank.
   const charted = $derived.by(() => {
     const items = data?.items ?? [];
-    const top = new Set([...items].sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)).slice(0, MAX_SERIES).map((i) => i.instrument_id));
-    return items.filter((i) => top.has(i.instrument_id));
+    const held = items.filter((i) => !i.candidate);
+    const top = new Set([...held].sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)).slice(0, MAX_SERIES).map((i) => i.instrument_id));
+    return [...items.filter((i) => top.has(i.instrument_id)), ...items.filter((i) => i.candidate)];
   });
   const colorOf = (id: number) => {
     const i = charted.findIndex((c) => c.instrument_id === id);
-    return i >= 0 ? `var(--series-${i + 1})` : 'var(--muted)';
+    return i >= 0 ? `var(--series-${(i % 8) + 1})` : 'var(--muted)';
   };
   const series = $derived<Series[]>(
     charted.map((it) => ({
       key: String(it.instrument_id),
       label: it.name,
       color: colorOf(it.instrument_id),
+      dashed: it.candidate,
       points: (data?.dates ?? []).map((d, k) => ({ date: d, value: it.points[k] }))
     }))
   );
   const pct = (v: number) => `${v > 0 ? '+' : ''}${(v * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
   const pctOrDash = (v: number | null | undefined) => (v === null || v === undefined ? '–' : formatPercent(v * 100));
   const weights = $derived(
-    [...(data?.items ?? [])].sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)).map((i) => ({ key: String(i.instrument_id), label: i.name, value: toNumber(i.value), color: colorOf(i.instrument_id) }))
+    [...(data?.items ?? [])].filter((i) => !i.candidate).sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0)).map((i) => ({ key: String(i.instrument_id), label: i.name, value: toNumber(i.value), color: colorOf(i.instrument_id) }))
   );
   const eur = (v: number) => formatMoney(v, 'EUR', false);
 
@@ -109,12 +150,20 @@
 
 {#if error}
   <p class="error">{error}</p>
-{:else if data && data.items.length >= 2}
+{:else if data && (data.items.length >= 2 || candidates.length)}
   <section class="card stack">
     <div class="row head">
       <h2>{title}</h2>
       {#if showPeriod}<PeriodPicker bind:value={period} />{/if}
     </div>
+    <form class="row cand" onsubmit={addCandidate}>
+      <input bind:value={query} placeholder="ISIN oder Name eines Fonds, ETFs, einer Aktie …" aria-label="Wertpapier zum Vergleich" />
+      <button class="btn" type="submit" disabled={adding}>{adding ? 'Lädt Kurse …' : 'Zum Vergleich'}</button>
+    </form>
+    {#if addError}<p class="error small">{addError}</p>{/if}
+    {#if candidates.length}
+      <p class="muted small">Gestrichelt: Wertpapiere zum Vergleich, die ihr (noch) nicht habt. Sie zählen bei Gewichtung und Wert nicht mit.</p>
+    {/if}
 
     <div>
       <h3>Kursentwicklung ({periodLabel[period]})</h3>
@@ -181,10 +230,22 @@
           <tbody>
             {#each data.items as i (i.instrument_id)}
               <tr>
-                <td class="name"><span class="swatch" style:background={colorOf(i.instrument_id)}></span><a href="/wertpapiere/{i.instrument_id}">{i.name}</a></td>
-                <td class="r"><Money value={i.value} cents={false} /></td>
-                <td class="r num">{i.weight === null ? '–' : `${Math.round(i.weight * 100)} %`}</td>
-                <td class="r"><Money value={i.gain} cents={false} colored /> <span class="muted small">{pctOrDash(i.gain_pct)}</span></td>
+                <td class="name">
+                  <span class="swatch" style:background={colorOf(i.instrument_id)}></span><a href="/wertpapiere/{i.instrument_id}">{i.name}</a>
+                  {#if i.candidate}
+                    <span class="badge">zum Vergleich</span>
+                    <button class="x" aria-label="{i.name} aus dem Vergleich nehmen" title="Aus dem Vergleich nehmen" onclick={() => saveCandidates(candidates.filter((c) => c !== i.instrument_id))}>×</button>
+                  {/if}
+                </td>
+                {#if i.candidate}
+                  <td class="r muted">–</td>
+                  <td class="r muted">–</td>
+                  <td class="r muted">–</td>
+                {:else}
+                  <td class="r"><Money value={i.value} cents={false} /></td>
+                  <td class="r num">{i.weight === null ? '–' : `${Math.round(i.weight * 100)} %`}</td>
+                  <td class="r"><Money value={i.gain} cents={false} colored /> <span class="muted small">{pctOrDash(i.gain_pct)}</span></td>
+                {/if}
                 {#each ['1M', 'YTD', '1Y', '3Y', '5Y'] as p (p)}
                   <td class="r num" class:pos={(i.returns[p] ?? 0) > 0} class:neg={(i.returns[p] ?? 0) < 0}>{pctOrDash(i.returns[p])}</td>
                 {/each}
@@ -376,5 +437,34 @@
   }
   .corr[open] summary {
     margin-bottom: 8px;
+  }
+  .cand {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .cand input {
+    flex: 1;
+    min-width: 200px;
+  }
+  .badge {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .x {
+    margin-left: 4px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .x:hover {
+    color: var(--neg);
   }
 </style>

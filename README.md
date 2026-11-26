@@ -234,7 +234,10 @@ aller Positionen ab gleichem Start, Gewichtung, Rendite gegen Schwankung als
 Streudiagramm, eine Kennzahlentabelle (1 Monat bis 5 Jahre, Schwankung,
 größter Rückgang) und eine Korrelations-Matrix, die zeigt, wie gut die
 Positionen das Risiko streuen. Kurse lädt Finanzen dafür mindestens fünf
-Jahre zurück – auch wenn du ein Wertpapier erst seit Kurzem hast.
+Jahre zurück – auch wenn du ein Wertpapier erst seit Kurzem hast. Überlegst du, etwas dazuzukaufen, gib oben die
+ISIN oder den Namen ein („Zum Vergleich“): Finanzen lädt die Kurse und zeigt
+das Wertpapier gestrichelt neben deinen Positionen – mit Rendite, Schwankung
+und Korrelation, aber ohne dass es bei Wert und Gewichtung mitzählt.
 
 **Altersvorsorge:** Unter **Vorsorge** rechnet Finanzen hoch, was ihr im Alter
 monatlich zur Verfügung habt – standardmäßig für den ganzen Haushalt, auf

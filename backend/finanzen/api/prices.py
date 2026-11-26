@@ -5,6 +5,9 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+import re
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth.session import current_user
@@ -88,3 +91,52 @@ def is_stale(last: date | None, stale_days: int, today: date | None = None) -> b
         if d.weekday() < 5:
             days += 1
     return days > stale_days
+
+
+class CandidateIn(BaseModel):
+    query: str  # ISIN or name
+
+
+_ISIN = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
+_KIND = {"STOCK": "stock", "FUND": "fund", "ETF": "etf", "BOND": "bond", "CRYPTO": "crypto", "PRECIOUS_METAL": "metal", "CERTIFICATE": "certificate", "DERIVATIVE": "certificate"}
+
+
+@router.post("/candidates")
+def add_candidate(data: CandidateIn, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """A security you are thinking about buying: found by ISIN or name, prices loaded, ready to compare."""
+    q = data.query.strip()
+    if len(q) < 2:
+        raise HTTPException(422, "Bitte ISIN oder Name eingeben.")
+    isin = q.upper() if _ISIN.match(q.upper()) else None
+    instrument = db.scalar(select(Instrument).where(Instrument.isin == isin)) if isin else None
+    if instrument is None:
+        try:
+            results = SOURCES["onvista"].search(q)
+        except PriceSourceError as exc:
+            raise HTTPException(502, str(exc)) from None
+        hit = next((r for r in results if isin and r.exchange == isin), None) or (results[0] if results else None)
+        if hit is None:
+            raise HTTPException(404, "Dazu hat onvista nichts gefunden.")
+        found_isin = hit.exchange if _ISIN.match(hit.exchange or "") else isin
+        instrument = db.scalar(select(Instrument).where(Instrument.isin == found_isin)) if found_isin else None
+        if instrument is None:
+            entity = hit.symbol.split(":", 1)[0]
+            kind = "etf" if "ETF" in (hit.type or "").upper() else _KIND.get(entity, "other")
+            instrument = Instrument(
+                kind=kind,
+                name=hit.name[:200] or q,
+                isin=found_isin,
+                currency="EUR",
+                price_source="onvista",
+                price_symbol=hit.symbol[:40],
+                details={"candidate": True},
+            )
+            db.add(instrument)
+            db.commit()
+    if instrument.price_source != "manual":
+        try:
+            sync_instrument(db, instrument, full=True)  # at least five years of history for the comparison
+        except PriceSourceError as exc:
+            db.rollback()
+            raise HTTPException(502, f"Kurse konnten nicht geladen werden: {exc}") from None
+    return {"instrument_id": instrument.id, "name": instrument.name, "isin": instrument.isin}

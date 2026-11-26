@@ -38,11 +38,21 @@ def get_breakdown(period: str = "1Y", person_id: int | None = None, to: date | N
 
 @router.get("/positions/compare")
 def get_position_compare(
-    period: str = "1Y", account_id: int | None = None, person_id: int | None = None, to: date | None = None, db: Session = Depends(get_db)
+    period: str = "1Y",
+    account_id: int | None = None,
+    person_id: int | None = None,
+    to: date | None = None,
+    extra: str = "",
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    """`extra`: comma separated instrument ids compared as candidates (not held)."""
     from ..services.positions import compare
 
-    return compare(db, account_id, person_id, _period(period), to)
+    try:
+        extra_ids = [int(x) for x in extra.split(",") if x.strip()][:5]
+    except ValueError:
+        raise HTTPException(422, "Ungültige Wertpapiere") from None
+    return compare(db, account_id, person_id, _period(period), to, extra_ids)
 
 
 @router.get("/liquidity")
