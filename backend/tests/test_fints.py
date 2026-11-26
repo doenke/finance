@@ -454,3 +454,42 @@ def test_bic_is_master_data(client):
         a = db.get(Account, acc["id"])
         a.details = {"fints": {"iban": "DE11390500000000000001", "accountnumber": "1"}}
         assert fints_sync._sepa(a, []).bic == "AACSDE33XXX"  # the account's BIC is used
+
+
+def test_no_duplicates_with_csv_import(client):
+    """Bookings that came via CSV are not added again by FinTS, and old FinTS doubles are removed."""
+    login(client)
+    from finanzen.models import Account, Transaction
+    from finanzen.services.dedupe import remove_fints_duplicates
+
+    with client.app.state.sessionmaker() as db:
+        acc = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        db.add(acc)
+        db.flush()
+        d = date(2026, 11, 20)
+        db.add(Transaction(account_id=acc.id, booking_date=d, amount=D("-42.50"), counterparty="REWE Markt GmbH", purpose="Kartenzahlung", external_id="csv:1"))
+        db.add(Transaction(account_id=acc.id, booking_date=d, amount=D("-42.50"), counterparty="Aldi Süd", purpose="Kartenzahlung", external_id="csv:2"))
+        # an older FinTS double of the REWE booking (value date one day later)
+        db.add(Transaction(account_id=acc.id, booking_date=d + timedelta(days=1), amount=D("-42.50"), counterparty="REWE MARKT", purpose="Einkauf", external_id="fints:old"))
+        db.commit()
+        assert remove_fints_duplicates(db, acc.id) == 1
+        db.commit()
+        new = [
+            {"date": d, "entry_date": d, "amount": D("-42.50"), "applicant_name": "ALDI SUED", "purpose": "Filiale 12"},  # twin of the Aldi CSV row
+            {"date": d, "entry_date": d, "amount": D("-42.50"), "applicant_name": "Lidl", "purpose": "Einkauf"},  # same amount, other shop: new
+        ]
+        assert fints_sync.apply_transactions(db, acc, new) == 1
+        db.commit()
+        names = sorted(t.counterparty for t in db.query(Transaction).filter(Transaction.account_id == acc.id))
+    assert names == ["Aldi Süd", "Lidl", "REWE Markt GmbH"]
+
+
+def test_credit_card_without_bic_uses_bank_bic():
+    from fints.models import SEPAAccount
+
+    giro = SEPAAccount(iban="DE11390500000000000001", bic="AACSDE33XXX", accountnumber="1", subaccount=None, blz="39050000")
+    card = SEPAAccount(iban=None, bic=None, accountnumber="4711", subaccount=None, blz="39050000")
+    account = SimpleNamespace(bic="", details={"fints": {"iban": None, "accountnumber": "4711", "blz": "39050000"}})
+    assert fints_sync._sepa(account, [giro, card]).bic == "AACSDE33XXX"
+    alone = SimpleNamespace(bic="", details={"fints": {"accountnumber": "4711", "blz": "39050000"}})
+    assert fints_sync._sepa(alone, []).bic[4:6] == "DE"

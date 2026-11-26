@@ -368,13 +368,21 @@ def _sepa(account: Account, bank_accounts: list[Any] | None = None):
                 account.details = {**(account.details or {}), "fints": {**f, "bic": b.bic}}
             if getattr(b, "bic", None) and not getattr(account, "bic", ""):
                 account.bic = b.bic.upper()  # master data of the account
-            if not getattr(b, "bic", None) and getattr(account, "bic", ""):
-                return SEPAAccount(iban=b.iban, bic=account.bic, accountnumber=b.accountnumber, subaccount=b.subaccount, blz=b.blz)
+            if not getattr(b, "bic", None):
+                fallback = getattr(account, "bic", "") or next(
+                    (o.bic for o in bank_accounts or [] if getattr(o, "bic", None) and getattr(o, "blz", None) == getattr(b, "blz", None)), None
+                ) or (f"XXXX{b.iban[:2].upper()}XX" if getattr(b, "iban", None) else "XXXXDEXX")
+                return SEPAAccount(iban=b.iban, bic=fallback, accountnumber=b.accountnumber, subaccount=b.subaccount, blz=b.blz)
             return b
     bic = getattr(account, "bic", "") or f.get("bic")
+    if not bic:
+        # e.g. credit cards: no IBAN/BIC of their own – the BIC of another account at the same bank fits
+        bic = next((b.bic for b in bank_accounts or [] if getattr(b, "bic", None) and getattr(b, "blz", None) == f.get("blz")), None)
     if not bic and f.get("iban"):
         # python-fints only reads the country from the BIC (characters 5–6); the IBAN tells us the same
         bic = f"XXXX{f['iban'][:2].upper()}XX"
+    if not bic:
+        bic = "XXXXDEXX"  # FinTS is a German standard
     return SEPAAccount(iban=f.get("iban"), bic=bic, accountnumber=f.get("accountnumber"), subaccount=f.get("subaccount"), blz=f.get("blz"))
 
 
@@ -554,6 +562,11 @@ def _sync(job: Job, client: Any, db: Session, login: BankLogin, account_ids: lis
                     start = _transactions_start(db, account)
                     txs = _fetch_transactions(job, client, sepa, start, db)
                     entry["new_transactions"] = apply_transactions(db, account, txs or [])
+                    from .dedupe import remove_fints_duplicates
+
+                    removed = remove_fints_duplicates(db, account.id)  # also cleans up earlier double imports
+                    if removed:
+                        entry["removed_duplicates"] = removed
             db.commit()  # each account is saved on its own
         except (TanRequired, JobCancelled, TimeoutError):
             raise
@@ -640,8 +653,29 @@ def apply_transactions(db: Session, account: Account, txs: list[Any]) -> int:
         ext = "fints:" + hashlib.sha1(f"{account.id}|{key}|{seen[key]}".encode()).hexdigest()[:24]
         rows.append((ext, f))
     existing = set(db.scalars(select(Transaction.external_id).where(Transaction.account_id == account.id, Transaction.external_id.in_([e for e, _ in rows]))).all()) if rows else set()
+    # bookings that already came in another way (CSV import, entered by hand) are not added again
+    others: list[Transaction] = []
+    if rows:
+        from .dedupe import WINDOW, find_twin
+
+        days = [f["booking_date"] for _, f in rows]
+        others = list(
+            db.scalars(
+                select(Transaction).where(
+                    Transaction.account_id == account.id,
+                    Transaction.booking_date >= min(days) - WINDOW,
+                    Transaction.booking_date <= max(days) + WINDOW,
+                    (Transaction.external_id.is_(None)) | (~Transaction.external_id.like("fints:%")),
+                )
+            ).all()
+        )
+    used: set[int] = set()
     for ext, f in rows:
         if ext in existing:
+            continue
+        twin = find_twin(others, used, f["booking_date"], f["amount"], f["counterparty"], f["purpose"]) if others else None
+        if twin is not None:
+            used.add(twin.id)
             continue
         kind = guess_kind(f["counterparty"], f["purpose"], f["amount"], f["posting_text"])
         db.add(

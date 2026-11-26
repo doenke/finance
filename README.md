@@ -257,7 +257,8 @@ Zugang ab – die abgerufenen Konten sehen alle. Finanzen fragt dann nach der PI
 TAN-Verfahren wählen und zeigt die Konten, die die Bank kennt. Du
 entscheidest je Konto: neu anlegen, mit einem vorhandenen verknüpfen oder
 weglassen. IBAN und BIC stehen in den Stammdaten des Kontos; fehlt die BIC,
-ergänzt Finanzen sie beim ersten Abruf von der Bank.
+ergänzt Finanzen sie beim ersten Abruf von der Bank. Hast du Umsätze vorher per CSV
+importiert, übernimmt der Abruf sie nicht noch einmal.
 
 - **Aktualisieren** holt Salden, Umsätze (beim ersten Mal 90 Tage) und
   Depotbestände. Verlangt die Bank eine TAN, erscheint sie im Dialog –
