@@ -528,16 +528,33 @@ def _sync(job: Job, client: Any, db: Session, login: BankLogin, account_ids: lis
                     entry["balance"] = str(apply_balance(db, account, balance))
                 if mode == kinds.CASH:
                     start = _transactions_start(db, account)
-                    txs = _handle(job, client, client.get_transactions(sepa, start, date.today()), db)
+                    txs = _fetch_transactions(job, client, sepa, start, db)
                     entry["new_transactions"] = apply_transactions(db, account, txs or [])
             db.commit()  # each account is saved on its own
         except (TanRequired, JobCancelled, TimeoutError):
             raise
         except Exception as exc:  # noqa: BLE001
             db.rollback()
+            log.warning("FinTS: updating account %s failed", account.id, exc_info=True)  # no PINs in tracebacks
             entry["error"] = _friendly_error(exc)
         summary.append(entry)
     return {"accounts": summary}
+
+
+def _fetch_transactions(job: Job, client: Any, sepa: Any, start: date, db: Session) -> list[Any]:
+    """Transactions via python-fints; if its CAMT parser fails (some Sparkassen), read the raw CAMT ourselves."""
+    try:
+        return _handle(job, client, client.get_transactions(sepa, start, date.today()), db) or []
+    except (TypeError, ValueError, KeyError, AttributeError, IndexError):
+        log.warning("FinTS: parsing the transactions failed, reading CAMT directly", exc_info=True)
+    from .camt import parse_camt
+
+    resp = _handle(job, client, client.get_transactions_xml(sepa, start, date.today()), db)
+    booked = resp[0] if isinstance(resp, tuple | list) and resp and isinstance(resp[0], list | tuple) else (resp or [])
+    rows: list[Any] = []
+    for stream in booked:
+        rows.extend(parse_camt(stream))
+    return rows
 
 
 def _transactions_start(db: Session, account: Account) -> date:

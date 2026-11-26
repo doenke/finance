@@ -391,3 +391,42 @@ def test_unencodable_username_is_explained():
 
     exc = UnicodeEncodeError("iso-8859-1", "x€", 1, 2, "ordinal not in range")
     assert "Legitimations-ID" in _friendly_error(exc, [])
+
+
+CAMT = b"""<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.08"><BkToCstmrAcctRpt><Rpt><Acct><Ccy>EUR</Ccy></Acct>
+<Ntry><Amt Ccy="EUR">42.50</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2026-11-20</Dt></BookgDt><ValDt><Dt>2026-11-21</Dt></ValDt>
+<AddtlNtryInf>Kartenzahlung</AddtlNtryInf><NtryDtls><TxDtls><Refs><EndToEndId>NOTPROVIDED</EndToEndId></Refs>
+<RltdPties><Cdtr><Pty><Nm>REWE Markt</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>DE11500105170000000001</IBAN></Id></CdtrAcct></RltdPties>
+<RmtInf><Ustrd>Einkauf 20.11.</Ustrd><Ustrd/><Ustrd>Filiale 4711</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>
+<Ntry><Amt Ccy="EUR">2500.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts><BookgDt><Dt>2026-11-25</Dt></BookgDt><ValDt><Dt>2026-11-25</Dt></ValDt>
+<NtryDtls><TxDtls><RltdPties><Dbtr><Nm>Arbeitgeber GmbH</Nm></Dbtr></RltdPties><RmtInf><Ustrd>Gehalt 11/2026</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>
+<Ntry><Amt Ccy="EUR">10.00</Amt><CdtDbtInd>DBIT</CdtDbtInd><Sts><Cd>PDNG</Cd></Sts><BookgDt><Dt>2026-11-26</Dt></BookgDt></Ntry>
+</Rpt></BkToCstmrAcctRpt></Document>"""
+
+
+def test_camt_parser_tolerates_empty_repeated_elements():
+    from finanzen.services.camt import parse_camt
+
+    rows = parse_camt(CAMT)
+    assert len(rows) == 2  # pending entry skipped
+    rewe, salary = rows
+    assert rewe["amount"] == D("-42.50") and rewe["date"] == date(2026, 11, 20) and rewe["entry_date"] == date(2026, 11, 21)
+    assert rewe["applicant_name"] == "REWE Markt" and rewe["applicant_iban"] == "DE11500105170000000001"
+    assert rewe["purpose"] == "Einkauf 20.11. Filiale 4711" and rewe["end_to_end_reference"] == ""
+    assert salary["amount"] == D("2500.00") and salary["applicant_name"] == "Arbeitgeber GmbH"
+    fields = fints_sync._tx_fields(rewe)
+    assert fields["booking_date"] == date(2026, 11, 20) and fields["posting_text"] == "Kartenzahlung"
+
+
+def test_fetch_falls_back_to_raw_camt():
+    class Broken:
+        def get_transactions(self, *a):
+            raise TypeError("unsupported operand type(s) for +=: 'NoneType' and 'str'")
+
+        def get_transactions_xml(self, *a):
+            return ([CAMT], [])
+
+    job = SimpleNamespace(interactive=False)
+    rows = fints_sync._fetch_transactions(job, Broken(), None, date(2026, 11, 1), None)
+    assert [r["applicant_name"] for r in rows] == ["REWE Markt", "Arbeitgeber GmbH"]

@@ -17,7 +17,7 @@ Entscheidungen dort mitpflegen.
   Zahlungen am Tagesende, XIRR), `performance.py` (Aggregation, Cache über
   `cache.py`, jede schreibende API-Anfrage verwirft ihn), `prices/`
   (Kursquellen-Adapter: onvista als Standard, Yahoo; Fallback auf onvista per ISIN in `sync.py`), `fx.py` (EZB), `sync.py`, `loan.py`,
-  `csvimport.py`, `txkind.py` (Zinsgutschriften erkennen), `audit.py` (Änderungsprotokoll: Middleware in `main.py` für schreibende `/api`-Anfragen, MCP-Werkzeuge selbst; nur Allowlist-Felder, nie Secrets – neue schreibende Routen in `_ROUTES` benennen), `backup.py` (JSON-Sicherung/-Wiederherstellung; Export für Nutzer mit `for_user_id` ohne Secrets, auch CLI
+  `csvimport.py`, `txkind.py` (Zinsgutschriften erkennen), `camt.py` (eigener CAMT-Leser als Ausweichweg für FinTS-Umsätze), `audit.py` (Änderungsprotokoll: Middleware in `main.py` für schreibende `/api`-Anfragen, MCP-Werkzeuge selbst; nur Allowlist-Felder, nie Secrets – neue schreibende Routen in `_ROUTES` benennen), `backup.py` (JSON-Sicherung/-Wiederherstellung; Export für Nutzer mit `for_user_id` ohne Secrets, auch CLI
   `python -m finanzen backup|restore`). Hintergrundjobs in `scheduler.py`.
   Benachrichtigungen: `notify.py` (Ereignisse, Einstellungen je User, tägliche
   Prüfungen, Monatsbericht; in Tests `push_sender`/`mail_sender` ersetzen),
