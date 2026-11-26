@@ -355,11 +355,23 @@ def _prepare_tan(job: Job, client: Any, login: BankLogin, db: Session) -> None:
             login.tan_medium = medium
 
 
-def _sepa(account: Account):
+def _sepa(account: Account, bank_accounts: list[Any] | None = None):
+    """The account as python-fints needs it. The bank's own SEPA account (with BIC) wins; the BIC is kept on the account."""
     from fints.models import SEPAAccount
 
-    f = (account.details or {}).get("fints") or {}
-    return SEPAAccount(iban=f.get("iban"), bic=f.get("bic"), accountnumber=f.get("accountnumber"), subaccount=f.get("subaccount"), blz=f.get("blz"))
+    f = dict((account.details or {}).get("fints") or {})
+    for b in bank_accounts or []:
+        same_iban = f.get("iban") and (getattr(b, "iban", None) or "").replace(" ", "").upper() == f["iban"].replace(" ", "").upper()
+        same_number = f.get("accountnumber") and getattr(b, "accountnumber", None) == f.get("accountnumber")
+        if same_iban or same_number:
+            if getattr(b, "bic", None) and f.get("bic") != b.bic:
+                account.details = {**(account.details or {}), "fints": {**f, "bic": b.bic}}
+            return b
+    bic = f.get("bic")
+    if not bic and f.get("iban"):
+        # python-fints only reads the country from the BIC (characters 5–6); the IBAN tells us the same
+        bic = f"XXXX{f['iban'][:2].upper()}XX"
+    return SEPAAccount(iban=f.get("iban"), bic=bic, accountnumber=f.get("accountnumber"), subaccount=f.get("subaccount"), blz=f.get("blz"))
 
 
 def run_job(job: Job, pin: str | None, settings: Settings, make_session: sessionmaker, factory: ClientFactory, account_ids: list[int] | None) -> None:
@@ -479,7 +491,8 @@ def _friendly_error(exc: Exception, messages: list[tuple[str, str]] | None = Non
 
 def _discover(job: Job, client: Any, db: Session, login: BankLogin) -> dict:
     job.message = "Lese Konten …"
-    _handle(job, client, client.get_sepa_accounts(), db)
+    sepa_accounts = _handle(job, client, client.get_sepa_accounts(), db) or []
+    bics = {(getattr(a, "iban", None) or "").replace(" ", "").upper(): getattr(a, "bic", None) for a in sepa_accounts}
     info = client.get_information()
     linked = {
         ((a.details or {}).get("fints") or {}).get("accountnumber"): a.id
@@ -496,7 +509,7 @@ def _discover(job: Job, client: Any, db: Session, login: BankLogin) -> dict:
                 "accountnumber": number,
                 "subaccount": acc.get("subaccount_number"),
                 "blz": blz,
-                "bic": None,
+                "bic": bics.get((acc.get("iban") or "").replace(" ", "").upper()),
                 "type": acc.get("type"),
                 "suggested_kind": suggest_kind(acc.get("type")),
                 "product_name": acc.get("product_name") or "",
@@ -513,12 +526,19 @@ def _sync(job: Job, client: Any, db: Session, login: BankLogin, account_ids: lis
     if account_ids:
         stmt = stmt.where(Account.id.in_(account_ids))
     summary: list[dict] = []
+    try:
+        bank_accounts = _handle(job, client, client.get_sepa_accounts(), db) or []
+    except (TanRequired, JobCancelled, TimeoutError):
+        raise
+    except Exception:  # noqa: BLE001 - fall back to the stored account data
+        log.warning("FinTS: reading the SEPA accounts failed", exc_info=True)
+        bank_accounts = []
     for account in db.scalars(stmt).all():
         job.message = f"Aktualisiere {account.name} …"
         mode = kinds.KINDS[account.kind].mode
         entry: dict[str, Any] = {"account_id": account.id, "name": account.name}
         try:
-            sepa = _sepa(account)
+            sepa = _sepa(account, bank_accounts)
             if mode == kinds.HOLDINGS:
                 holdings = _handle(job, client, client.get_holdings(sepa), db)
                 entry.update(apply_holdings(db, account, holdings))

@@ -87,6 +87,7 @@ class LinkItem(BaseModel):
     accountnumber: str | None = None
     subaccount: str | None = None
     blz: str | None = None
+    bic: str | None = Field(default=None, max_length=11)
     account_id: int | None = None  # link to an existing account
     create_kind: str | None = None  # or create a new one
     create_name: str | None = None
@@ -312,7 +313,7 @@ def link_accounts(login_id: int, data: LinkIn, db: Session = Depends(get_db), us
     login = _get(db, login_id, user)
     linked = []
     for item in data.items:
-        fints_ref = {"iban": item.iban, "bic": None, "accountnumber": item.accountnumber, "subaccount": item.subaccount, "blz": item.blz or login.blz}
+        fints_ref = {"iban": item.iban, "bic": item.bic, "accountnumber": item.accountnumber, "subaccount": item.subaccount, "blz": item.blz or login.blz}
         if item.account_id:
             account = db.get(Account, item.account_id)
             if account is None:

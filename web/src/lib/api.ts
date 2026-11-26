@@ -260,6 +260,7 @@ export interface FintsAccount {
   accountnumber: string | null;
   subaccount: string | null;
   blz: string | null;
+  bic: string | null;
   type: number | null;
   suggested_kind: string;
   product_name: string;

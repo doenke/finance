@@ -164,6 +164,7 @@
         accountnumber: r.accountnumber,
         subaccount: r.subaccount,
         blz: r.blz,
+        bic: r.bic,
         account_id: r.action === 'link' ? r.account_id : null,
         create_kind: r.action === 'create' ? r.create_kind : null,
         create_name: r.action === 'create' ? r.create_name : null

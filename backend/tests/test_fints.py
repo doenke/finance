@@ -430,3 +430,15 @@ def test_fetch_falls_back_to_raw_camt():
     job = SimpleNamespace(interactive=False)
     rows = fints_sync._fetch_transactions(job, Broken(), None, date(2026, 11, 1), None)
     assert [r["applicant_name"] for r in rows] == ["REWE Markt", "Arbeitgeber GmbH"]
+
+
+def test_sepa_account_gets_bic_from_bank_or_iban():
+    from fints.models import SEPAAccount
+
+    account = SimpleNamespace(details={"fints": {"iban": "DE11390500000000000001", "bic": None, "accountnumber": "1", "subaccount": None, "blz": "39050000"}})
+    bank = SEPAAccount(iban="DE11 3905 0000 0000 0000 01", bic="AACSDE33XXX", accountnumber="1", subaccount=None, blz="39050000")
+    sepa = fints_sync._sepa(account, [bank])
+    assert sepa.bic == "AACSDE33XXX" and account.details["fints"]["bic"] == "AACSDE33XXX"  # remembered
+    # without the bank's list the country for python-fints comes from the IBAN
+    bare = SimpleNamespace(details={"fints": {"iban": "DE11390500000000000001", "bic": None, "accountnumber": "1", "blz": "39050000"}})
+    assert fints_sync._sepa(bare, []).bic[4:6] == "DE"
