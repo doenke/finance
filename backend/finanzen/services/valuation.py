@@ -51,6 +51,18 @@ def cash_balance(db: Session, account_id: int, on: date) -> AccountValue:
     if snap:
         q = q.where(Transaction.booking_date > snap.date)
     total, last = db.execute(q).one()
+    if snap is None and last is not None:
+        # between the first booking and the first known balance: count back from it (as the value series does)
+        later = db.scalar(
+            select(BalanceSnapshot).where(BalanceSnapshot.account_id == account_id, BalanceSnapshot.date > on).order_by(BalanceSnapshot.date).limit(1)
+        )
+        if later is not None:
+            between = db.scalar(
+                select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+                    Transaction.account_id == account_id, Transaction.booking_date > on, Transaction.booking_date <= later.date
+                )
+            )
+            return AccountValue(later.amount - Decimal(between), last)
     base = snap.amount if snap else ZERO
     as_of = max(d for d in [snap.date if snap else None, last] if d) if (snap or last) else None
     return AccountValue(base + Decimal(total), as_of)

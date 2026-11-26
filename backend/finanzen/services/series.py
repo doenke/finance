@@ -142,14 +142,32 @@ def _cash_series(ctx: Context, account: Account, days: list[date]) -> tuple[list
     first = min([d for d, _ in snaps] + list(delta.keys()), default=None)
     values, flows = [], []
     current = ZERO
-    # Start value: replay everything before the first day.
     start = days[0]
-    base_snap = max((d for d in snap_map if d < start), default=None)
-    current = snap_map[base_snap] if base_snap else ZERO
-    current += sum((v for d, v in delta.items() if d < start and (base_snap is None or d > base_snap)), ZERO)
-    prev = current
+    first_snap = min(snap_map) if snap_map else None
+
+    # Between the first booking and the first known balance the balance is counted back from that balance
+    # (balance minus the bookings up to it): imported bookings often start later than the account itself.
+    # Before the first data of the account the value is 0; after the first balance it is replayed forward.
+    def back_sum(after: date) -> Decimal:
+        return sum((v for d, v in delta.items() if after < d <= first_snap), ZERO)
+
+    def value_at_end_of(day: date) -> Decimal:
+        if first is None or day < first:
+            return ZERO
+        if first_snap is not None and day < first_snap:
+            return snap_map[first_snap] - back_sum(day)
+        base_snap = max((d for d in snap_map if d <= day), default=None)
+        base = snap_map[base_snap] if base_snap else ZERO
+        return base + sum((v for d, v in delta.items() if d <= day and (base_snap is None or d > base_snap)), ZERO)
+
+    prev = value_at_end_of(start - timedelta(days=1))
+    running = back_sum(start - timedelta(days=1)) if first_snap is not None and start <= first_snap else ZERO
+    current = prev
     for d in days:
-        if d in snap_map:
+        if first_snap is not None and d < first_snap:
+            running -= delta.get(d, ZERO)
+            current = snap_map[first_snap] - running if first is not None and d >= first else ZERO
+        elif d in snap_map:
             current = snap_map[d]
         else:
             current += delta.get(d, ZERO)

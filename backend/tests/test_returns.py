@@ -244,3 +244,28 @@ def test_purchase_costs_do_not_explode_ttwror(client):
     assert Dec(s["gain"]) == Dec("-30000.00")  # the purchase costs are lost
     # ... but measured against the whole investment (~ -10 %), not against the 10k from the day before (-300 %)
     assert Dec("-0.11") < Dec(s["ttwror"]) < Dec("-0.08")
+
+
+def test_cash_history_counts_back_from_the_known_balance(client):
+    """Bookings imported for a part of the time only: earlier balances follow from today's balance backwards."""
+    from datetime import date, timedelta
+    from decimal import Decimal as Dec
+
+    from tests.conftest import login as do_login
+
+    origin = {"Origin": "https://finanzen.example.org"}
+    do_login(client)
+    today = date.today()
+    acc = client.post("/api/accounts", json={"name": "Tagesgeld", "kind": "tagesgeld"}, headers=origin).json()["id"]
+    d0 = today - timedelta(days=300)
+    # money was there before the first imported booking; one withdrawal, one deposit, quarterly interest of ~1 %
+    for d, amount, kind in [(d0, "-5000", "other"), (d0 + timedelta(days=90), "25", "interest"), (d0 + timedelta(days=100), "3000", "other"), (d0 + timedelta(days=180), "30", "interest")]:
+        client.post(f"/api/accounts/{acc}/transactions", json={"booking_date": d.isoformat(), "amount": amount, "kind": kind}, headers=origin)
+    client.post(f"/api/accounts/{acc}/balances", json={"date": today.isoformat(), "amount": "13055"}, headers=origin)
+    s = client.get("/api/performance", params={"account_id": acc, "period": "ALL"}).json()["summary"]
+    # 15000 were there before the first booking (13055 - (-5000 + 25 + 3000 + 30)): after the withdrawal on
+    # the first day 10000 count as brought in, later 3000 more
+    assert Dec(s["net_flows"]) == Dec("13000") and Dec(s["gain"]) == Dec("55")
+    assert Dec("0.002") < Dec(s["ttwror"]) < Dec("0.006")  # about 0.5 %, not a fantasy value
+    on_first_day = client.get(f"/api/accounts/{acc}", params={"on": d0.isoformat()}).json()
+    assert Dec(on_first_day["value"]) == Dec("10000.00")
