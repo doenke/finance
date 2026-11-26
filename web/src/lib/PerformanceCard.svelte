@@ -1,5 +1,6 @@
 <script lang="ts">
   // Returns of a scope (household, account, person) with chart, benchmark and period table.
+  import Term from './Term.svelte';
   import { api, type Instrument, type PerformanceData } from './api.ts';
   import { benchmarkChoice, setBenchmark } from './benchmark.svelte.ts';
   import LineChart, { type Series } from './charts/LineChart.svelte';
@@ -107,12 +108,12 @@
       <div><span class="muted">Ein-/Auszahlungen</span><strong><Money value={s.net_flows} cents={false} /></strong></div>
       <div><span class="muted">Gewinn</span><strong><Money value={s.gain} cents={false} colored /></strong></div>
       <div>
-        <span class="muted" title="Zeitgewichtete Rendite: wie gut die Anlagen selbst gelaufen sind – unabhängig davon, wann ihr Geld ein- oder ausgezahlt habt.">TTWROR ⓘ</span>
+        <span class="muted"><Term term="ttwror" /></span>
         <strong class:pos={toNumber(s.ttwror) > 0} class:neg={toNumber(s.ttwror) < 0}>{fmtRate(s.ttwror)}</strong>
         {#if s.ttwror_pa}<span class="muted small">{fmtRate(s.ttwror_pa)} p. a.</span>{/if}
       </div>
       <div>
-        <span class="muted" title="Interner Zinsfuß: eure persönliche Rendite pro Jahr – berücksichtigt, wann ihr wie viel investiert habt.">IZF p. a. ⓘ</span>
+        <span class="muted"><Term term="izf" /></span>
         <strong class:pos={toNumber(s.irr) > 0} class:neg={toNumber(s.irr) < 0}>{fmtRate(s.irr)}</strong>
       </div>
     </div>
@@ -141,7 +142,7 @@
         <summary>Alle Zeiträume</summary>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Zeitraum</th><th class="r">Gewinn</th><th class="r">TTWROR</th><th class="r">p. a.</th><th class="r">IZF p. a.</th></tr></thead>
+            <thead><tr><th>Zeitraum</th><th class="r">Gewinn</th><th class="r"><Term term="ttwror" /></th><th class="r">p. a.</th><th class="r"><Term term="izf" /></th></tr></thead>
             <tbody>
               {#each Object.entries(data.periods) as [key, r] (key)}
                 <tr>

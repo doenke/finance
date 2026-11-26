@@ -1,5 +1,6 @@
 <script lang="ts">
   // Return per account (ranked by IRR) and how each account adds up to the household's total return.
+  import { TERMS } from './Term.svelte';
   import Info from './Info.svelte';
   import { api } from './api.ts';
   import { flattenBreakdown, rankByIrr, type Breakdown } from './returns.ts';
@@ -78,7 +79,7 @@
   <section class="card stack" aria-busy={loading}>
     <div class="row head">
       <h2>Rendite je Anlage<Info>Sortiert nach IZF pro Jahr – eurer persönlichen Rendite inklusive des Zeitpunkts der Ein- und Auszahlungen. Depots und Krypto erscheinen
-      mit ihren einzelnen Positionen; Kosten und Steuern ohne Position stehen unten in der Zusammensetzung.</Info></h2>
+      mit ihren einzelnen Positionen; Kosten und Steuern ohne Position stehen unten in der Zusammensetzung. <br /><br />{TERMS.izf}<br /><br />{TERMS.ttwror}</Info></h2>
       {#if showPeriod}<PeriodPicker bind:value={period} />{/if}
     </div>
 

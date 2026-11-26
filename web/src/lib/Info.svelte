@@ -4,8 +4,13 @@
 
   let { label = 'Erklärung', children }: { label?: string; children: Snippet } = $props();
   let open = $state(false);
+  let alignRight = $state(false); // open towards the left when the button sits in the right half
   let root: HTMLElement | undefined = $state();
 
+  function toggle() {
+    if (!open && root) alignRight = root.getBoundingClientRect().left > window.innerWidth / 2;
+    open = !open;
+  }
   function onDocClick(e: MouseEvent) {
     if (open && root && !root.contains(e.target as Node)) open = false;
   }
@@ -17,9 +22,9 @@
 <svelte:document onclick={onDocClick} onkeydown={onKey} />
 
 <span class="info" bind:this={root}>
-  <button type="button" class="i" aria-label={label} aria-expanded={open} onclick={() => (open = !open)}>i</button>
+  <button type="button" class="i" aria-label={label} aria-expanded={open} onclick={toggle}>i</button>
   {#if open}
-    <span class="pop" role="note">{@render children()}</span>
+    <span class="pop" class:right={alignRight} role="note">{@render children()}</span>
   {/if}
 </span>
 
@@ -31,6 +36,10 @@
     margin-left: 6px;
     font-size: 0.85rem;
     font-weight: 400;
+  }
+  .pop.right {
+    left: auto;
+    right: -8px;
   }
   .i {
     width: 18px;

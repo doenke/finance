@@ -1,5 +1,6 @@
 <script lang="ts">
   // Compact return block for the overview: one line of key figures and the best and weakest positions.
+  import Term from './Term.svelte';
   import { api } from './api.ts';
   import { formatPercent, toNumber } from './format.ts';
   import Money from './Money.svelte';
@@ -42,10 +43,10 @@
     <div class="kpis">
       <div><span class="muted">Gewinn</span><strong><Money value={t.gain} cents={false} colored /></strong></div>
       <div>
-        <span class="muted">IZF p. a.</span>
+        <span class="muted"><Term term="izf" /></span>
         <strong class:pos={(pc(t.irr) ?? 0) > 0} class:neg={(pc(t.irr) ?? 0) < 0}>{pctText(t.irr)}</strong>
       </div>
-      <div><span class="muted">TTWROR</span><strong>{pctText(t.ttwror_pa ?? t.ttwror)}</strong></div>
+      <div><span class="muted"><Term term="ttwror" /></span><strong>{pctText(t.ttwror_pa ?? t.ttwror)}</strong></div>
       <div><span class="muted">Eingesetzt (Ø)</span><strong><Money value={t.avg_capital} cents={false} /></strong></div>
     </div>
     {#if best.length}
