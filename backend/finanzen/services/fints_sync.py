@@ -366,8 +366,12 @@ def _sepa(account: Account, bank_accounts: list[Any] | None = None):
         if same_iban or same_number:
             if getattr(b, "bic", None) and f.get("bic") != b.bic:
                 account.details = {**(account.details or {}), "fints": {**f, "bic": b.bic}}
+            if getattr(b, "bic", None) and not getattr(account, "bic", ""):
+                account.bic = b.bic.upper()  # master data of the account
+            if not getattr(b, "bic", None) and getattr(account, "bic", ""):
+                return SEPAAccount(iban=b.iban, bic=account.bic, accountnumber=b.accountnumber, subaccount=b.subaccount, blz=b.blz)
             return b
-    bic = f.get("bic")
+    bic = getattr(account, "bic", "") or f.get("bic")
     if not bic and f.get("iban"):
         # python-fints only reads the country from the BIC (characters 5–6); the IBAN tells us the same
         bic = f"XXXX{f['iban'][:2].upper()}XX"

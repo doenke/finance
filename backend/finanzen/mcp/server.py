@@ -159,6 +159,7 @@ def t_create_account(db: Session, user: User, args: dict) -> Any:
         kind=args["kind"],
         institution=args.get("institution", ""),
         iban=args.get("iban", ""),
+        bic=args.get("bic", ""),
         opened_on=args.get("opened_on"),
         notes=args.get("notes", ""),
         details=args.get("details") or {},
@@ -180,6 +181,7 @@ def t_update_account(db: Session, user: User, args: dict) -> Any:
         asset_class=account.asset_class,
         institution=args.get("institution", account.institution),
         iban=account.iban,
+        bic=args.get("bic", account.bic or ""),
         currency=account.currency,
         opened_on=args.get("opened_on", account.opened_on),
         closed=args.get("closed", account.closed),
@@ -611,6 +613,7 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
                 "kind": {"type": "string", "enum": list(kinds.KINDS)},
                 "institution": {"type": "string"},
                 "iban": {"type": "string"},
+                "bic": {"type": "string"},
                 "opened_on": DATE,
                 "notes": {"type": "string"},
                 "details": {"type": "object", "description": "Kontoart-spezifische Felder, siehe list_account_kinds"},
@@ -624,7 +627,7 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
     "update_account": (
         t_update_account,
         _schema(
-            {"account_id": {"type": "integer"}, "name": {"type": "string"}, "institution": {"type": "string"}, "opened_on": DATE, "notes": {"type": "string"}, "closed": {"type": "boolean"}, "details": {"type": "object", "description": "wird mit den bestehenden Feldern zusammengeführt"}, "owners": OWNERS},
+            {"account_id": {"type": "integer"}, "name": {"type": "string"}, "institution": {"type": "string"}, "bic": {"type": "string"}, "opened_on": DATE, "notes": {"type": "string"}, "closed": {"type": "boolean"}, "details": {"type": "object", "description": "wird mit den bestehenden Feldern zusammengeführt"}, "owners": OWNERS},
             ["account_id"],
         ),
         True,

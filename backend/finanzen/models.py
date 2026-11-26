@@ -63,6 +63,7 @@ class Account(Base):
     asset_class: Mapped[str] = mapped_column(String(30))
     institution: Mapped[str] = mapped_column(String(120), default="")
     iban: Mapped[str] = mapped_column(String(34), default="")
+    bic: Mapped[str] = mapped_column(String(11), default="", server_default="")
     currency: Mapped[str] = mapped_column(String(3), default="EUR")
     opened_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     closed: Mapped[bool] = mapped_column(Boolean, default=False)

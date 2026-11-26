@@ -39,6 +39,7 @@ class AccountIn(BaseModel):
     asset_class: str | None = None
     institution: str = Field(default="", max_length=120)
     iban: str = Field(default="", max_length=34)
+    bic: str = Field(default="", max_length=15)  # spaces are removed
     currency: str = Field(default="EUR", min_length=3, max_length=3)
     opened_on: date | None = None
     closed: bool = False
@@ -77,6 +78,7 @@ class AccountOut(BaseModel):
     liability: bool
     institution: str
     iban: str
+    bic: str
     currency: str
     opened_on: date | None
     closed: bool
@@ -258,6 +260,7 @@ def account_out(db: Session, account: Account, on: date) -> AccountOut:
         liability=kind.liability if kind else False,
         institution=account.institution,
         iban=account.iban,
+        bic=account.bic or "",
         currency=account.currency,
         opened_on=account.opened_on,
         closed=account.closed,
@@ -348,6 +351,7 @@ def create_account(data: AccountIn, db: Session = Depends(get_db), user: User = 
         asset_class=data.asset_class or kinds.KINDS[data.kind].asset_class,
         institution=data.institution.strip(),
         iban=data.iban.replace(" ", "").upper(),
+        bic=data.bic.replace(" ", "").upper(),
         currency=data.currency.upper(),
         opened_on=data.opened_on,
         closed=data.closed,
@@ -378,6 +382,7 @@ def update_account(account_id: int, data: AccountIn, db: Session = Depends(get_d
     account.asset_class = data.asset_class or kinds.KINDS[data.kind].asset_class
     account.institution = data.institution.strip()
     account.iban = data.iban.replace(" ", "").upper()
+    account.bic = data.bic.replace(" ", "").upper()
     account.currency = data.currency.upper()
     account.opened_on = data.opened_on
     account.closed = data.closed

@@ -78,6 +78,7 @@ export interface Account {
   liability: boolean;
   institution: string;
   iban: string;
+  bic: string;
   currency: string;
   opened_on: string | null;
   closed: boolean;

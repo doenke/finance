@@ -442,3 +442,15 @@ def test_sepa_account_gets_bic_from_bank_or_iban():
     # without the bank's list the country for python-fints comes from the IBAN
     bare = SimpleNamespace(details={"fints": {"iban": "DE11390500000000000001", "bic": None, "accountnumber": "1", "blz": "39050000"}})
     assert fints_sync._sepa(bare, []).bic[4:6] == "DE"
+
+
+def test_bic_is_master_data(client):
+    login(client)
+    acc = client.post("/api/accounts", json={"name": "Giro", "kind": "giro", "iban": "DE11 3905 0000 0000 0000 01", "bic": "aacs de33xxx"}, headers=ORIGIN).json()
+    assert acc["bic"] == "AACSDE33XXX"
+    with client.app.state.sessionmaker() as db:
+        from finanzen.models import Account
+
+        a = db.get(Account, acc["id"])
+        a.details = {"fints": {"iban": "DE11390500000000000001", "accountnumber": "1"}}
+        assert fints_sync._sepa(a, []).bic == "AACSDE33XXX"  # the account's BIC is used

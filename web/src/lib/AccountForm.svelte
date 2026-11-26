@@ -23,6 +23,7 @@
   let kind = $state(init?.kind ?? 'giro');
   let institution = $state(init?.institution ?? '');
   let iban = $state(init?.iban ?? '');
+  let bic = $state(init?.bic ?? '');
   let openedOn = $state(init?.opened_on ?? '');
   let notes = $state(init?.notes ?? '');
   let closed = $state(init?.closed ?? false);
@@ -96,6 +97,7 @@
       kind,
       institution,
       iban: mode === 'cash' ? iban : '',
+      bic: mode === 'cash' ? bic : '',
       opened_on: openedOn || null,
       closed,
       notes,
@@ -128,6 +130,7 @@
       <label>Bank / Anbieter <input bind:value={institution} maxlength="120" /></label>
       {#if mode === 'cash'}
         <label>IBAN <input bind:value={iban} maxlength="42" autocomplete="off" /></label>
+        <label>BIC <input bind:value={bic} maxlength="11" autocomplete="off" placeholder="wird beim Bankabruf ergänzt" /></label>
       {/if}
       <label>Eröffnet am <input type="date" bind:value={openedOn} /></label>
     </div>

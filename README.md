@@ -256,7 +256,8 @@ Person sieht nur ihre eigenen Zugangsdaten und ruft nur mit ihrem eigenen
 Zugang ab – die abgerufenen Konten sehen alle. Finanzen fragt dann nach der PIN, lässt dich das
 TAN-Verfahren wählen und zeigt die Konten, die die Bank kennt. Du
 entscheidest je Konto: neu anlegen, mit einem vorhandenen verknüpfen oder
-weglassen.
+weglassen. IBAN und BIC stehen in den Stammdaten des Kontos; fehlt die BIC,
+ergänzt Finanzen sie beim ersten Abruf von der Bank.
 
 - **Aktualisieren** holt Salden, Umsätze (beim ersten Mal 90 Tage) und
   Depotbestände. Verlangt die Bank eine TAN, erscheint sie im Dialog –
