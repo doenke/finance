@@ -13,9 +13,13 @@ RUN APP_VERSION=$APP_VERSION npm run build
 FROM python:3.13-slim AS build
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN python -m venv /venv
+# Dependencies first, with an empty package: this layer stays cached as long as pyproject.toml is unchanged.
 COPY backend/pyproject.toml /src/backend/pyproject.toml
+RUN mkdir -p /src/backend/finanzen && touch /src/backend/finanzen/__init__.py \
+ && /venv/bin/pip install /src/backend
+# Then the code only – no dependencies are downloaded again.
 COPY backend/finanzen /src/backend/finanzen
-RUN /venv/bin/pip install /src/backend
+RUN /venv/bin/pip install --no-deps --force-reinstall /src/backend
 
 # --- runtime: slim image, non-root user ---
 FROM python:3.13-slim
