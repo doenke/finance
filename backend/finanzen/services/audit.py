@@ -51,6 +51,7 @@ _ROUTES: list[tuple[str, str, str]] = [
     ("PUT", r"/api/accounts/\d+/flow-role", "Rolle im Geldfluss geändert"),
     ("POST", r"/api/accounts/\d+/unlink", "Bankverknüpfung gelöst"),
     ("POST", r"/api/accounts/\d+/reconcile", "Kontostand abgeglichen"),
+    ("POST", r"/api/accounts/\d+/confirm", "Bestand bestätigt"),
     ("POST", r"/api/instruments", "Wertpapier angelegt"),
     ("PUT", r"/api/instruments/\d+", "Wertpapier geändert"),
     ("POST", r"/api/instruments/\d+/prices", "Kurs eingetragen"),

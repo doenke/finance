@@ -86,3 +86,25 @@ def get_retirement(
     if any(not (-0.2 <= v <= 0.3) for v in returns.values()):
         raise HTTPException(422, "Ungültige Rendite")
     return projection(db, person_id, Params(retire_on=retire_on, savings=savings, inflation=inflation, years=years, returns=returns))
+
+
+@router.get("/freshness")
+def get_freshness(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """How current the data is (traffic light on the overview)."""
+    from ..services.freshness import freshness
+
+    return freshness(db)
+
+
+@router.post("/accounts/{account_id}/confirm")
+def confirm_account(account_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """'Bestand stimmt': nothing has changed since the last import or entry."""
+    from ..models import Account
+    from ..services.freshness import confirm
+
+    account = db.get(Account, account_id)
+    if account is None:
+        raise HTTPException(404, "Konto nicht gefunden")
+    confirm(db, account)
+    db.commit()
+    return {"account_id": account.id, "confirmed_at": account.details["confirmed_at"]}

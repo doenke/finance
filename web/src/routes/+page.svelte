@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Freshness from '#lib/Freshness.svelte';
   import PrivacyToggle from '#lib/PrivacyToggle.svelte';
   import { onMount } from 'svelte';
   import { api, type Account, type NetWorthData } from '#lib/api.ts';
@@ -56,7 +57,7 @@
 <div class="stack">
   <div class="title">
     <h1>{greeting}, {firstName}</h1>
-    <PrivacyToggle />
+    <div class="tools"><Freshness /><PrivacyToggle /></div>
   </div>
   {#if error}<p class="error">{error}</p>{/if}
 
@@ -106,6 +107,11 @@
 </div>
 
 <style>
+  .tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
   .title {
     display: flex;
     align-items: center;

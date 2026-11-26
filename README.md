@@ -169,6 +169,17 @@ Veränderung seit Vormonat und Jahresbeginn, verfügbar und gebunden, der
 Verlauf und kurz die Rendite – Gewinn, IZF und TTWROR mit euren drei besten
 und schwächsten Anlagen.
 
+Oben rechts zeigt eine **Ampel**, wie aktuell eure Daten sind. Fährst du mit
+der Maus darüber (am Handy: antippen), siehst du, was einen Blick braucht –
+mit Link dorthin. Jede Quelle hat ihren eigenen Rhythmus: Kurse ein paar
+Handelstage, Bankabrufe eine Woche, Konten per CSV einen Monat (Sparkonten ein
+Quartal), Renten und Immobilien ein Jahr. Depots und Krypto ohne Bankabruf
+ändern sich nur bei Käufen – hier reicht ein Blick alle sechs Monate, und
+„Stimmt so“ bestätigt, dass sich nichts getan hat. Läuft ein **Sparplan**
+(Finanzen erkennt ihn an den monatlichen Käufen), erwartet die Ampel jeden
+Monat eine neue Ausführung – egal ob das Depot per Bankabruf oder per CSV
+kommt. Gelb heißt „etwa doppelt so alt wie erwartet“, Rot „noch älter“.
+
 Alles Weitere zur Rendite steht unter **Anlagen**: die Rendite eurer Anlagen
 als **TTWROR** (wie gut die Anlagen selbst gelaufen sind, egal wann ihr Geld
 eingezahlt habt) und als **IZF** (eure persönliche Rendite pro Jahr, mit

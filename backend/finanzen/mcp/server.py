@@ -425,6 +425,12 @@ def t_get_retirement_projection(db: Session, user: User, args: dict) -> Any:
     return data
 
 
+def t_get_data_freshness(db: Session, user: User, args: dict) -> Any:
+    from ..services.freshness import freshness
+
+    return freshness(db)
+
+
 def _category_id(db: Session, value: Any) -> int:
     from ..models import Category
 
@@ -570,6 +576,12 @@ TOOLS: dict[str, tuple[Callable, dict, bool, str]] = {
         _schema({"person": {"type": ["string", "integer"]}, "retire_on": DATE, "savings": {"type": ["number", "string"]}, "inflation": {"type": "number"}, "years": {"type": "integer"}}),
         False,
         "Altersvorsorge-Projektion für den ganzen Haushalt (Standard) oder eine Person, in heutiger Kaufkraft: Renten, Kapital bei Rentenbeginn und monatliches Einkommen (brutto, grob netto) in drei Szenarien.",
+    ),
+    "get_data_freshness": (
+        t_get_data_freshness,
+        _schema({}),
+        False,
+        "Datenaktualität (Ampel der Übersicht): Kurse, Bankabrufe, Importe, Depots ohne Bankabruf (Sparpläne monatlich), Bewertungen – je Quelle grün/gelb/rot mit Begründung.",
     ),
     "list_categories": (t_list_categories, _schema({}), False, "Kategorien für Ausgaben, Einnahmen, Sparen (transfer) und Umbuchungen (internal)."),
     "create_category": (
