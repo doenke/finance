@@ -233,7 +233,9 @@ deiner Renteninformation, alle Vorsorge-Verträge mit Rentenprognose und eine
 Entnahme aus deinem Kapital (Depots, Krypto, Tagesgeld, Festgeld,
 Beteiligungen), das bis zum Rentenbeginn mit Rendite und Sparrate wächst.
 Für den Haushalt nimmt Finanzen als Rentenbeginn die Mitte zwischen euren
-Rentenbeginnen. Rentenbeginn, Sparrate, Inflation, Renditen und Entnahmedauer
+Rentenbeginnen. Als Sparrate nimmt Finanzen euer Gespartes der letzten zwölf
+Monate – ohne die Beiträge zu Verträgen mit Rentenprognose, denn die stecken
+schon in deren Rente. Rentenbeginn, Sparrate, Inflation, Renditen und Entnahmedauer
 stellst du selbst ein. Netto ist grob geschätzt: Kranken- und Pflegeversicherung der
 Rentner, Einkommensteuer nach Grundtarif und Abgeltungsteuer auf Gewinne. Die
 Renteninformation der Deutschen Rentenversicherung lädst du als PDF bei

@@ -39,7 +39,11 @@
     retire_on: string;
     default_retire_on: string;
     years_to_retirement: number;
-    inputs: { savings: number; savings_default: number; inflation: number; years: number; returns: Record<string, number> };
+    inputs: {
+      savings: number;
+      savings_default: number;
+      savings_parts: { to_accounts?: number; direct?: number; in_pensions?: number };
+      inflation: number; years: number; returns: Record<string, number> };
     pensions: Pension[];
     capital: { account_id: number; name: string; kind: string; value: number; cost: number }[];
     capital_now: number;
@@ -126,7 +130,11 @@
       <label>
         Sparrate / Monat
         <DecimalInput bind:value={savings} suffix="€" />
-        {#if data && !savings}<span class="muted small">{eur(data.inputs.savings_default)} aus den letzten 12 Monaten</span>{/if}
+        {#if data && !savings}
+          <span class="muted small">
+            {eur(data.inputs.savings_default)} aus den letzten 12 Monaten{#if data.inputs.savings_parts.in_pensions}{' '}– ohne {eur(data.inputs.savings_parts.in_pensions)} Beiträge zu Renten-Verträgen, die schon in deren Prognose stecken{/if}
+          </span>
+        {/if}
       </label>
       <label>Inflation <DecimalInput bind:value={inflation} suffix="%" /></label>
       <label>Entnahme über (Jahre) <DecimalInput bind:value={years} /></label>

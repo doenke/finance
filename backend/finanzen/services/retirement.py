@@ -14,11 +14,11 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import kinds
-from ..models import Account, Person
+from ..models import Account, Person, Transaction
 from .cashflow import role_of, year_balance
 from .performance import Scope
 from .valuation import account_value, holdings_value
@@ -193,9 +193,31 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
     # savings: household savings of the last 12 complete months, scaled by the person's share of the capital
     capital_now = sum(c["value"] for c in capital_items)
     savings_default = 0.0
+    savings_parts: dict[str, float] = {}
     try:
         yb = year_balance(db, "12m", today)
-        household_savings = float(yb["totals"]["savings"]) / 12
+        # Contributions to contracts with a pension forecast are already part of that forecast: they must not
+        # grow a second time as capital. Savings to own accounts (call money, depots: "A → B") always count;
+        # direct contributions (category "Sparen & Anlegen") only as far as they exceed those contributions.
+        routed = sum((e["amount"] for e in yb["detail"]["savings"] if " → " in e["name"]), Decimal(0))
+        direct = sum((e["amount"] for e in yb["detail"]["savings"] if " → " not in e["name"]), Decimal(0))
+        projected_ids = [a.id for a, _, _ in pensions_raw]
+        in_pensions = Decimal(0)
+        if projected_ids:
+            in_pensions = db.scalar(
+                select(func.coalesce(func.sum(func.abs(Transaction.amount)), 0)).where(
+                    Transaction.account_id.in_(projected_ids),
+                    Transaction.kind.in_(("contribution", "deposit")),
+                    Transaction.booking_date >= yb["from"],
+                    Transaction.booking_date <= yb["to"],
+                )
+            )
+        household_savings = float(routed + max(Decimal(0), direct - Decimal(in_pensions))) / 12
+        savings_parts = {
+            "to_accounts": round(float(routed) / 12, 0),
+            "direct": round(float(direct) / 12, 0),
+            "in_pensions": round(float(in_pensions) / 12, 0),
+        }
         household_capital = 0.0
         for a in db.scalars(select(Account).where(Account.closed.is_(False))).all():
             if (a.kind in CAPITAL_KINDS or (a.kind == "altersvorsorge" and not _num((a.details or {}).get("expected_pension")) and (a.details or {}).get("product") != "gesetzlich")) and role_of(a) != "spending":
@@ -260,7 +282,7 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
         "retire_on": retire_on,
         "default_retire_on": default_retire,
         "years_to_retirement": round(years_to, 1),
-        "inputs": {"savings": savings, "savings_default": round(savings_default, 0), "inflation": infl, "years": params.years, "returns": returns},
+        "inputs": {"savings": savings, "savings_default": round(savings_default, 0), "savings_parts": savings_parts, "inflation": infl, "years": params.years, "returns": returns},
         "pensions": pensions,
         "capital": sorted(capital_items, key=lambda c: -c["value"]),
         "capital_now": round(capital_now, 2),

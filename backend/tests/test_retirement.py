@@ -101,3 +101,37 @@ def test_household_taxes_per_owner(client):
     one = next(s for s in single["scenarios"] if s["key"] == "mittel")
     # taxed per person: about twice the single tax (the later pension has a higher taxable share), not the progressive tax on 3000
     assert mid["pensions"] == 3000 and 2 * one["income_tax"] <= mid["income_tax"] < 2.3 * one["income_tax"]
+
+
+def test_savings_exclude_pension_contributions(client):
+    """Contributions to a contract with a pension forecast are already in that forecast – not again as capital."""
+    login(client, "Sönke Jacobs")
+    today = date(2026, 11, 25)
+    with client.app.state.sessionmaker() as db:
+        from finanzen.models import AccountOwner, Category, Transaction
+
+        me = db.query(Person).first()
+
+        def acc(name, kind, details=None, cls="cash"):
+            a = Account(name=name, kind=kind, asset_class=cls, details=details or {})
+            db.add(a)
+            db.flush()
+            db.add(AccountOwner(account_id=a.id, person_id=me.id, share=D(1)))
+            return a
+
+        giro = acc("Giro", "giro")
+        tg = acc("Tagesgeld", "tagesgeld")
+        riester = acc("Riester", "altersvorsorge", {"product": "riester", "expected_pension": "200", "payout_start": "2050-01-01"}, "pension")
+        saving = db.query(Category).filter(Category.name == "Sparen & Anlegen").one()
+        for m in range(1, 11):  # Jan–Oct 2026 inside the last 12 complete months
+            d = date(2026, m, 5)
+            db.add(Transaction(account_id=giro.id, booking_date=date(2026, m, 1), amount=D("3000"), counterparty="Arbeitgeber", purpose="Gehalt"))
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-250.55"), counterparty="Ich", purpose="Sparen"))
+            db.add(Transaction(account_id=tg.id, booking_date=d, amount=D("250.55"), counterparty="Ich", purpose="Sparen"))
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-100"), counterparty="Deka", purpose="Riester Beitrag", category_id=saving.id))
+            db.add(Transaction(account_id=riester.id, booking_date=d, amount=D("100"), kind="contribution"))
+        db.commit()
+        data = projection(db, None, Params(), today=today)
+    parts = data["inputs"]["savings_parts"]
+    assert round(parts["to_accounts"]) == round(250.55 * 10 / 12) and round(parts["in_pensions"]) == round(1000 / 12)
+    assert data["inputs"]["savings_default"] == round(250.55 * 10 / 12)  # the Riester contribution is not counted twice
