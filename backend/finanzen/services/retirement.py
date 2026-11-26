@@ -224,11 +224,14 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
                     Transaction.booking_date <= yb["to"],
                 )
             )
-        household_savings = float(routed + max(Decimal(0), direct - Decimal(in_pensions))) / 12
+        # only what the direct savings really contain can be taken out; withdrawals (negative) stay in
+        direct_paid = sum((e["amount"] for e in yb["detail"]["savings"] if " → " not in e["name"] and e["amount"] > 0), Decimal(0))
+        contained = min(Decimal(in_pensions), direct_paid)
+        household_savings = float(routed + direct - contained) / 12
         savings_parts = {
             "to_accounts": round(float(routed) / 12, 0),
             "direct": round(float(direct) / 12, 0),
-            "in_pensions": round(float(in_pensions) / 12, 0),
+            "in_pensions": round(float(contained) / 12, 0),
         }
         household_capital = 0.0
         for a in db.scalars(select(Account).where(Account.closed.is_(False))).all():

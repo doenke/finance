@@ -165,3 +165,32 @@ def test_pension_indexation(client):
     mid = next(s for s in data["scenarios"] if s["key"] == "mittel")
     assert mid["pensions_end"] < mid["pensions"] and mid["net_end"] < mid["net"]
     assert data["end_of_payout"] == date(2071, 10, 1)
+
+
+def test_negative_direct_savings_are_not_lifted(client):
+    """Withdrawals booked as 'Sparen & Anlegen' lower the savings rate (no clamp at zero)."""
+    login(client, "Sönke Jacobs")
+    today = date(2026, 11, 25)
+    with client.app.state.sessionmaker() as db:
+        from finanzen.models import AccountOwner, Category, Transaction
+
+        me = db.query(Person).first()
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        tg = Account(name="Tagesgeld", kind="tagesgeld", asset_class="cash", details={})
+        db.add_all([giro, tg])
+        db.flush()
+        for a in (giro, tg):
+            db.add(AccountOwner(account_id=a.id, person_id=me.id, share=D(1)))
+        saving = db.query(Category).filter(Category.name == "Sparen & Anlegen").one()
+        for i in range(12):  # Nov 2025 – Oct 2026: the last 12 complete months
+            y, mm = (2025, 11 + i) if i < 2 else (2026, i - 1)
+            d = date(y, mm, 5)
+            db.add(Transaction(account_id=giro.id, booking_date=date(y, mm, 1), amount=D("3000"), counterparty="Arbeitgeber", purpose="Gehalt"))
+            db.add(Transaction(account_id=giro.id, booking_date=d, amount=D("-600.55"), counterparty="Ich", purpose="Sparen"))
+            db.add(Transaction(account_id=tg.id, booking_date=d, amount=D("600.55"), counterparty="Ich", purpose="Sparen"))
+            db.add(Transaction(account_id=giro.id, booking_date=date(y, mm, 10), amount=D("100"), counterparty="Fonds", purpose="Auszahlung", category_id=saving.id))
+        db.commit()
+        data = projection(db, None, Params(), today=today)
+    parts = data["inputs"]["savings_parts"]
+    assert parts["direct"] == -100 and parts["in_pensions"] == 0
+    assert data["inputs"]["savings_default"] == round(600.55 - 100)
