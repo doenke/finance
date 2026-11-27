@@ -162,6 +162,17 @@
     </form>
     {#if addError}<p class="error small">{addError}</p>{/if}
     {#if candidates.length}
+      <div class="chips" aria-label="Wertpapiere zum Vergleich">
+        {#each candidates as id (id)}
+          {@const it = data.items.find((x) => x.instrument_id === id)}
+          <span class="chip">
+            <span class="swatch dash" style:border-color={colorOf(id)}></span>
+            {it?.name ?? 'Wertpapier'}
+            <button aria-label="{it?.name ?? 'Wertpapier'} aus dem Vergleich nehmen" title="Aus dem Vergleich nehmen" onclick={() => saveCandidates(candidates.filter((c) => c !== id))}>×</button>
+          </span>
+        {/each}
+        {#if candidates.length > 1}<button class="link small" onclick={() => saveCandidates([])}>alle entfernen</button>{/if}
+      </div>
       <p class="muted small">Gestrichelt: Wertpapiere zum Vergleich, die ihr (noch) nicht habt. Sie zählen bei Gewichtung und Wert nicht mit.</p>
     {/if}
 
@@ -445,6 +456,47 @@
   .cand input {
     flex: 1;
     min-width: 200px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.85rem;
+  }
+  .chip button {
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 6px;
+  }
+  .chip button:hover {
+    color: var(--neg);
+  }
+  .swatch.dash {
+    display: inline-block;
+    width: 16px;
+    height: 0;
+    border-top: 2px dashed;
+  }
+  .link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: var(--accent-strong);
+    cursor: pointer;
+    font: inherit;
   }
   .badge {
     margin-left: 6px;

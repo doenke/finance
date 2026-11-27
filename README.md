@@ -237,7 +237,8 @@ Positionen das Risiko streuen. Kurse lädt Finanzen dafür mindestens fünf
 Jahre zurück – auch wenn du ein Wertpapier erst seit Kurzem hast. Überlegst du, etwas dazuzukaufen, gib oben die
 ISIN oder den Namen ein („Zum Vergleich“): Finanzen lädt die Kurse und zeigt
 das Wertpapier gestrichelt neben deinen Positionen – mit Rendite, Schwankung
-und Korrelation, aber ohne dass es bei Wert und Gewichtung mitzählt.
+und Korrelation, aber ohne dass es bei Wert und Gewichtung mitzählt. Mit
+dem × am Namen unter dem Eingabefeld nimmst du es wieder heraus.
 
 **Altersvorsorge:** Unter **Vorsorge** rechnet Finanzen hoch, was ihr im Alter
 monatlich zur Verfügung habt – standardmäßig für den ganzen Haushalt, auf
