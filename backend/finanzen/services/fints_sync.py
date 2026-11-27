@@ -429,17 +429,17 @@ def run_job(job: Job, pin: str | None, settings: Settings, make_session: session
             job.message = "Abgebrochen."
         except TanRequired:
             db.rollback()
-            job.status = "error"
             job.error = "Die Bank verlangt eine TAN – bitte einmal von Hand aktualisieren."
             _record_error(make_session, job.login_id, job.error, needs_tan=True)
+            job.status = "error"  # last: whoever polls sees the message and the stored error together
         except Exception as exc:  # noqa: BLE001
             db.rollback()
-            job.status = "error"
             messages = messages + list(getattr(getattr(client, "connection", None), "codes", None) or [])
             job.error = _friendly_error(exc, messages)
             codes = [c for c, _ in (exc.messages if isinstance(exc, BankRejected) else messages) if c[:1] in "39"]
             log.warning("fints job failed: %s %s", exc.__class__.__name__, " ".join(codes))
             _record_error(make_session, job.login_id, job.error)
+            job.status = "error"
         finally:
             pin = None  # noqa: F841 - drop the PIN reference as early as possible
 
