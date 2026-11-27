@@ -225,8 +225,21 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
                 )
             )
         # only what the direct savings really contain can be taken out; withdrawals (negative) stay in
+        # Direct savings that go into a contract with a forecast are recognized by name ("Sparen & Anlegen: HDI …"
+        # ↔ "HDI Basisrente"); otherwise by the contributions booked on the contracts.
+        from .dedupe import words
+
+        generic = {"rente", "renten", "rentenversicherung", "basisrente", "privatrente", "versicherung", "lebensversicherung", "gesetzliche", "private", "vorsorge", "altersvorsorge", "sparen", "anlegen", "bank", "deutsche"}
+        contract_words = [words(a.name, a.institution or "") - generic for a, _, _ in pensions_raw if (a.details or {}).get("product") != "gesetzlich"]
+        matched = Decimal(0)
+        for e in yb["detail"]["savings"]:
+            if " → " in e["name"] or e["amount"] <= 0:
+                continue
+            entry = words(e["name"].split(":", 1)[-1]) - generic
+            if any(entry & cw for cw in contract_words if cw):
+                matched += e["amount"]
         direct_paid = sum((e["amount"] for e in yb["detail"]["savings"] if " → " not in e["name"] and e["amount"] > 0), Decimal(0))
-        contained = min(Decimal(in_pensions), direct_paid)
+        contained = min(max(matched, Decimal(in_pensions)), direct_paid)
         household_savings = float(routed + direct - contained) / 12
         savings_parts = {
             "to_accounts": round(float(routed) / 12, 0),

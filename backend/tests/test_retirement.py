@@ -194,3 +194,30 @@ def test_negative_direct_savings_are_not_lifted(client):
     parts = data["inputs"]["savings_parts"]
     assert parts["direct"] == -100 and parts["in_pensions"] == 0
     assert data["inputs"]["savings_default"] == round(600.55 - 100)
+
+
+def test_pension_premiums_recognized_by_name(client):
+    """No contributions booked on the contract: the savings booking is matched by the provider's name."""
+    login(client, "Sönke Jacobs")
+    today = date(2026, 11, 25)
+    with client.app.state.sessionmaker() as db:
+        from finanzen.models import AccountOwner, Category, Transaction
+
+        me = db.query(Person).first()
+        giro = Account(name="Giro", kind="giro", asset_class="cash", details={})
+        hdi = Account(name="HDI Privatrente", kind="altersvorsorge", asset_class="pension", institution="HDI", details={"product": "rente", "expected_pension": "170", "payout_start": "2046-10-01"})
+        db.add_all([giro, hdi])
+        db.flush()
+        for a in (giro, hdi):
+            db.add(AccountOwner(account_id=a.id, person_id=me.id, share=D(1)))
+        saving = db.query(Category).filter(Category.name == "Sparen & Anlegen").one()
+        for i in range(12):
+            y, mm = (2025, 11 + i) if i < 2 else (2026, i - 1)
+            db.add(Transaction(account_id=giro.id, booking_date=date(y, mm, 1), amount=D("3000"), counterparty="Arbeitgeber", purpose="Gehalt"))
+            db.add(Transaction(account_id=giro.id, booking_date=date(y, mm, 2), amount=D("-227"), counterparty="HDI Lebensversicherung AG", purpose="Beitrag", category_id=saving.id))
+            db.add(Transaction(account_id=giro.id, booking_date=date(y, mm, 3), amount=D("-162"), counterparty="DekaBank", purpose="Riester", category_id=saving.id))
+        db.commit()
+        data = projection(db, None, Params(), today=today)
+    parts = data["inputs"]["savings_parts"]
+    assert parts["in_pensions"] == 227  # HDI is already in its forecast
+    assert data["inputs"]["savings_default"] == 162  # Deka (no forecast, counted as capital) stays in the savings
