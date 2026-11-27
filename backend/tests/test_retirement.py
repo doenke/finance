@@ -221,3 +221,15 @@ def test_pension_premiums_recognized_by_name(client):
     parts = data["inputs"]["savings_parts"]
     assert parts["in_pensions"] == 227  # HDI is already in its forecast
     assert data["inputs"]["savings_default"] == 162  # Deka (no forecast, counted as capital) stays in the savings
+
+    # with a forecast the Riester contract counts as a pension too: "DekaBank …" is recognized as "Deka"
+    with client.app.state.sessionmaker() as db:
+        from finanzen.models import AccountOwner
+
+        deka = Account(name="Deka-BonusRente (Riester)", kind="altersvorsorge", asset_class="pension", institution="Deka", details={"product": "riester", "expected_pension": "250", "payout_start": "2046-10-01"})
+        db.add(deka)
+        db.flush()
+        db.add(AccountOwner(account_id=deka.id, person_id=db.query(Person).first().id, share=D(1)))
+        db.commit()
+        data = projection(db, None, Params(), today=today)
+    assert data["inputs"]["savings_parts"]["in_pensions"] == 227 + 162 and data["inputs"]["savings_default"] == 0

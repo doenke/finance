@@ -236,7 +236,8 @@ def projection(db: Session, person_id: int | None, params: Params, today: date |
             if " → " in e["name"] or e["amount"] <= 0:
                 continue
             entry = words(e["name"].split(":", 1)[-1]) - generic
-            if any(entry & cw for cw in contract_words if cw):
+            # "DekaBank" ↔ "Deka", "HDI" ↔ "HDI": same word or one starts with the other (at least 3 letters)
+            if any(any(a == b or (min(len(a), len(b)) >= 3 and (a.startswith(b) or b.startswith(a))) for a in entry for b in cw) for cw in contract_words if cw):
                 matched += e["amount"]
         direct_paid = sum((e["amount"] for e in yb["detail"]["savings"] if " → " not in e["name"] and e["amount"] > 0), Decimal(0))
         contained = min(max(matched, Decimal(in_pensions)), direct_paid)
