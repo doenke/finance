@@ -213,3 +213,29 @@ def test_year_balance(client):
     assert food["amount"] == D("1100") and food["previous"] == D("1100") and len(food["bookings"]) == 11
     assert 2025 in ytd["years"]
     assert client.get("/api/cashflow/year", params={"period": "1800"}).status_code == 422
+
+
+def test_securities_purchase_counts_as_saving_into_the_depot(client):
+    """A debit matching a purchase in a depot is shown as 'Giro → Depot', not as a category."""
+    login(client)
+    from finanzen.models import Instrument, Trade
+
+    with client.app.state.sessionmaker() as db:
+        giro = Account(name="DKB Girokonto", kind="giro", asset_class="cash", details={})
+        depot = Account(name="DKB Depot", kind="depot", asset_class="securities", details={})
+        db.add_all([giro, depot])
+        db.flush()
+        etf = Instrument(kind="etf", name="World", currency="EUR")
+        db.add(etf)
+        db.flush()
+        saving = db.query(Category).filter(Category.name == "Sparen & Anlegen").one()
+        db.add(Transaction(account_id=giro.id, booking_date=date(2026, 10, 1), amount=D("3000"), counterparty="Arbeitgeber", purpose="Gehalt"))
+        # savings plan: debit two days after the execution, categorized as "Sparen & Anlegen" by a rule
+        db.add(Trade(account_id=depot.id, instrument_id=etf.id, date=date(2026, 10, 20), type="buy", quantity=D("1.6"), price=D("185"), amount=D("300.00"), fees=D("1.50")))
+        db.add(Transaction(account_id=giro.id, booking_date=date(2026, 10, 22), amount=D("-301.50"), counterparty="DKB", purpose="Wertpapierabrechnung", category_id=saving.id))
+        db.commit()
+        data = cashflow(db, months=2, month="2026-10", end=date(2026, 10, 31))
+    routes = {s["name"]: s["amount"] for s in data["detail"]["savings"]}
+    assert routes == {"DKB Girokonto → DKB Depot": D("301.50")}
+    oct_ = next(m for m in data["months"] if m["month"] == "2026-10")
+    assert oct_["savings"] == D("301.50")

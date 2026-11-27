@@ -9,7 +9,7 @@ bookings of the spending accounts.
 
 import re
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -95,11 +95,36 @@ def cashflow(
     for t in txs:
         by_amount[abs(t.amount)].append(t)
 
+    # Trades in depots/crypto: a debit that matches a purchase (amount incl. fees) or a credit that matches the
+    # proceeds of a sale belongs to that depot – shown as "Giro → Depot" instead of a category.
+    from ..models import Trade
+
+    trade_amounts: dict[Decimal, list[tuple[date, int]]] = defaultdict(list)
+    holdings_ids = [a.id for a in accounts if kinds.KINDS.get(a.kind) and kinds.KINDS[a.kind].mode == kinds.HOLDINGS]
+    if holdings_ids:
+        for tr in db.scalars(
+            select(Trade).where(Trade.account_id.in_(holdings_ids), Trade.date >= first - timedelta(days=7), Trade.date <= end + timedelta(days=7), Trade.type.in_(("buy", "sell")))
+        ).all():
+            total = (tr.amount + tr.fees + tr.taxes) if tr.type == "buy" else (tr.amount - tr.fees - tr.taxes)
+            trade_amounts[(-total if tr.type == "buy" else total).quantize(Decimal("0.01"))].append((tr.date, tr.account_id))
+    trade_used: set[tuple[date, int, Decimal]] = set()
+
+    def trade_account(t: rec.Tx) -> int | None:
+        for d, acc in sorted(trade_amounts.get(t.amount.quantize(Decimal("0.01")), []), key=lambda x: abs((x[0] - t.date).days)):
+            key = (d, acc, t.amount)
+            if abs((d - t.date).days) <= 5 and key not in trade_used:
+                trade_used.add(key)
+                return acc
+        return None
+
     def other_account(t: rec.Tx) -> int | None:
         for i in t.ibans:
             acc = iban_to_account.get(i)
             if acc is not None and acc != t.account_id:
                 return acc
+        depot = trade_account(t)
+        if depot is not None and depot != t.account_id:
+            return depot
         if not _mirror_ok(t, names_own):
             return None
         mirror = [u for u in by_amount[abs(t.amount)] if u.account_id != t.account_id and u.amount == -t.amount and abs((u.date - t.date).days) <= 4]

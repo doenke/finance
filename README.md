@@ -357,7 +357,9 @@ eine Regel für alle ähnlichen. Die Liste ist zugeklappt – gibt es Buchungen
 ohne Kategorie, bringt dich ein Knopf direkt dorthin. Dafür hat jedes Konto eine Rolle: **Alltag** (Girokonten,
 Kreditkarte) als **Haushaltskonto** oder (Tagesgeld, Depots,
 Verrechnungskonten) als **Sparkonto**. Gespart ist, was von Haushalts- auf
-Sparkonten fließt, abzüglich Entnahmen, plus direkte Sparbeiträge wie Riester
+Sparkonten fließt (auch Wertpapierkäufe: eine Abbuchung, die zu einem Kauf im
+Depot passt, erscheint als „Girokonto → Depot“), abzüglich Entnahmen, plus
+direkte Sparbeiträge wie Riester
 oder Sparpläne. Geld zwischen Konten derselben Art zählt nicht. Welche Konten
 Haushaltskonten sind, siehst du in der Kontenliste am Etikett
 „Haushaltskonto“; ändern kannst du es unter „Bearbeiten“ → Rolle in der Bilanz.
