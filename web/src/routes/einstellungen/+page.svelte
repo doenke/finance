@@ -189,6 +189,30 @@
     location.href = '/';
   }
 
+  // one area at a time; the hash keeps the choice (and makes areas linkable, e.g. /einstellungen#daten)
+  const TABS = [
+    { key: 'profil', label: 'Profil' },
+    { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
+    { key: 'haushalt', label: 'Haushalt & Banken' },
+    { key: 'daten', label: 'Kurse & Daten' },
+    { key: 'ki', label: 'KI-Assistenten' },
+    { key: 'verwaltung', label: 'Verwaltung' }
+  ];
+  let tab = $state('profil');
+  $effect(() => {
+    void tab; // keep the chosen area visible in the (scrollable) bar on phones
+    queueMicrotask(() => document.querySelector('.tabs a.active')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
+  });
+  $effect(() => {
+    const read = () => {
+      const h = location.hash.slice(1);
+      if (TABS.some((t) => t.key === h)) tab = h;
+    };
+    read();
+    window.addEventListener('hashchange', read);
+    return () => window.removeEventListener('hashchange', read);
+  });
+
   const themes: { value: Theme; label: string }[] = [
     { value: 'system', label: 'Wie das System' },
     { value: 'light', label: 'Hell' },
@@ -200,8 +224,13 @@
 
 <div class="stack">
   <h1>Einstellungen</h1>
+  <nav class="tabs" aria-label="Bereiche der Einstellungen">
+    {#each TABS as t (t.key)}
+      <a href="#{t.key}" class:active={tab === t.key} aria-current={tab === t.key ? 'page' : undefined} onclick={() => (tab = t.key)}>{t.label}</a>
+    {/each}
+  </nav>
 
-  <h2 class="section">Für dich</h2>
+  {#if tab === 'profil'}
   {#if session.me}
     <section class="card row">
       <Avatar name={session.me.name} url={session.me.avatar_url} size={48} />
@@ -212,7 +241,19 @@
       <button class="btn" onclick={doLogout}><Icon name="logout" size={18} /> Abmelden</button>
     </section>
   {/if}
-  <NotificationSettings />
+  <section class="card stack">
+    <h2>Darstellung</h2>
+    <div class="segmented" role="radiogroup" aria-label="Farbschema">
+      {#each themes as t (t.value)}
+        <button role="radio" aria-checked={theme === t.value} class:active={theme === t.value} onclick={() => choose(t.value)}>{t.label}</button>
+      {/each}
+    </div>
+    <label class="check">
+      <input type="checkbox" checked={privacy.on} onchange={(e) => setPrivate(e.currentTarget.checked)} />
+      Privatmodus: Beträge verbergen
+    </label>
+    <p class="muted small">Praktisch, wenn du die App jemandem zeigst. Prozentwerte bleiben sichtbar. Gilt nur auf diesem Gerät; umschalten geht auch mit dem Auge auf der Übersicht.</p>
+  </section>
   {#if devices.length}
     <section class="card stack">
       <h2>Angemeldete Geräte</h2>
@@ -238,21 +279,9 @@
       {/if}
     </section>
   {/if}
-  <section class="card stack">
-    <h2>Darstellung</h2>
-    <div class="segmented" role="radiogroup" aria-label="Farbschema">
-      {#each themes as t (t.value)}
-        <button role="radio" aria-checked={theme === t.value} class:active={theme === t.value} onclick={() => choose(t.value)}>{t.label}</button>
-      {/each}
-    </div>
-    <label class="check">
-      <input type="checkbox" checked={privacy.on} onchange={(e) => setPrivate(e.currentTarget.checked)} />
-      Privatmodus: Beträge verbergen
-    </label>
-    <p class="muted small">Praktisch, wenn du die App jemandem zeigst. Prozentwerte bleiben sichtbar. Gilt nur auf diesem Gerät; umschalten geht auch mit dem Auge auf der Übersicht.</p>
-  </section>
-
-  <h2 class="section">Haushalt &amp; Daten</h2>
+  {:else if tab === 'benachrichtigungen'}
+  <NotificationSettings />
+  {:else if tab === 'haushalt'}
   {#if session.me}
     <nav class="card links" aria-label="Haushalt">
     <a class="row navlink" href="/haushalt">
@@ -281,6 +310,7 @@
     </a>
     </nav>
   {/if}
+  {:else if tab === 'daten'}
   <section class="card stack">
     <h2>Kurse</h2>
     <p class="muted small">
@@ -306,6 +336,38 @@
     </div>
     {#if switchInfo}<p class="small">{switchInfo}</p>{/if}
   </section>
+  <section class="card stack">
+    <h2>Daten exportieren</h2>
+    <p class="muted small">
+      Alles als JSON – ohne Anmeldesitzungen, Assistenten-Zugänge und Bank-Zugangsdaten (PINs, Anmeldenamen anderer Personen) – oder Buchungen und Depot-Transaktionen als CSV
+      für Excel. Eine vollständige Sicherung zum Wiederherstellen gibt es für Admins unter „Sicherungen“.
+    </p>
+    <div class="row">
+      <a class="btn" href="/api/export/json" download>Alles (JSON)</a>
+      <a class="btn" href="/api/export/transactions.csv" download>Buchungen (CSV)</a>
+      <a class="btn" href="/api/export/trades.csv" download>Transaktionen (CSV)</a>
+    </div>
+  </section>
+  {#if session.me?.is_admin && backups}
+    <section class="card stack">
+      <h2>Sicherungen</h2>
+      <p class="muted small">
+        Jeden Tag wird automatisch eine Sicherung ins Datenverzeichnis geschrieben (Zeitplan <code>{backups.schedule}</code>), {backups.keep_days} Tage aufbewahrt.
+        {#if backups.last?.ok === false}<span class="error">Letzte Sicherung fehlgeschlagen: {backups.last.error}</span>{/if}
+      </p>
+      {#if backups.files.length}
+        <ul class="files small">
+          {#each backups.files.slice(0, 7) as f (f.name)}
+            <li><a href="/api/admin/backups/{f.name}" download>{f.name}</a> <span class="muted">{Math.round(f.size / 1024)} KB</span></li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="muted small">Noch keine Sicherung vorhanden.</p>
+      {/if}
+      <div><button class="btn" onclick={backupNow} disabled={backingUp}>{backingUp ? 'Sichert …' : 'Jetzt sichern'}</button></div>
+    </section>
+  {/if}
+  {:else if tab === 'ki'}
   {#if mcp}
     <section class="card stack">
       <h2>KI-Assistenten (MCP)</h2>
@@ -334,20 +396,8 @@
       {/if}
     </section>
   {/if}
-  <section class="card stack">
-    <h2>Daten exportieren</h2>
-    <p class="muted small">
-      Alles als JSON – ohne Anmeldesitzungen, Assistenten-Zugänge und Bank-Zugangsdaten (PINs, Anmeldenamen anderer Personen) – oder Buchungen und Depot-Transaktionen als CSV
-      für Excel. Eine vollständige Sicherung zum Wiederherstellen gibt es für Admins unter „Sicherungen“.
-    </p>
-    <div class="row">
-      <a class="btn" href="/api/export/json" download>Alles (JSON)</a>
-      <a class="btn" href="/api/export/transactions.csv" download>Buchungen (CSV)</a>
-      <a class="btn" href="/api/export/trades.csv" download>Transaktionen (CSV)</a>
-    </div>
-  </section>
-
-  <h2 class="section">Verwaltung</h2>
+    {#if !mcp}<p class="muted">Lädt …</p>{/if}
+  {:else if tab === 'verwaltung'}
   {#if session.me}
     <nav class="card links" aria-label="Verwaltung">
     <a class="row navlink" href="/protokoll">
@@ -387,32 +437,38 @@
       </ul>
     </section>
   {/if}
-  {#if session.me?.is_admin && backups}
-    <section class="card stack">
-      <h2>Sicherungen</h2>
-      <p class="muted small">
-        Jeden Tag wird automatisch eine Sicherung ins Datenverzeichnis geschrieben (Zeitplan <code>{backups.schedule}</code>), {backups.keep_days} Tage aufbewahrt.
-        {#if backups.last?.ok === false}<span class="error">Letzte Sicherung fehlgeschlagen: {backups.last.error}</span>{/if}
-      </p>
-      {#if backups.files.length}
-        <ul class="files small">
-          {#each backups.files.slice(0, 7) as f (f.name)}
-            <li><a href="/api/admin/backups/{f.name}" download>{f.name}</a> <span class="muted">{Math.round(f.size / 1024)} KB</span></li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="muted small">Noch keine Sicherung vorhanden.</p>
-      {/if}
-      <div><button class="btn" onclick={backupNow} disabled={backingUp}>{backingUp ? 'Sichert …' : 'Jetzt sichern'}</button></div>
-    </section>
   {/if}
-  <section class="card stack">
-    <h2>Über</h2>
-    <p class="muted">Finanzen · Version <span class="num">{session.config?.version}</span></p>
-  </section>
+
+  <p class="muted small about">Finanzen · Version <span class="num">{session.config?.version}</span></p>
 </div>
 
 <style>
+  .tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+  .tabs a {
+    padding: 8px 12px;
+    color: var(--muted);
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-weight: 500;
+  }
+  .tabs a:hover {
+    color: var(--text);
+  }
+  .tabs a.active {
+    color: var(--accent-strong);
+    border-bottom-color: var(--accent);
+  }
+  .about {
+    margin-top: 12px;
+  }
   .grow {
     flex: 1;
     min-width: 0;
@@ -443,13 +499,6 @@
   .navlink {
     color: inherit;
     text-decoration: none;
-  }
-  .section {
-    margin: 16px 0 0;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
   }
   .links {
     display: grid;

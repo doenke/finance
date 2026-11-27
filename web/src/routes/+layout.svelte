@@ -19,7 +19,8 @@
     { href: '/bilanz', label: 'Budget', icon: 'bars', also: ['/jahresbilanz', '/vertraege', '/kategorien'] },
     { href: '/vorsorge', label: 'Vorsorge', icon: 'hourglass' },
     // Household, banks, audit log and the rest are reached from the settings.
-    { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings', also: ['/haushalt', '/banken', '/protokoll'] }
+    // on the desktop the settings sit at the bottom with the profile; the phone's bottom bar shows them as an entry
+    { href: '/einstellungen', label: 'Einstellungen', short: 'Optionen', icon: 'settings', also: ['/haushalt', '/banken', '/protokoll', '/kategorien'], mobileOnly: true }
   ];
 
 
@@ -54,7 +55,7 @@
         <span>Finanzen</span>
       </a>
       {#each nav as item (item.href)}
-        <a href={item.href} class:active={isActive(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
+        <a href={item.href} class:mobile-only={item.mobileOnly} class:active={isActive(item.href)} aria-current={isActive(item.href) ? 'page' : undefined}>
           <Icon name={item.icon} />
           <span class="full">{item.label}</span>
           {#if item.short}<span class="short">{item.short}</span>{/if}
@@ -62,9 +63,10 @@
       {/each}
       <div class="spacer"></div>
       <div class="privacy"><PrivacyToggle withLabel /></div>
-      <a class="user" href="/einstellungen">
+      <a class="user" href="/einstellungen" class:active={isActive('/einstellungen')} title="Profil und Einstellungen">
         <Avatar name={session.me.name} url={session.me.avatar_url} />
-        <span>{session.me.name}</span>
+        <span class="grow">{session.me.name}</span>
+        <Icon name="settings" size={18} />
       </a>
     </nav>
     <main>
@@ -74,6 +76,15 @@
 {/if}
 
 <style>
+  .mobile-only {
+    display: none !important;
+  }
+  .user .grow {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .center {
     min-height: 100dvh;
     display: grid;
@@ -146,6 +157,9 @@
     }
   }
   @media (max-width: 760px) {
+    .mobile-only {
+      display: flex !important;
+    }
     .shell {
       grid-template-columns: minmax(0, 1fr);
     }
